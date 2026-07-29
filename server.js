@@ -1,0 +1,2482 @@
+const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
+
+const bcrypt = require("bcryptjs");
+const dotenv = require("dotenv");
+const express = require("express");
+const session = require("express-session");
+const multer = require("multer");
+const nodemailer = require("nodemailer");
+const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
+const xlsx = require("xlsx");
+
+dotenv.config();
+
+const { db, DB_CLIENT, ensureSchema } = require("./db");
+
+const app = express();
+const PORT = Number(process.env.PORT || 3000);
+const APP_BASE_URL = process.env.APP_BASE_URL || `http://localhost:${PORT}`;
+
+const VERIFY_TOKEN_TTL_MS = Number(process.env.VERIFY_TOKEN_TTL_MS || 1000 * 60 * 30);
+const RESEND_MIN_INTERVAL_MS = Number(process.env.RESEND_MIN_INTERVAL_MS || 1000 * 60);
+const RESEND_WINDOW_MS = Number(process.env.RESEND_WINDOW_MS || 1000 * 60 * 15);
+const RESEND_MAX_PER_WINDOW = Number(process.env.RESEND_MAX_PER_WINDOW || 3);
+const MAX_LOGIN_FAILURES = Number(process.env.MAX_LOGIN_FAILURES || 5);
+const LOCKOUT_DURATION_MS = Number(process.env.LOCKOUT_DURATION_MS || 1000 * 60 * 15);
+const ADMIN_ACCESS_KEY = String(process.env.ADMIN_ACCESS_KEY || "").trim();
+const ADMIN_EMAIL = normalizeEmail(process.env.ADMIN_EMAIL || "admin@adm.local");
+const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || "Admin@12345!");
+const ADMIN_FIRSTNAME = String(process.env.ADMIN_FIRSTNAME || "System").trim();
+const ADMIN_LASTNAME = String(process.env.ADMIN_LASTNAME || "Administrator").trim();
+const ADM_APPROVAL_PIN = String(process.env.ADM_APPROVAL_PIN || "09912080396").trim();
+const DEFAULT_SMTP_FROM = String(process.env.SMTP_FROM || "adm.sdocebu@gmail.com").trim();
+const DISTRICT_SCHOOL_XLSX_PATH = String(
+  process.env.DISTRICT_SCHOOL_XLSX_PATH ||
+    path.join(__dirname, "assets", "list of districts with schools.xlsx")
+).trim();
+const APPROVAL_REQUEST_UPLOAD_DIR = path.join(__dirname, "uploads", "approval-requests");
+const ADM_APPROVAL_TEMPLATE_PATH = path.join(__dirname, "assets", "documents", "ADM-Approval.pdf");
+const ADM_APPROVAL_OUTPUT_DIR = path.join(__dirname, "uploads", "adm-approvals");
+
+const districtSchoolReferenceCache = {
+  sourceFile: "",
+  mtimeMs: 0,
+  districts: [],
+  schoolsByDistrict: {}
+};
+
+fs.mkdirSync(APPROVAL_REQUEST_UPLOAD_DIR, { recursive: true });
+fs.mkdirSync(ADM_APPROVAL_OUTPUT_DIR, { recursive: true });
+
+const approvalRequestUpload = multer({
+  storage: multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, APPROVAL_REQUEST_UPLOAD_DIR);
+    },
+    filename: function (req, file, cb) {
+      const ext = path.extname(String((file && file.originalname) || "")).toLowerCase();
+      cb(null, `${Date.now()}-${crypto.randomUUID()}${ext}`);
+    }
+  }),
+  limits: {
+    fileSize: 10 * 1024 * 1024
+  },
+  fileFilter: function (req, file, cb) {
+    const allowedExtensions = [".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx"];
+    const ext = path.extname(String((file && file.originalname) || "")).toLowerCase();
+    if (!allowedExtensions.includes(ext)) {
+      cb(new Error("Invalid file type. Upload PDF, PNG, JPG, DOC, or DOCX."));
+      return;
+    }
+    cb(null, true);
+  }
+});
+
+const admRequestStreamClients = new Set();
+const teacherAdmRequestStreamClients = new Set();
+
+function broadcastAdmRequestUpdate(payload) {
+  const message = `event: adm-request-created\ndata: ${JSON.stringify(payload || {})}\n\n`;
+  for (const client of admRequestStreamClients) {
+    try {
+      client.write(message);
+    } catch (error) {
+      admRequestStreamClients.delete(client);
+    }
+  }
+}
+
+function broadcastTeacherAdmRequestStatusUpdate(requestorUserId, payload) {
+  const targetUserId = String(requestorUserId || "").trim();
+  if (!targetUserId) {
+    return;
+  }
+
+  const message = `event: adm-request-updated\ndata: ${JSON.stringify(payload || {})}\n\n`;
+  for (const client of teacherAdmRequestStreamClients) {
+    if (!client || client.userId !== targetUserId) {
+      continue;
+    }
+
+    try {
+      client.response.write(message);
+    } catch (error) {
+      teacherAdmRequestStreamClients.delete(client);
+    }
+  }
+}
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
+function createVerificationToken() {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+function hashToken(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function isStrongPassword(password) {
+  const value = String(password || "");
+  if (value.length < 8) return false;
+  if (!/[A-Z]/.test(value)) return false;
+  if (!/[a-z]/.test(value)) return false;
+  if (!/[0-9]/.test(value)) return false;
+  if (!/[^A-Za-z0-9]/.test(value)) return false;
+  return true;
+}
+
+function formatDatabaseError(error, fallbackMessage) {
+  const raw = String((error && error.message) || "").trim();
+  if (!raw) return fallbackMessage;
+
+  if (raw.includes("SQLITE_CONSTRAINT")) {
+    if (raw.includes("UNIQUE constraint failed: users.email")) {
+      return "Email is already registered.";
+    }
+
+    const notNullMatch = raw.match(/NOT NULL constraint failed: ([\w.]+)/i);
+    if (notNullMatch) {
+      const col = String(notNullMatch[1] || "").split(".").pop();
+      return `Missing value for ${col}.`;
+    }
+
+    return "Database constraint violation.";
+  }
+
+  if (raw.includes("SQLITE_ERROR") && raw.toLowerCase().includes("no such column")) {
+    return "Database schema is out of date. Please run migration.";
+  }
+
+  return fallbackMessage;
+}
+
+function deleteFileIfExists(filePath) {
+  try {
+    if (filePath && fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch (error) {
+    // Best-effort cleanup only.
+  }
+}
+
+function resolveApprovalUploadPath(documentPath) {
+  const relativePath = String(documentPath || "").trim().replace(/^[/\\]+/, "");
+  if (!relativePath) return "";
+  const normalized = path.normalize(relativePath);
+  const absolute = path.resolve(__dirname, normalized);
+  const uploadsRoot = path.resolve(APPROVAL_REQUEST_UPLOAD_DIR);
+  if (!absolute.startsWith(uploadsRoot)) {
+    return "";
+  }
+  return absolute;
+}
+
+function sanitizeUser(user) {
+  return {
+    id: user.id,
+    email: user.email,
+    role: String(user.role || "teacher").trim().toLowerCase(),
+    firstname: user.firstname,
+    lastname: user.lastname,
+    middlename: user.middlename,
+    district: user.district,
+    school: user.school,
+    verified: Boolean(user.verified),
+    approved: Boolean(user.approved),
+    theme_preference: String(user.theme_preference || "light").trim().toLowerCase()
+  };
+}
+
+function normalizeReferenceCell(value) {
+  return String(value == null ? "" : value).replace(/\s+/g, " ").trim();
+}
+
+function findHeaderIndex(rows) {
+  for (let i = 0; i < rows.length; i += 1) {
+    const row = Array.isArray(rows[i]) ? rows[i].map((cell) => normalizeReferenceCell(cell).toLowerCase()) : [];
+    const districtIdx = row.findIndex((cell) => cell === "district" || cell.includes("district"));
+    const schoolNameIdx = row.findIndex(
+      (cell) => cell === "name of school" || (cell.includes("school") && !cell.includes("id"))
+    );
+    const schoolIdIdx = row.findIndex((cell) => cell === "school id" || (cell.includes("school") && cell.includes("id")));
+    if (districtIdx >= 0 && schoolNameIdx >= 0) {
+      return { rowIndex: i, districtIdx, schoolNameIdx, schoolIdIdx };
+    }
+  }
+
+  return null;
+}
+
+function parseDistrictSchoolRows(rows) {
+  const header = findHeaderIndex(rows);
+  const districtToSchools = new Map();
+
+  let startIndex = 0;
+  let districtIdx = 0;
+  let schoolNameIdx = 1;
+  let schoolIdIdx = -1;
+
+  if (header) {
+    startIndex = header.rowIndex + 1;
+    districtIdx = header.districtIdx;
+    schoolNameIdx = header.schoolNameIdx;
+    schoolIdIdx = header.schoolIdIdx;
+  }
+
+  for (let i = startIndex; i < rows.length; i += 1) {
+    const row = Array.isArray(rows[i]) ? rows[i] : [];
+    const district = normalizeReferenceCell(row[districtIdx]);
+    const schoolName = normalizeReferenceCell(row[schoolNameIdx]);
+    const schoolId = schoolIdIdx >= 0 ? normalizeReferenceCell(row[schoolIdIdx]) : "";
+
+    if (!district || !schoolName) {
+      continue;
+    }
+
+    if (!districtToSchools.has(district)) {
+      districtToSchools.set(district, new Map());
+    }
+
+    const schoolMap = districtToSchools.get(district);
+    if (!schoolMap.has(schoolName)) {
+      schoolMap.set(schoolName, {
+        id: schoolId,
+        name: schoolName
+      });
+    }
+  }
+
+  const districts = Array.from(districtToSchools.keys()).sort((a, b) => a.localeCompare(b));
+  const schoolsByDistrict = {};
+
+  districts.forEach((district) => {
+    schoolsByDistrict[district] = Array.from(districtToSchools.get(district).values()).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+  });
+
+  return { districts, schoolsByDistrict };
+}
+
+function loadDistrictSchoolReference() {
+  if (!DISTRICT_SCHOOL_XLSX_PATH) {
+    throw new Error("DISTRICT_SCHOOL_XLSX_PATH is not configured.");
+  }
+
+  const stat = fs.statSync(DISTRICT_SCHOOL_XLSX_PATH);
+  if (
+    districtSchoolReferenceCache.sourceFile === DISTRICT_SCHOOL_XLSX_PATH &&
+    districtSchoolReferenceCache.mtimeMs === stat.mtimeMs
+  ) {
+    return {
+      sourceFile: districtSchoolReferenceCache.sourceFile,
+      districts: districtSchoolReferenceCache.districts,
+      schoolsByDistrict: districtSchoolReferenceCache.schoolsByDistrict
+    };
+  }
+
+  const workbook = xlsx.readFile(DISTRICT_SCHOOL_XLSX_PATH);
+  const firstSheetName = workbook.SheetNames[0];
+
+  if (!firstSheetName) {
+    throw new Error("No worksheet found in district-school Excel file.");
+  }
+
+  const worksheet = workbook.Sheets[firstSheetName];
+  const rows = xlsx.utils.sheet_to_json(worksheet, {
+    header: 1,
+    raw: false,
+    defval: ""
+  });
+
+  const parsed = parseDistrictSchoolRows(rows);
+
+  districtSchoolReferenceCache.sourceFile = DISTRICT_SCHOOL_XLSX_PATH;
+  districtSchoolReferenceCache.mtimeMs = stat.mtimeMs;
+  districtSchoolReferenceCache.districts = parsed.districts;
+  districtSchoolReferenceCache.schoolsByDistrict = parsed.schoolsByDistrict;
+
+  return {
+    sourceFile: districtSchoolReferenceCache.sourceFile,
+    districts: districtSchoolReferenceCache.districts,
+    schoolsByDistrict: districtSchoolReferenceCache.schoolsByDistrict
+  };
+}
+
+async function ensureAdminAccount() {
+  const nowIso = new Date().toISOString();
+  const existingAdmin = await db("users")
+    .whereRaw("LOWER(email) = ?", [ADMIN_EMAIL])
+    .first();
+
+  const adminPayload = {
+    email: ADMIN_EMAIL,
+    password_hash: await bcrypt.hash(ADMIN_PASSWORD, 12),
+    firstname: ADMIN_FIRSTNAME || "System",
+    lastname: ADMIN_LASTNAME || "Administrator",
+    middlename: "",
+    district: "System",
+    school: "System",
+    role: "admin",
+    verified: true,
+    approved: true,
+    verification_token_hash: null,
+    verification_token_expires_at: null,
+    verification_email_sent_at: null,
+    resend_window_started_at: null,
+    resend_count: 0,
+    failed_login_count: 0,
+    lockout_until: null,
+    updated_at: nowIso
+  };
+
+  if (!existingAdmin) {
+    await db("users").insert({
+      id: crypto.randomUUID(),
+      created_at: nowIso,
+      ...adminPayload
+    });
+    console.log(`Admin account created: ${ADMIN_EMAIL}`);
+    return;
+  }
+
+  await db("users")
+    .where({ id: existingAdmin.id })
+    .update({
+      role: "admin",
+      approved: true,
+      verified: true,
+      updated_at: nowIso
+    });
+}
+
+function hasSmtpConfig() {
+  const provider = String(process.env.SMTP_PROVIDER || "gmail").toLowerCase();
+
+  if (provider === "gmail") {
+    return Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
+  }
+
+  return (
+    process.env.SMTP_HOST &&
+    process.env.SMTP_PORT &&
+    process.env.SMTP_USER &&
+    process.env.SMTP_PASS
+  );
+}
+
+function getTransporter() {
+  const provider = String(process.env.SMTP_PROVIDER || "gmail").toLowerCase();
+
+  if (provider === "gmail") {
+    return nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+  }
+
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT),
+    secure: String(process.env.SMTP_SECURE || "false") === "true",
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  });
+}
+
+async function sendVerificationEmail({ email, firstname, token }) {
+  const verifyLink = `${APP_BASE_URL}/verify.html?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+
+  const transporter = getTransporter();
+  await transporter.sendMail({
+    from: DEFAULT_SMTP_FROM,
+    to: email,
+    subject: "Verify your ADM Dashboard account",
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2a22;">
+        <h2 style="margin-bottom: 8px;">Welcome${firstname ? `, ${firstname}` : ""}</h2>
+        <p style="margin-top: 0;">Please verify your account by clicking the button below.</p>
+        <p>
+          <a href="${verifyLink}" style="display: inline-block; padding: 10px 18px; border-radius: 8px; background: #17603b; color: #ffffff; text-decoration: none; font-weight: 700;">
+            Verify Account
+          </a>
+        </p>
+        <p>If the button does not work, open this link:</p>
+        <p><a href="${verifyLink}">${verifyLink}</a></p>
+        <p>This link expires in 30 minutes.</p>
+      </div>
+    `
+  });
+}
+
+async function sendApprovalRequestStatusEmail({ email, requestorName, learnerName, status, reviewNote }) {
+  if (!hasSmtpConfig()) {
+    return false;
+  }
+
+  const normalizedStatus = String(status || "pending").trim().toLowerCase() || "pending";
+  const titleStatus = getStatusLabel(normalizedStatus);
+  const transporter = getTransporter();
+
+  await transporter.sendMail({
+    from: DEFAULT_SMTP_FROM,
+    to: email,
+    subject: `ADM Request ${titleStatus}: ${learnerName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2a22;">
+        <h2 style="margin-bottom: 8px;">ADM Request ${titleStatus}</h2>
+        <p>Hello${requestorName ? ` ${requestorName}` : ""},</p>
+        <p>Your ADM request for <strong>${learnerName}</strong> has been marked as <strong>${titleStatus}</strong>.</p>
+        ${reviewNote ? `<p><strong>Result / Note:</strong> ${String(reviewNote).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>` : ""}
+        <p>Please log in to the ADM system for the latest request details.</p>
+      </div>
+    `
+  });
+
+  return true;
+}
+
+async function sendAdmRequestStatusEmail({ email, requestorName, status, reviewNote, requestDate, district, school, admFocal }) {
+  if (!hasSmtpConfig()) {
+    return false;
+  }
+
+  const titleStatus = getStatusLabel(status);
+  const transporter = getTransporter();
+
+  let subject = `ADM Request ${titleStatus}`;
+  let htmlContent = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2a22;">
+        <h2 style="margin-bottom: 8px;">ADM Request ${titleStatus}</h2>
+        <p>Hello${requestorName ? ` ${requestorName}` : ""},</p>
+        <p>Your ADM request has been marked as <strong>${titleStatus}</strong>.</p>
+        <p><strong>Date:</strong> ${String(requestDate || "N/A").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+        <p><strong>District:</strong> ${String(district || "N/A").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+        <p><strong>School:</strong> ${String(school || "N/A").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+        <p><strong>ADM Focal:</strong> ${String(admFocal || "N/A").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+        ${reviewNote ? `<p><strong>Result / Note:</strong> ${String(reviewNote).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>` : ""}
+        <p>Please log in to the ADM system for the latest request details.</p>
+      </div>
+    `;
+
+  // Use special approval template when status is approved
+  if (String(status || "").trim().toLowerCase() === "approved") {
+    subject = "APPROVAL OF REQUEST FOR ADM IMPLEMENTATION";
+    htmlContent = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2a22;">
+        <p>Sir/Madam,</p>
+        <p>Good day.</p>
+        <p>This is to inform you that the request for the learner to be considered under the Alternative Delivery Mode (ADM) has been <strong>APPROVED</strong>. Please download the file on your ADM Account.</p>
+        <p>The learner may now proceed with the necessary arrangements and comply with the requirements set by the school for the implementation of ADM. Please ensure close coordination with the assigned teacher/adviser to monitor the learner's progress and provide the necessary support throughout the process.</p>
+        <p>Should you have any questions or require further clarification, please feel free to email <strong>adm.sdocebu@gmail.com</strong>.</p>
+        <p>Thank you.</p>
+        <br>
+        <p>Sincerely,</p>
+        <br>
+        <p><strong>DR. JENNIFER O. ARTIAGA</strong><br>Education Program Supervisor - Filipino / ADM Coordinator<br><a href="mailto:jennifer.artiaga001@deped.gov.ph">jennifer.artiaga001@deped.gov.ph</a></p>
+      </div>
+    `;
+  }
+
+  await transporter.sendMail({
+    from: DEFAULT_SMTP_FROM,
+    to: email,
+    subject: subject,
+    html: htmlContent
+  });
+
+  return true;
+}
+
+function formatIsoOrDateToLongDate(value) {
+  if (!value) return "N/A";
+  const d = new Date(value);
+  if (!Number.isNaN(d.getTime())) {
+    return d.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
+  }
+
+  const parts = String(value).split("-");
+  if (parts.length === 3) {
+    const parsed = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      });
+    }
+  }
+
+  return String(value);
+}
+
+async function createAdmApprovalPdf({ requestId, requestDate, approvedAt, requestorName, district, school, admFocal }) {
+  if (!fs.existsSync(ADM_APPROVAL_TEMPLATE_PATH)) {
+    throw new Error("ADM approval template PDF not found.");
+  }
+
+  const templateBytes = fs.readFileSync(ADM_APPROVAL_TEMPLATE_PATH);
+  const pdfDoc = await PDFDocument.load(templateBytes);
+  const pages = pdfDoc.getPages();
+  const page = pages[pages.length - 1];
+  const { width, height } = page.getSize();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  // Add approval date above "Dear Sir/Madam" section
+  // Positioned in the center top area of the document
+  const approvalDateY = height - 80; // Position near top, above body text
+  const approvalDateX = (width - 200) / 2; // Center-aligned with 200pt width
+
+  page.drawText(`Date Approved: ${formatIsoOrDateToLongDate(approvedAt)}`, {
+    x: approvalDateX,
+    y: approvalDateY,
+    size: 10,
+    font: boldFont,
+    color: rgb(0.1, 0.16, 0.13)
+  });
+
+  const outputName = `adm-approval-${String(requestId)}.pdf`;
+  const outputFsPath = path.join(ADM_APPROVAL_OUTPUT_DIR, outputName);
+  const outputRelPath = path.posix.join("uploads", "adm-approvals", outputName);
+  const outputBytes = await pdfDoc.save();
+  fs.writeFileSync(outputFsPath, outputBytes);
+
+  return outputRelPath;
+}
+
+function getRetryAfterSeconds(nextAllowedAtMs) {
+  const seconds = Math.ceil((nextAllowedAtMs - Date.now()) / 1000);
+  return seconds > 0 ? seconds : 1;
+}
+
+function getVerificationResendState(user) {
+  const now = Date.now();
+  const lastSent = Number(user.verification_email_sent_at || 0);
+  const windowStart = Number(user.resend_window_started_at || 0);
+  const currentCount = Number(user.resend_count || 0);
+
+  if (lastSent > 0 && now - lastSent < RESEND_MIN_INTERVAL_MS) {
+    return {
+      allowed: false,
+      reason: "cooldown",
+      retryAfterSeconds: getRetryAfterSeconds(lastSent + RESEND_MIN_INTERVAL_MS)
+    };
+  }
+
+  if (windowStart > 0 && now - windowStart < RESEND_WINDOW_MS) {
+    if (currentCount >= RESEND_MAX_PER_WINDOW) {
+      return {
+        allowed: false,
+        reason: "window-limit",
+        retryAfterSeconds: getRetryAfterSeconds(windowStart + RESEND_WINDOW_MS)
+      };
+    }
+
+    return {
+      allowed: true,
+      nextWindowStart: windowStart,
+      nextCount: currentCount + 1
+    };
+  }
+
+  return {
+    allowed: true,
+    nextWindowStart: now,
+    nextCount: 1
+  };
+}
+
+app.use(express.json({ limit: "10mb" }));
+app.use(
+  session({
+    name: "adm.sid",
+    secret: process.env.SESSION_SECRET || "dev-session-secret-change-me",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: false,
+      maxAge: 1000 * 60 * 60 * 24
+    }
+  })
+);
+
+app.get("/api/reference/district-schools", (req, res) => {
+  try {
+    const data = loadDistrictSchoolReference();
+    return res.json(data);
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      return res.status(404).json({
+        message: "District-school Excel file not found.",
+        expectedPath: DISTRICT_SCHOOL_XLSX_PATH
+      });
+    }
+
+    return res.status(500).json({
+      message: "Failed to load district-school reference data.",
+      detail: error.message
+    });
+  }
+});
+
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const {
+      email,
+      password,
+      confirmPassword,
+      firstname,
+      lastname,
+      middlename,
+      district,
+      school,
+      isSupervisor
+    } = req.body || {};
+
+    if (!email || !password || !confirmPassword || !firstname || !lastname || !district || !school) {
+      return res.status(400).json({ message: "Missing required fields." });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Password and confirm password do not match." });
+    }
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        message: "Password must be at least 8 characters and include uppercase, lowercase, number, and special character."
+      });
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+    const requestedSupervisor =
+      isSupervisor === true ||
+      String(isSupervisor || "").trim().toLowerCase() === "yes" ||
+      String(isSupervisor || "").trim().toLowerCase() === "true";
+    const requestedRole = requestedSupervisor ? "supervisor" : "teacher";
+    const existing = await db("users").where({ email: normalizedEmail }).first();
+
+    if (existing && Boolean(existing.approved)) {
+      return res.status(409).json({ message: "Account already exists and is approved." });
+    }
+
+    const now = Date.now();
+    const nowIso = new Date(now).toISOString();
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const basePayload = {
+      email: normalizedEmail,
+      password_hash: passwordHash,
+      firstname: String(firstname).trim(),
+      lastname: String(lastname).trim(),
+      middlename: String(middlename || "").trim(),
+      district: String(district).trim(),
+      school: String(school).trim(),
+      role: requestedRole,
+      verified: true,
+      approved: false,
+      verification_token_hash: null,
+      verification_token_expires_at: null,
+      verification_email_sent_at: null,
+      resend_window_started_at: now,
+        resend_count: 0,
+      updated_at: nowIso
+    };
+
+    if (existing) {
+      await db("users").where({ id: existing.id }).update(basePayload);
+    } else {
+      await db("users").insert({
+        id: crypto.randomUUID(),
+        ...basePayload,
+        created_at: nowIso
+      });
+    }
+
+    return res.json({
+      message: "Account request submitted. Please wait for admin approval.",
+      email: normalizedEmail
+    });
+  } catch (error) {
+    return res.status(500).json({ message: formatDatabaseError(error, "Failed to register account."), detail: error.message });
+  }
+});
+
+app.post("/api/auth/resend-verification", async (req, res) => {
+  return res.status(410).json({ message: "Email verification is disabled. Await admin approval." });
+});
+
+app.post("/api/auth/verify", async (req, res) => {
+  return res.status(410).json({ message: "Email verification is disabled. Await admin approval." });
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  const email = normalizeEmail((req.body || {}).email);
+  const password = String((req.body || {}).password || "");
+
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and password are required." });
+  }
+
+  const user = await db("users").where({ email: email }).first();
+  if (!user) {
+    return res.status(401).json({ message: "Invalid credentials." });
+  }
+
+  const now = Date.now();
+  const lockoutUntil = Number(user.lockout_until || 0);
+  if (lockoutUntil > now) {
+    return res.status(423).json({
+      message: "Account is temporarily locked due to repeated failed login attempts.",
+      retryAfterSeconds: Math.ceil((lockoutUntil - now) / 1000)
+    });
+  }
+
+  const isMatch = await bcrypt.compare(password, user.password_hash);
+  if (!isMatch) {
+    const nextFailures = Number(user.failed_login_count || 0) + 1;
+
+    if (nextFailures >= MAX_LOGIN_FAILURES) {
+      const newLockoutUntil = now + LOCKOUT_DURATION_MS;
+      await db("users")
+        .where({ id: user.id })
+        .update({
+          failed_login_count: 0,
+          lockout_until: newLockoutUntil,
+          updated_at: new Date(now).toISOString()
+        });
+
+      return res.status(423).json({
+        message: "Account is temporarily locked due to repeated failed login attempts.",
+        retryAfterSeconds: Math.ceil(LOCKOUT_DURATION_MS / 1000)
+      });
+    }
+
+    await db("users")
+      .where({ id: user.id })
+      .update({
+        failed_login_count: nextFailures,
+        updated_at: new Date(now).toISOString()
+      });
+
+    return res.status(401).json({
+      message: "Invalid credentials.",
+      attemptsRemaining: MAX_LOGIN_FAILURES - nextFailures
+    });
+  }
+
+  const role = String(user.role || "teacher").trim().toLowerCase();
+
+  if (role !== "admin" && !Boolean(user.approved)) {
+    return res.status(403).json({ message: "Account is pending admin approval." });
+  }
+
+  await db("users")
+    .where({ id: user.id })
+    .update({
+      failed_login_count: 0,
+      lockout_until: null,
+      updated_at: new Date(now).toISOString()
+    });
+
+  req.session.userId = user.id;
+  req.session.role = role;
+  return res.json({ message: "Logged in.", user: sanitizeUser(user) });
+});
+
+app.get("/api/auth/me", async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: "Not logged in." });
+  }
+
+  const user = await db("users").where({ id: req.session.userId }).first();
+  if (!user) {
+    req.session.destroy(() => {});
+    return res.status(401).json({ message: "Session expired." });
+  }
+
+  return res.json({ user: sanitizeUser(user) });
+});
+
+app.post("/api/auth/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.clearCookie("adm.sid");
+    res.json({ message: "Logged out." });
+  });
+});
+
+app.post("/api/user/theme", async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not logged in." });
+    }
+
+    const { theme_preference } = req.body || {};
+    if (!theme_preference || !["light", "dark"].includes(theme_preference)) {
+      return res.status(400).json({ message: "Invalid theme preference. Must be 'light' or 'dark'." });
+    }
+
+    const user = await db("users").where({ id: req.session.userId }).first();
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    await db("users")
+      .where({ id: req.session.userId })
+      .update({
+        theme_preference: theme_preference,
+        updated_at: new Date().toISOString()
+      });
+
+    return res.json({ message: "Theme preference updated.", theme_preference: theme_preference });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to update theme preference.", detail: error.message });
+  }
+});
+
+function requireAdmin(req, res, next) {
+  if (req.session && req.session.userId) {
+    const sessionRole = String(req.session.role || "").trim().toLowerCase();
+    if (sessionRole === "admin") {
+      return next();
+    }
+  }
+
+  const headerKey = String(req.headers["x-admin-key"] || "");
+  const queryKey = String(req.query.adminKey || "");
+  const bodyKey = String((req.body || {}).adminKey || "");
+  const provided = headerKey || queryKey || bodyKey;
+
+  if (!provided || provided !== ADMIN_ACCESS_KEY) {
+    return res.status(401).json({ message: "Unauthorized admin access." });
+  }
+
+  return next();
+}
+
+async function resolveAdminReviewerContext(req) {
+  const sessionUserId = String((((req || {}).session || {}).userId) || "").trim();
+  if (!sessionUserId) {
+    return {
+      reviewerName: "Administrator",
+      reviewerUserId: null
+    };
+  }
+
+  const adminUser = await db("users")
+    .where({ id: sessionUserId })
+    .first("firstname", "lastname", "middlename");
+  const reviewerName = [
+    String((adminUser || {}).lastname || "").trim(),
+    String((adminUser || {}).firstname || "").trim(),
+    String((adminUser || {}).middlename || "").trim()
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  return {
+    reviewerName: reviewerName || "Administrator",
+    reviewerUserId: sessionUserId
+  };
+}
+
+function requireSupervisorOrAdmin(req, res, next) {
+  if (req.session && req.session.userId) {
+    const sessionRole = String(req.session.role || "").trim().toLowerCase();
+    if (sessionRole === "admin" || sessionRole === "supervisor") {
+      return next();
+    }
+  }
+
+  const headerKey = String(req.headers["x-admin-key"] || "");
+  const queryKey = String(req.query.adminKey || "");
+  const bodyKey = String((req.body || {}).adminKey || "");
+  const provided = headerKey || queryKey || bodyKey;
+
+  if (!provided || provided !== ADMIN_ACCESS_KEY) {
+    return res.status(401).json({ message: "Unauthorized access." });
+  }
+
+  return next();
+}
+
+app.get("/api/admin/pending-users", requireAdmin, async (req, res) => {
+  const users = await db("users")
+    .where({ approved: false })
+    .select("id", "email", "firstname", "lastname", "middlename", "district", "school", "created_at")
+    .orderBy("created_at", "asc");
+
+  return res.json({ users });
+});
+
+app.get("/api/admin/pending-users/export", requireAdmin, async (req, res) => {
+  try {
+    const users = await db("users")
+      .where({ approved: false })
+      .select("firstname", "middlename", "lastname", "email", "district", "school", "created_at")
+      .orderBy("created_at", "asc");
+
+    const rows = users.map((user) => ({
+      Firstname: String(user.firstname || "").trim(),
+      Middlename: String(user.middlename || "").trim(),
+      Lastname: String(user.lastname || "").trim(),
+      Email: String(user.email || "").trim(),
+      District: String(user.district || "").trim(),
+      School: String(user.school || "").trim(),
+      CreatedAt: String(user.created_at || "").trim()
+    }));
+
+    const workbook = xlsx.utils.book_new();
+    const worksheet = xlsx.utils.json_to_sheet(rows.length ? rows : [
+      {
+        Firstname: "",
+        Middlename: "",
+        Lastname: "",
+        Email: "",
+        District: "",
+        School: "",
+        CreatedAt: ""
+      }
+    ]);
+
+    xlsx.utils.book_append_sheet(workbook, worksheet, "Pending Users");
+    const fileBuffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" });
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="pending-users-${Date.now()}.xlsx"`);
+    return res.send(fileBuffer);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to export pending users.", detail: error.message });
+  }
+});
+
+app.post("/api/admin/preview-pending-users-from-excel", requireAdmin, async (req, res) => {
+  try {
+    const fileBase64 = String((req.body || {}).fileBase64 || "").trim();
+    if (!fileBase64) {
+      return res.status(400).json({ message: "fileBase64 is required." });
+    }
+
+    const fileBuffer = Buffer.from(fileBase64, "base64");
+    const workbook = xlsx.read(fileBuffer, { type: "buffer" });
+    const firstSheetName = workbook.SheetNames[0];
+
+    if (!firstSheetName) {
+      return res.status(400).json({ message: "No worksheet found in uploaded Excel file." });
+    }
+
+    const worksheet = workbook.Sheets[firstSheetName];
+    const rows = xlsx.utils.sheet_to_json(worksheet, { raw: false, defval: "" });
+
+    const users = [];
+    const skippedRows = [];
+
+    rows.forEach((row, index) => {
+      const getValue = (keys) => {
+        for (let i = 0; i < keys.length; i += 1) {
+          const key = keys[i];
+          if (Object.prototype.hasOwnProperty.call(row, key)) {
+            return String(row[key] || "").trim();
+          }
+        }
+        return "";
+      };
+
+      const firstname = getValue(["Firstname", "FirstName", "First Name", "firstname", "first_name"]);
+      const middlename = getValue(["Middlename", "MiddleName", "Middle Name", "middlename", "middle_name"]);
+      const lastname = getValue(["Lastname", "LastName", "Last Name", "lastname", "last_name"]);
+      const email = normalizeEmail(getValue(["Email", "email"]));
+      const district = getValue(["District", "district"]);
+      const school = getValue(["School", "school"]);
+
+      if (!firstname || !lastname || !email || !district || !school) {
+        skippedRows.push({ rowNumber: index + 2, reason: "Missing required fields." });
+        return;
+      }
+
+      users.push({
+        id: `preview-${index + 1}`,
+        firstname,
+        middlename,
+        lastname,
+        email,
+        district,
+        school,
+        created_at: new Date().toISOString()
+      });
+    });
+
+    return res.json({
+      users,
+      totalRows: rows.length,
+      validRows: users.length,
+      skippedRows
+    });
+  } catch (error) {
+    return res.status(400).json({ message: "Failed to read Excel file.", detail: error.message });
+  }
+});
+
+app.get("/api/admin/users", requireAdmin, async (req, res) => {
+  const users = await db("users")
+    .select("id", "email", "firstname", "lastname", "middlename", "district", "school", "approved", "role", "created_at", "updated_at")
+    .orderBy("created_at", "asc");
+
+  return res.json({ users });
+});
+
+app.get("/api/admin/approved-users", requireAdmin, async (req, res) => {
+  const users = await db("users")
+    .where({ approved: true })
+    .select("id", "email", "firstname", "lastname", "middlename", "district", "school", "created_at", "updated_at")
+    .orderBy("created_at", "asc");
+
+  return res.json({ users });
+});
+
+app.get("/api/admin/learner-summary", requireSupervisorOrAdmin, async (req, res) => {
+  try {
+    const summaryRows = await db("learners as l")
+      .leftJoin("users as u", "l.user_id", "u.id")
+      .select(
+        "l.user_id",
+        "u.firstname",
+        "u.lastname",
+        "u.middlename",
+        "u.email",
+        "l.district",
+        "l.school"
+      )
+      .count({ learner_count: "l.id" })
+      .groupBy(
+        "l.user_id",
+        "u.firstname",
+        "u.lastname",
+        "u.middlename",
+        "u.email",
+        "l.district",
+        "l.school"
+      )
+      .orderBy("u.lastname", "asc")
+      .orderBy("u.firstname", "asc")
+      .orderBy("l.district", "asc")
+      .orderBy("l.school", "asc");
+
+    const totalRow = await db("learners").count({ total: "id" }).first();
+    const totalLearners = Number((totalRow && totalRow.total) || 0);
+
+    const summary = summaryRows.map((row) => ({
+      user_id: String(row.user_id || "").trim(),
+      firstname: String(row.firstname || "").trim(),
+      lastname: String(row.lastname || "").trim(),
+      middlename: String(row.middlename || "").trim(),
+      email: String(row.email || "").trim(),
+      district: String(row.district || "N/A").trim() || "N/A",
+      school: String(row.school || "N/A").trim() || "N/A",
+      learner_count: Number(row.learner_count || 0)
+    }));
+
+    return res.json({ summary, totalLearners });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch learner summary.", detail: error.message });
+  }
+});
+
+app.get("/api/admin/grade-level-summary", requireSupervisorOrAdmin, async (req, res) => {
+  try {
+    const rows = await db("learners as l")
+      .select("l.district", "l.school", "l.grade")
+      .count({ learner_count: "l.id" })
+      .groupBy("l.district", "l.school", "l.grade")
+      .orderBy("l.district", "asc")
+      .orderBy("l.school", "asc")
+      .orderBy("l.grade", "asc");
+
+    const summary = rows.map((row) => ({
+      district: String(row.district || "N/A").trim() || "N/A",
+      school: String(row.school || "N/A").trim() || "N/A",
+      grade: String(row.grade || "N/A").trim() || "N/A",
+      learner_count: Number(row.learner_count || 0)
+    }));
+
+    return res.json({ summary });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch grade-level summary.", detail: error.message });
+  }
+});
+
+app.get("/api/admin/modality-summary", requireSupervisorOrAdmin, async (req, res) => {
+  try {
+    const selectedDistrict = String(req.query.district || "").trim();
+    const selectedSchool = String(req.query.school || "").trim();
+
+    let currentRole = "";
+    let currentUserDistrict = "";
+    if (req.session && req.session.userId) {
+      currentRole = String(req.session.role || "").trim().toLowerCase();
+      if (currentRole === "supervisor") {
+        const supervisor = await db("users")
+          .where({ id: req.session.userId })
+          .first("district");
+        currentUserDistrict = String((supervisor && supervisor.district) || "").trim() || "N/A";
+      }
+    }
+
+    const query = db("learners as l")
+      .select("l.district", "l.school", "l.modality")
+      .count({ learner_count: "l.id" })
+      .groupBy("l.district", "l.school", "l.modality");
+
+    if (currentRole === "supervisor" && currentUserDistrict) {
+      query.where("l.district", currentUserDistrict);
+    } else if (selectedDistrict) {
+      query.where("l.district", selectedDistrict);
+    }
+
+    if (selectedSchool) {
+      query.where("l.school", selectedSchool);
+    }
+
+    const rows = await query
+      .orderBy("l.district", "asc")
+      .orderBy("l.school", "asc")
+      .orderBy("l.modality", "asc");
+
+    const summary = rows.map((row) => ({
+      district: String(row.district || "N/A").trim() || "N/A",
+      school: String(row.school || "N/A").trim() || "N/A",
+      modality: String(row.modality || "N/A").trim() || "N/A",
+      learner_count: Number(row.learner_count || 0)
+    }));
+
+    return res.json({ summary });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch modality summary.", detail: error.message });
+  }
+});
+
+app.get("/api/admin/assessment-pie-summary", requireSupervisorOrAdmin, async (req, res) => {
+  try {
+    const metric = String(req.query.metric || "").trim().toLowerCase();
+    const selectedSchool = String(req.query.school || "").trim();
+
+    const metricColumnByKey = {
+      performance: "coalesce(nullif(trim(l.fourth_quarter_verbal), ''), nullif(trim(l.third_quarter_verbal), ''), nullif(trim(l.second_quarter_verbal), ''), nullif(trim(l.first_grading_verbal), ''), 'N/A')",
+      "phil-iri": "coalesce(nullif(trim(l.phil_iri_result), ''), 'N/A')",
+      crla: "coalesce(nullif(trim(l.ellna_result), ''), 'N/A')",
+      rma: "coalesce(nullif(trim(l.rma_result), ''), 'N/A')"
+    };
+
+    const categoryExpression = metricColumnByKey[metric];
+    if (!categoryExpression) {
+      return res.status(400).json({ message: "Invalid metric. Use performance, phil-iri, crla, or rma." });
+    }
+
+    let currentRole = "";
+    let currentUserDistrict = "";
+    if (req.session && req.session.userId) {
+      currentRole = String(req.session.role || "").trim().toLowerCase();
+      if (currentRole === "supervisor") {
+        const supervisor = await db("users")
+          .where({ id: req.session.userId })
+          .first("district");
+        currentUserDistrict = String((supervisor && supervisor.district) || "").trim() || "N/A";
+      }
+    }
+
+    const query = db("learners as l")
+      .select(db.raw(categoryExpression + " as category"))
+      .count({ learner_count: "l.id" })
+      .groupBy(db.raw(categoryExpression));
+
+    if (currentRole === "supervisor" && currentUserDistrict) {
+      query.where("l.district", currentUserDistrict);
+    }
+
+    if (selectedSchool) {
+      query.where("l.school", selectedSchool);
+    }
+
+    const rows = await query.orderBy("category", "asc");
+    const summary = rows.map((row) => ({
+      label: String(row.category || "N/A").trim() || "N/A",
+      total: Number(row.learner_count || 0)
+    }));
+
+    return res.json({ summary });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch assessment pie summary.", detail: error.message });
+  }
+});
+
+app.get("/api/admin/export/adm-percentage-graph", requireSupervisorOrAdmin, async (req, res) => {
+  try {
+    const selectedDistrict = String(req.query.district || "").trim();
+
+    let currentRole = "";
+    let currentUserDistrict = "";
+    if (req.session && req.session.userId) {
+      currentRole = String(req.session.role || "").trim().toLowerCase();
+      if (currentRole === "supervisor") {
+        const currentUser = await db("users").where({ id: req.session.userId }).first("district");
+        currentUserDistrict = String((currentUser || {}).district || "").trim();
+      }
+    }
+
+    const summaryRows = await db("learners as l")
+      .select("l.district", "l.school", "l.grade")
+      .count({ learner_count: "l.id" })
+      .groupBy("l.district", "l.school", "l.grade")
+      .orderBy("l.district", "asc")
+      .orderBy("l.school", "asc")
+      .orderBy("l.grade", "asc");
+
+    const scopedRows = currentRole === "supervisor"
+      ? summaryRows.filter((row) => (String(row.district || "N/A").trim() || "N/A") === (currentUserDistrict || "N/A"))
+      : summaryRows;
+
+    const filteredRows = selectedDistrict
+      ? scopedRows.filter((row) => {
+        const district = String(row.district || "N/A").trim() || "N/A";
+        return district === selectedDistrict;
+      })
+      : scopedRows;
+
+    const exportRows = filteredRows.map((row) => ({
+      District: String(row.district || "N/A").trim() || "N/A",
+      School: String(row.school || "N/A").trim() || "N/A",
+      GradeLevel: String(row.grade || "N/A").trim() || "N/A",
+      Total: Number(row.learner_count || 0)
+    }));
+
+    const workbook = xlsx.utils.book_new();
+    const worksheet = xlsx.utils.json_to_sheet(exportRows.length ? exportRows : [{ District: "", School: "", GradeLevel: "", Total: 0 }]);
+    xlsx.utils.book_append_sheet(workbook, worksheet, "ADM Percentage Graph");
+    const fileBuffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" });
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="adm-percentage-graph-${Date.now()}.xlsx"`);
+    return res.send(fileBuffer);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to export ADM percentage graph.", detail: error.message });
+  }
+});
+
+app.get("/api/admin/export/grade-level-graph", requireSupervisorOrAdmin, async (req, res) => {
+  try {
+    const selectedSchool = String(req.query.school || "").trim();
+
+    let currentRole = "";
+    let currentUserDistrict = "";
+    if (req.session && req.session.userId) {
+      currentRole = String(req.session.role || "").trim().toLowerCase();
+      if (currentRole === "supervisor") {
+        const currentUser = await db("users").where({ id: req.session.userId }).first("district");
+        currentUserDistrict = String((currentUser || {}).district || "").trim();
+      }
+    }
+
+    const summaryRows = await db("learners as l")
+      .select("l.district", "l.school", "l.grade")
+      .count({ learner_count: "l.id" })
+      .groupBy("l.district", "l.school", "l.grade")
+      .orderBy("l.district", "asc")
+      .orderBy("l.school", "asc")
+      .orderBy("l.grade", "asc");
+
+    const scopedRows = currentRole === "supervisor"
+      ? summaryRows.filter((row) => (String(row.district || "N/A").trim() || "N/A") === (currentUserDistrict || "N/A"))
+      : summaryRows;
+
+    const gradeMap = new Map();
+    scopedRows.forEach((row) => {
+      const school = String(row.school || "N/A").trim() || "N/A";
+      if (selectedSchool && school !== selectedSchool) {
+        return;
+      }
+      const grade = String(row.grade || "N/A").trim() || "N/A";
+      const count = Number(row.learner_count || 0);
+      gradeMap.set(grade, (gradeMap.get(grade) || 0) + count);
+    });
+
+    const exportRows = Array.from(gradeMap.entries())
+      .map((entry) => ({ Grade: entry[0], Learners: entry[1] }))
+      .sort((a, b) => String(a.Grade).localeCompare(String(b.Grade)));
+
+    const workbook = xlsx.utils.book_new();
+    const worksheet = xlsx.utils.json_to_sheet(exportRows.length ? exportRows : [{ Grade: "", Learners: 0 }]);
+    xlsx.utils.book_append_sheet(workbook, worksheet, "Grade Level Graph");
+    const fileBuffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" });
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="grade-level-graph-${Date.now()}.xlsx"`);
+    return res.send(fileBuffer);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to export grade-level graph.", detail: error.message });
+  }
+});
+
+app.get("/api/admin/export/graph-report", requireSupervisorOrAdmin, async (req, res) => {
+  try {
+    const graphType = String(req.query.graphType || "").trim().toLowerCase();
+    const districtFilter = String(req.query.district || "").trim();
+    const schoolFilter = String(req.query.school || "").trim();
+
+    let currentRole = "";
+    let currentUserDistrict = "";
+    if (req.session && req.session.userId) {
+      currentRole = String(req.session.role || "").trim().toLowerCase();
+      if (currentRole === "supervisor") {
+        const currentUser = await db("users").where({ id: req.session.userId }).first("district");
+        currentUserDistrict = String((currentUser || {}).district || "").trim();
+      }
+    }
+
+    if (graphType === "adm-percentage") {
+      const rows = await db("learners as l")
+        .select("l.district", "l.school", "l.grade")
+        .count({ learner_count: "l.id" })
+        .groupBy("l.district", "l.school", "l.grade")
+        .orderBy("l.district", "asc")
+        .orderBy("l.school", "asc")
+        .orderBy("l.grade", "asc");
+
+      const scopedRows = currentRole === "supervisor"
+        ? rows.filter((row) => (String(row.district || "N/A").trim() || "N/A") === (currentUserDistrict || "N/A"))
+        : rows;
+
+      const filteredRows = scopedRows.filter((row) => {
+        const district = String(row.district || "N/A").trim() || "N/A";
+        if (districtFilter && district !== districtFilter) return false;
+        return true;
+      });
+
+      const map = new Map();
+      filteredRows.forEach((row) => {
+        const district = String(row.district || "N/A").trim() || "N/A";
+        const school = String(row.school || "N/A").trim() || "N/A";
+        const count = Number(row.learner_count || 0);
+        const label = districtFilter ? school : district;
+        map.set(label, (map.get(label) || 0) + count);
+      });
+
+      const summaryRows = Array.from(map.entries()).map((entry) => ({ label: entry[0], total: entry[1] }));
+      const totalAll = summaryRows.reduce((sum, row) => sum + Number(row.total || 0), 0) || 1;
+      const exportRows = summaryRows.map((row) => ({
+        [districtFilter ? "School" : "District"]: row.label,
+        Total: Number(row.total || 0),
+        Percentage: `${((Number(row.total || 0) / totalAll) * 100).toFixed(2)}%`
+      }));
+
+      const workbook = xlsx.utils.book_new();
+      const worksheet = xlsx.utils.json_to_sheet(exportRows.length ? exportRows : [{ District: "", School: "", GradeLevel: "", Total: 0 }]);
+      xlsx.utils.book_append_sheet(workbook, worksheet, "ADM Percentage Graph");
+      const fileBuffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" });
+
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename="adm-percentage-graph-${Date.now()}.xlsx"`);
+      return res.send(fileBuffer);
+    }
+
+    if (graphType === "grade-level") {
+      const rows = await db("learners as l")
+        .select("l.district", "l.school", "l.grade")
+        .count({ learner_count: "l.id" })
+        .groupBy("l.district", "l.school", "l.grade")
+        .orderBy("l.district", "asc")
+        .orderBy("l.school", "asc")
+        .orderBy("l.grade", "asc");
+
+      const scopedRows = currentRole === "supervisor"
+        ? rows.filter((row) => (String(row.district || "N/A").trim() || "N/A") === (currentUserDistrict || "N/A"))
+        : rows;
+
+      const filteredRows = scopedRows.filter((row) => {
+        const district = String(row.district || "N/A").trim() || "N/A";
+        const school = String(row.school || "N/A").trim() || "N/A";
+        if (districtFilter && district !== districtFilter) return false;
+        if (schoolFilter && school !== schoolFilter) return false;
+        return true;
+      });
+
+      const map = new Map();
+      filteredRows.forEach((row) => {
+        const grade = String(row.grade || "N/A").trim() || "N/A";
+        const count = Number(row.learner_count || 0);
+        map.set(grade, (map.get(grade) || 0) + count);
+      });
+
+      const summaryRows = Array.from(map.entries()).map((entry) => ({ label: entry[0], total: entry[1] }));
+      const totalAll = summaryRows.reduce((sum, row) => sum + Number(row.total || 0), 0) || 1;
+      const exportRows = summaryRows.map((row) => ({
+        GradeLevel: row.label,
+        Total: Number(row.total || 0),
+        Percentage: `${((Number(row.total || 0) / totalAll) * 100).toFixed(2)}%`
+      }));
+
+      const workbook = xlsx.utils.book_new();
+      const worksheet = xlsx.utils.json_to_sheet(exportRows.length ? exportRows : [{ District: "", School: "", GradeLevel: "", Total: 0 }]);
+      xlsx.utils.book_append_sheet(workbook, worksheet, "Grade Level Graph");
+      const fileBuffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" });
+
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename="grade-level-graph-${Date.now()}.xlsx"`);
+      return res.send(fileBuffer);
+    }
+
+    if (graphType === "modality") {
+      const rows = await db("learners as l")
+        .select("l.district", "l.school", "l.modality")
+        .count({ learner_count: "l.id" })
+        .groupBy("l.district", "l.school", "l.modality")
+        .orderBy("l.district", "asc")
+        .orderBy("l.school", "asc")
+        .orderBy("l.modality", "asc");
+
+      const scopedRows = currentRole === "supervisor"
+        ? rows.filter((row) => (String(row.district || "N/A").trim() || "N/A") === (currentUserDistrict || "N/A"))
+        : rows;
+
+      const filteredRows = scopedRows.filter((row) => {
+        const district = String(row.district || "N/A").trim() || "N/A";
+        const school = String(row.school || "N/A").trim() || "N/A";
+        if (districtFilter && district !== districtFilter) return false;
+        if (schoolFilter && school !== schoolFilter) return false;
+        return true;
+      });
+
+      const map = new Map();
+      filteredRows.forEach((row) => {
+        const modality = String(row.modality || "N/A").trim() || "N/A";
+        const count = Number(row.learner_count || 0);
+        map.set(modality, (map.get(modality) || 0) + count);
+      });
+
+      const summaryRows = Array.from(map.entries()).map((entry) => ({ label: entry[0], total: entry[1] }));
+      const totalAll = summaryRows.reduce((sum, row) => sum + Number(row.total || 0), 0) || 1;
+      const exportRows = summaryRows.map((row) => ({
+        Modality: row.label,
+        Total: Number(row.total || 0),
+        Percentage: `${((Number(row.total || 0) / totalAll) * 100).toFixed(2)}%`
+      }));
+
+      const workbook = xlsx.utils.book_new();
+      const worksheet = xlsx.utils.json_to_sheet(exportRows.length ? exportRows : [{ District: "", School: "", Modality: "", Total: 0 }]);
+      xlsx.utils.book_append_sheet(workbook, worksheet, "Modality Graph");
+      const fileBuffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" });
+
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename="modality-graph-${Date.now()}.xlsx"`);
+      return res.send(fileBuffer);
+    }
+
+    return res.status(400).json({ message: "Invalid graphType. Use adm-percentage, grade-level, or modality." });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to export graph report.", detail: error.message });
+  }
+});
+
+app.post("/api/admin/approve-user", requireAdmin, async (req, res) => {
+  const userId = String((req.body || {}).userId || "").trim();
+  if (!userId) {
+    return res.status(400).json({ message: "userId is required." });
+  }
+
+  const updated = await db("users")
+    .where({ id: userId })
+    .update({ approved: true, updated_at: new Date().toISOString() });
+
+  if (!updated) {
+    return res.status(404).json({ message: "User not found." });
+  }
+
+  return res.json({ message: "User account approved." });
+});
+
+app.post("/api/admin/reject-user", requireAdmin, async (req, res) => {
+  const userId = String((req.body || {}).userId || "").trim();
+  if (!userId) {
+    return res.status(400).json({ message: "userId is required." });
+  }
+
+  const deleted = await db("users").where({ id: userId, approved: false }).del();
+  if (!deleted) {
+    return res.status(404).json({ message: "Pending user not found." });
+  }
+
+  return res.json({ message: "User account rejected." });
+});
+
+app.delete("/api/admin/delete-user", requireAdmin, async (req, res) => {
+  const userId = String((req.body || {}).userId || "").trim();
+  if (!userId) {
+    return res.status(400).json({ message: "userId is required." });
+  }
+
+  if (userId === String(req.session.userId || "").trim()) {
+    return res.status(400).json({ message: "You cannot delete your own account." });
+  }
+
+  const targetUser = await db("users").where({ id: userId }).first();
+  if (!targetUser) {
+    return res.status(404).json({ message: "User not found." });
+  }
+
+  if (normalizeEmail(targetUser.email) === ADMIN_EMAIL) {
+    return res.status(400).json({ message: "Default admin account cannot be deleted." });
+  }
+
+  await db.transaction(async (trx) => {
+    await trx("learners").where({ user_id: userId }).del();
+    await trx("users").where({ id: userId }).del();
+  });
+
+  return res.json({ message: "User account deleted." });
+});
+
+app.put("/api/admin/set-user-role", requireAdmin, async (req, res) => {
+  const userId = String((req.body || {}).userId || "").trim();
+  const role = String((req.body || {}).role || "").trim().toLowerCase();
+  const validRoles = ["admin", "supervisor", "teacher"];
+
+  if (!userId || !validRoles.includes(role)) {
+    return res.status(400).json({ message: "Invalid userId or role." });
+  }
+
+  const updated = await db("users")
+    .where({ id: userId })
+    .update({ role, updated_at: new Date().toISOString() });
+
+  if (!updated) {
+    return res.status(404).json({ message: "User not found." });
+  }
+
+  return res.json({ message: "Role updated successfully." });
+});
+
+function requireLogin(req, res, next) {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: "Not logged in." });
+  }
+  return next();
+}
+
+function requireTeacher(req, res, next) {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: "Not logged in." });
+  }
+
+  const role = String(req.session.role || "").trim().toLowerCase();
+  if (role !== "teacher") {
+    return res.status(403).json({ message: "Teacher account access only." });
+  }
+
+  return next();
+}
+
+function getStatusLabel(status) {
+  const normalizedStatus = String(status || "pending").trim().toLowerCase() || "pending";
+  const statusLabels = {
+    approved: "Approved",
+    rejected: "Rejected",
+    revise: "Revised"
+  };
+
+  return statusLabels[normalizedStatus] || (normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1));
+}
+
+app.post("/api/learners", requireLogin, async (req, res) => {
+  try {
+    const {
+      learner_code,
+      family_name,
+      firstname,
+      middlename,
+      grade,
+      district,
+      school,
+      modality,
+      type_of_instruction,
+      date_started,
+      first_grading_grade,
+      first_grading_verbal,
+      first_grading_interpretation,
+      second_quarter_grade,
+      second_quarter_verbal,
+      second_quarter_interpretation,
+      third_quarter_grade,
+      third_quarter_verbal,
+      third_quarter_interpretation,
+      intervention,
+      phil_iri_result,
+      rma_result,
+      ellna_result,
+      utilization_learning_gadgets
+    } = req.body || {};
+
+    if (learner_code && !/^\d{12}$/.test(String(learner_code || "").trim())) {
+      return res.status(400).json({ message: "Learner LRN must be exactly 12 digits." });
+    }
+
+    const nowIso = new Date().toISOString();
+    await db("learners").insert({
+      id: crypto.randomUUID(),
+      user_id: req.session.userId,
+      learner_code: String(learner_code || "").trim(),
+      family_name: String(family_name || "").trim(),
+      firstname: String(firstname || "").trim(),
+      middlename: String(middlename || "").trim(),
+      grade: String(grade || "").trim(),
+      district: String(district || "").trim(),
+      school: String(school || "").trim(),
+      modality: String(modality || "").trim(),
+      type_of_instruction: String(type_of_instruction || "").trim(),
+      date_started: String(date_started || "").trim(),
+      first_grading_grade: first_grading_grade != null ? parseInt(first_grading_grade, 10) || null : null,
+      first_grading_verbal: String(first_grading_verbal || "").trim(),
+      first_grading_interpretation: String(first_grading_interpretation || "").trim(),
+      second_quarter_grade: second_quarter_grade != null ? parseInt(second_quarter_grade, 10) || null : null,
+      second_quarter_verbal: String(second_quarter_verbal || "").trim(),
+      second_quarter_interpretation: String(second_quarter_interpretation || "").trim(),
+      third_quarter_grade: third_quarter_grade != null ? parseInt(third_quarter_grade, 10) || null : null,
+      third_quarter_verbal: String(third_quarter_verbal || "").trim(),
+      third_quarter_interpretation: String(third_quarter_interpretation || "").trim(),
+      intervention: String(intervention || "").trim(),
+      phil_iri_result: String(phil_iri_result || "").trim(),
+      rma_result: String(rma_result || "").trim(),
+      ellna_result: String(ellna_result || "").trim(),
+      utilization_learning_gadgets: String(utilization_learning_gadgets || "").trim(),
+      created_at: nowIso,
+      updated_at: nowIso
+    });
+
+    return res.json({ message: "Learner record saved." });
+  } catch (error) {
+    return res.status(500).json({ message: formatDatabaseError(error, "Failed to save learner record."), detail: error.message });
+  }
+});
+
+app.put("/api/learners/:id", requireLogin, async (req, res) => {
+  try {
+    const learnerId = String(req.params.id || "").trim();
+    const existing = await db("learners").where({ id: learnerId, user_id: req.session.userId }).first();
+    if (!existing) {
+      return res.status(404).json({ message: "Learner record not found." });
+    }
+
+    const {
+      learner_code, family_name, firstname, middlename, grade, district, school,
+      modality, type_of_instruction,
+      date_started, first_grading_grade, first_grading_verbal, first_grading_interpretation,
+      second_quarter_grade,
+      second_quarter_verbal, second_quarter_interpretation,
+      third_quarter_grade,
+      third_quarter_verbal, third_quarter_interpretation,
+      intervention,
+      phil_iri_result, rma_result, ellna_result,
+      utilization_learning_gadgets
+    } = req.body || {};
+
+    if (learner_code && !/^\d{12}$/.test(String(learner_code).trim())) {
+      return res.status(400).json({ message: "Learner LRN must be exactly 12 digits." });
+    }
+
+    await db("learners").where({ id: learnerId, user_id: req.session.userId }).update({
+      learner_code: String(learner_code).trim(),
+      family_name: String(family_name || "").trim(),
+      firstname: String(firstname || "").trim(),
+      middlename: String(middlename || "").trim(),
+      grade: String(grade || "").trim(),
+      district: String(district || "").trim(),
+      school: String(school || "").trim(),
+      modality: String(modality || "").trim(),
+      type_of_instruction: String(type_of_instruction || "").trim(),
+      date_started: String(date_started || "").trim(),
+      first_grading_grade: first_grading_grade != null && String(first_grading_grade).trim() !== "" ? parseInt(first_grading_grade, 10) || null : null,
+      first_grading_verbal: String(first_grading_verbal || "").trim(),
+      first_grading_interpretation: String(first_grading_interpretation || "").trim(),
+      second_quarter_grade: second_quarter_grade != null && String(second_quarter_grade).trim() !== "" ? parseInt(second_quarter_grade, 10) || null : null,
+      second_quarter_verbal: String(second_quarter_verbal || "").trim(),
+      second_quarter_interpretation: String(second_quarter_interpretation || "").trim(),
+      third_quarter_grade: third_quarter_grade != null && String(third_quarter_grade).trim() !== "" ? parseInt(third_quarter_grade, 10) || null : null,
+      third_quarter_verbal: String(third_quarter_verbal || "").trim(),
+      third_quarter_interpretation: String(third_quarter_interpretation || "").trim(),
+      intervention: String(intervention || "").trim(),
+      phil_iri_result: String(phil_iri_result || "").trim(),
+      rma_result: String(rma_result || "").trim(),
+      ellna_result: String(ellna_result || "").trim(),
+      utilization_learning_gadgets: String(utilization_learning_gadgets || "").trim(),
+      updated_at: new Date().toISOString()
+    });
+
+    return res.json({ message: "Learner record updated." });
+  } catch (error) {
+    return res.status(500).json({ message: formatDatabaseError(error, "Failed to update learner record."), detail: error.message });
+  }
+});
+
+app.get("/api/learners", requireLogin, async (req, res) => {
+  try {
+    const learners = await db("learners")
+      .where({ user_id: req.session.userId })
+      .select("*")
+      .orderBy("created_at", "desc");
+    return res.json({ learners });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch learner records.", detail: error.message });
+  }
+});
+
+app.get("/api/learners/export", requireLogin, async (req, res) => {
+  try {
+    const learners = await db("learners")
+      .where({ user_id: req.session.userId })
+      .select("*")
+      .orderBy("created_at", "desc");
+
+    const rows = learners.map((item) => ({
+      LRN: String(item.learner_code || "").trim(),
+      FamilyName: String(item.family_name || "").trim(),
+      FirstName: String(item.firstname || "").trim(),
+      MiddleName: String(item.middlename || "").trim(),
+      Grade: String(item.grade || "").trim(),
+      District: String(item.district || "").trim(),
+      School: String(item.school || "").trim(),
+      Modality: String(item.modality || "").trim(),
+      TypeOfInstruction: String(item.type_of_instruction || "").trim(),
+      DateStarted: String(item.date_started || "").trim(),
+      FirstSemesterGrade: item.first_grading_grade == null ? "" : Number(item.first_grading_grade),
+      SecondSemesterGrade: item.second_quarter_grade == null ? "" : Number(item.second_quarter_grade),
+      ThirdSemesterGrade: item.third_quarter_grade == null ? "" : Number(item.third_quarter_grade),
+      Intervention: String(item.intervention || "").trim(),
+      PhilIriResult: String(item.phil_iri_result || "").trim(),
+      RmaResult: String(item.rma_result || "").trim(),
+      CrlaResult: String(item.ellna_result || "").trim(),
+      LearningGadgets: String(item.utilization_learning_gadgets || "").trim(),
+      CreatedAt: String(item.created_at || "").trim()
+    }));
+
+    const workbook = xlsx.utils.book_new();
+    const worksheet = xlsx.utils.json_to_sheet(rows.length ? rows : [{ LRN: "", FamilyName: "", FirstName: "", Grade: "", District: "", School: "" }]);
+    xlsx.utils.book_append_sheet(workbook, worksheet, "Learner Records");
+    const fileBuffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" });
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="learner-records-${Date.now()}.xlsx"`);
+    return res.send(fileBuffer);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to export learner records.", detail: error.message });
+  }
+});
+
+app.get("/api/adm-requests", requireTeacher, async (req, res) => {
+  try {
+    const requests = await db("adm_requests")
+      .where({ requestor_user_id: req.session.userId })
+      .select(
+        "id",
+        "request_date",
+        "district",
+        "school",
+        "adm_focal",
+        "requestor_name",
+        "psds_endorsement_path",
+        "secondary_document_path",
+        "approval_pdf_path",
+        "status",
+        "review_note",
+        "reviewed_by",
+        "reviewed_at",
+        "created_at",
+        "updated_at"
+      )
+      .orderBy("created_at", "desc");
+
+    return res.json({ requests });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch ADM requests.", detail: error.message });
+  }
+});
+
+app.post(
+  "/api/adm-requests",
+  requireTeacher,
+  approvalRequestUpload.fields([
+    { name: "psdsEndorsement", maxCount: 1 },
+    { name: "secondarySupportingDocument", maxCount: 1 }
+  ]),
+  async (req, res) => {
+    const uploadedPsdsFile = req.files && req.files.psdsEndorsement && req.files.psdsEndorsement[0]
+      ? req.files.psdsEndorsement[0]
+      : null;
+    const uploadedSecondaryFile = req.files && req.files.secondarySupportingDocument && req.files.secondarySupportingDocument[0]
+      ? req.files.secondarySupportingDocument[0]
+      : null;
+
+    try {
+      const requestDate = String((req.body || {}).requestDate || "").trim();
+      const admFocal = String((req.body || {}).admFocal || "").trim();
+
+      if (!requestDate) {
+        deleteFileIfExists(uploadedPsdsFile && uploadedPsdsFile.path);
+        deleteFileIfExists(uploadedSecondaryFile && uploadedSecondaryFile.path);
+        return res.status(400).json({ message: "Request date is required." });
+      }
+
+      if (!admFocal) {
+        deleteFileIfExists(uploadedPsdsFile && uploadedPsdsFile.path);
+        deleteFileIfExists(uploadedSecondaryFile && uploadedSecondaryFile.path);
+        return res.status(400).json({ message: "ADM focal is required." });
+      }
+
+      if (!uploadedPsdsFile || !uploadedSecondaryFile) {
+        deleteFileIfExists(uploadedPsdsFile && uploadedPsdsFile.path);
+        deleteFileIfExists(uploadedSecondaryFile && uploadedSecondaryFile.path);
+        return res.status(400).json({ message: "Both PSDS Endorsement and Secondary Supporting Document files are required." });
+      }
+
+      const user = await db("users")
+        .where({ id: req.session.userId })
+        .first("firstname", "lastname", "middlename", "district", "school");
+
+      if (!user) {
+        deleteFileIfExists(uploadedPsdsFile.path);
+        deleteFileIfExists(uploadedSecondaryFile.path);
+        return res.status(404).json({ message: "Teacher account not found." });
+      }
+
+      const requestorName = [String((user || {}).lastname || "").trim(), String((user || {}).firstname || "").trim(), String((user || {}).middlename || "").trim()]
+        .filter(Boolean)
+        .join(", ") || "N/A";
+      const nowIso = new Date().toISOString();
+
+      await db("adm_requests").insert({
+        id: crypto.randomUUID(),
+        requestor_user_id: req.session.userId,
+        request_date: requestDate,
+        district: String((user || {}).district || "N/A").trim() || "N/A",
+        school: String((user || {}).school || "N/A").trim() || "N/A",
+        adm_focal: admFocal,
+        requestor_name: requestorName,
+        psds_endorsement_path: path.posix.join("uploads", "approval-requests", path.basename(String(uploadedPsdsFile.filename || "").trim())),
+        secondary_document_path: path.posix.join("uploads", "approval-requests", path.basename(String(uploadedSecondaryFile.filename || "").trim())),
+        status: "pending",
+        created_at: nowIso,
+        updated_at: nowIso
+      });
+
+      broadcastAdmRequestUpdate({ created_at: nowIso });
+
+      return res.json({ message: "ADM request submitted." });
+    } catch (error) {
+      deleteFileIfExists(uploadedPsdsFile && uploadedPsdsFile.path);
+      deleteFileIfExists(uploadedSecondaryFile && uploadedSecondaryFile.path);
+      return res.status(500).json({ message: "Failed to create ADM request.", detail: error.message });
+    }
+  }
+);
+
+app.get("/api/admin/adm-requests", requireAdmin, async (req, res) => {
+  try {
+    const requests = await db("adm_requests as ar")
+      .leftJoin("users as u", "u.id", "ar.requestor_user_id")
+      .select(
+        "ar.id",
+        "ar.request_date",
+        "ar.district",
+        "ar.school",
+        "ar.adm_focal",
+        "ar.requestor_name",
+        "ar.psds_endorsement_path",
+        "ar.secondary_document_path",
+        "ar.status",
+        "ar.review_note",
+        "ar.reviewed_by",
+        "ar.reviewed_at",
+        "ar.created_at",
+        "u.email as requestor_email"
+      )
+      .orderBy("ar.created_at", "desc");
+
+    return res.json({ requests });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch admin ADM requests.", detail: error.message });
+  }
+});
+
+app.get("/api/admin/approval-dashboard-requests", requireAdmin, async (req, res) => {
+  try {
+    const [learnerRequests, teacherRequests] = await Promise.all([
+      db("approval_requests")
+        .select(
+          "id",
+          "learner_id",
+          "district",
+          "school",
+          "requestor_name",
+          "learner_name",
+          "document_path",
+          "status",
+          "review_note",
+          "reviewed_by",
+          "reviewed_at",
+          "created_at",
+          "updated_at"
+        )
+        .orderBy("created_at", "desc"),
+      db("adm_requests as ar")
+        .leftJoin("users as u", "u.id", "ar.requestor_user_id")
+        .select(
+          "ar.id",
+          "ar.request_date",
+          "ar.district",
+          "ar.school",
+          "ar.adm_focal",
+          "ar.requestor_name",
+          "ar.psds_endorsement_path",
+          "ar.secondary_document_path",
+          "ar.status",
+          "ar.review_note",
+          "ar.reviewed_by",
+          "ar.reviewed_at",
+          "ar.created_at",
+          "ar.updated_at",
+          "u.email as requestor_email"
+        )
+        .orderBy("ar.created_at", "desc")
+    ]);
+
+    const requests = learnerRequests
+      .map((item) => Object.assign({}, item, { request_kind: "learner" }))
+      .concat(teacherRequests.map((item) => Object.assign({}, item, { request_kind: "teacher" })))
+      .sort((left, right) => {
+        const leftDate = new Date(left.created_at || left.request_date || 0).getTime();
+        const rightDate = new Date(right.created_at || right.request_date || 0).getTime();
+        return rightDate - leftDate;
+      });
+
+    return res.json({ requests });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch approval dashboard requests.", detail: error.message });
+  }
+});
+
+app.get("/api/admin/adm-requests/stream", requireAdmin, (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  if (typeof res.flushHeaders === "function") {
+    res.flushHeaders();
+  }
+
+  res.write("event: ping\\ndata: connected\\n\\n");
+  admRequestStreamClients.add(res);
+
+  req.on("close", () => {
+    admRequestStreamClients.delete(res);
+  });
+});
+
+app.get("/api/adm-requests/stream", requireTeacher, (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  if (typeof res.flushHeaders === "function") {
+    res.flushHeaders();
+  }
+
+  const client = {
+    userId: String(req.session.userId || "").trim(),
+    response: res
+  };
+
+  res.write("event: ping\\ndata: connected\\n\\n");
+  teacherAdmRequestStreamClients.add(client);
+
+  req.on("close", () => {
+    teacherAdmRequestStreamClients.delete(client);
+  });
+});
+
+app.get("/api/admin/approval-requests/export", requireAdmin, async (req, res) => {
+  try {
+    const [learnerRequests, teacherRequests] = await Promise.all([
+      db("approval_requests")
+        .select(
+          "id",
+          "district",
+          "school",
+          "requestor_name",
+          "learner_name",
+          "document_path",
+          "status",
+          "review_note",
+          "reviewed_by",
+          "reviewed_at",
+          "created_at"
+        )
+        .orderBy("created_at", "desc"),
+      db("adm_requests")
+        .select(
+          "id",
+          "request_date",
+          "district",
+          "school",
+          "adm_focal",
+          "requestor_name",
+          "psds_endorsement_path",
+          "secondary_document_path",
+          "status",
+          "review_note",
+          "reviewed_by",
+          "reviewed_at",
+          "created_at"
+        )
+        .orderBy("created_at", "desc")
+    ]);
+
+    const exportRows = [];
+
+    learnerRequests.forEach((item) => {
+      exportRows.push({
+        RequestType: "Learner Approval Request",
+        DateRequested: String(item.created_at || "").trim(),
+        District: String(item.district || "").trim(),
+        School: String(item.school || "").trim(),
+        Requestor: String(item.requestor_name || "").trim(),
+        Details: String(item.learner_name || "").trim() ? `Learner: ${String(item.learner_name || "").trim()}` : "",
+        DocumentsSubmitted: path.basename(String(item.document_path || "").trim()),
+        DocumentPaths: String(item.document_path || "").trim(),
+        Result: String(item.review_note || "").trim(),
+        ReviewedBy: String(item.reviewed_by || "").trim(),
+        ReviewedAt: String(item.reviewed_at || "").trim(),
+        Status: getStatusLabel(item.status)
+      });
+    });
+
+    teacherRequests.forEach((item) => {
+      const psdsPath = String(item.psds_endorsement_path || "").trim();
+      const secondaryPath = String(item.secondary_document_path || "").trim();
+      exportRows.push({
+        RequestType: "Teacher ADM Request",
+        DateRequested: String(item.request_date || item.created_at || "").trim(),
+        District: String(item.district || "").trim(),
+        School: String(item.school || "").trim(),
+        Requestor: String(item.requestor_name || "").trim(),
+        Details: String(item.adm_focal || "").trim() ? `ADM Focal: ${String(item.adm_focal || "").trim()}` : "",
+        DocumentsSubmitted: [path.basename(psdsPath), path.basename(secondaryPath)].filter(Boolean).join(" | "),
+        DocumentPaths: [psdsPath, secondaryPath].filter(Boolean).join(" | "),
+        Result: String(item.review_note || "").trim(),
+        ReviewedBy: String(item.reviewed_by || "").trim(),
+        ReviewedAt: String(item.reviewed_at || "").trim(),
+        Status: getStatusLabel(item.status)
+      });
+    });
+
+    exportRows.sort((left, right) => {
+      const leftDate = new Date(left.DateRequested || 0).getTime();
+      const rightDate = new Date(right.DateRequested || 0).getTime();
+      return rightDate - leftDate;
+    });
+
+    const workbook = xlsx.utils.book_new();
+    const worksheet = xlsx.utils.json_to_sheet(
+      exportRows.length
+        ? exportRows
+        : [{ RequestType: "", DateRequested: "", District: "", School: "", Requestor: "", Details: "", DocumentsSubmitted: "", DocumentPaths: "", Result: "", ReviewedBy: "", ReviewedAt: "", Status: "" }]
+    );
+    xlsx.utils.book_append_sheet(workbook, worksheet, "ADM Approval Dashboard");
+    const fileBuffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" });
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="adm-approval-dashboard-${Date.now()}.xlsx"`);
+    return res.send(fileBuffer);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to export ADM approval dashboard.", detail: error.message });
+  }
+});
+
+app.post("/api/admin/adm-requests/:id/status", requireAdmin, async (req, res) => {
+  try {
+    const requestId = String(req.params.id || "").trim();
+    const status = String((req.body || {}).status || "").trim().toLowerCase();
+    const pinCode = String((req.body || {}).pinCode || "").trim();
+    const reviewNote = String((req.body || {}).reviewNote || "").trim();
+    const validStatuses = ["approved", "revise"];
+
+    if (!requestId || !validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Valid request id and status are required." });
+    }
+
+    if (status === "approved" && pinCode !== ADM_APPROVAL_PIN) {
+      return res.status(403).json({ message: "Invalid approval PIN code." });
+    }
+
+    const admRequest = await db("adm_requests as ar")
+      .leftJoin("users as u", "u.id", "ar.requestor_user_id")
+      .where("ar.id", requestId)
+      .first(
+        "ar.id",
+        "ar.status",
+        "ar.request_date",
+        "ar.district",
+        "ar.school",
+        "ar.adm_focal",
+        "ar.requestor_name",
+        "ar.requestor_user_id",
+        "u.email as requestor_email"
+      );
+
+    if (!admRequest) {
+      return res.status(404).json({ message: "ADM request not found." });
+    }
+
+    if (String(admRequest.status || "").trim().toLowerCase() === "approved" && status !== "approved") {
+      return res.status(409).json({ message: "Approved ADM request can no longer be changed." });
+    }
+
+    const reviewerContext = await resolveAdminReviewerContext(req);
+    const nowIso = new Date().toISOString();
+    let approvalPdfPath = null;
+
+    if (status === "approved") {
+      approvalPdfPath = await createAdmApprovalPdf({
+        requestId,
+        requestDate: admRequest.request_date,
+        approvedAt: nowIso,
+        requestorName: admRequest.requestor_name,
+        district: admRequest.district,
+        school: admRequest.school,
+        admFocal: admRequest.adm_focal
+      });
+    }
+
+    const updated = await db("adm_requests")
+      .where({ id: requestId })
+      .update({
+        status,
+        approval_pdf_path: approvalPdfPath,
+        review_note: reviewNote || null,
+        reviewed_by: reviewerContext.reviewerName,
+        reviewed_by_user_id: reviewerContext.reviewerUserId,
+        reviewed_at: nowIso,
+        updated_at: nowIso
+      });
+
+    if (!updated) {
+      return res.status(404).json({ message: "ADM request not found." });
+    }
+
+    const recipientEmail = normalizeEmail((admRequest || {}).requestor_email || "");
+    if (recipientEmail) {
+      try {
+        await sendAdmRequestStatusEmail({
+          email: recipientEmail,
+          requestorName: admRequest.requestor_name,
+          status,
+          reviewNote,
+          requestDate: admRequest.request_date,
+          district: admRequest.district,
+          school: admRequest.school,
+          admFocal: admRequest.adm_focal
+        });
+      } catch (mailError) {
+        console.warn("ADM request status email failed:", mailError.message);
+      }
+    }
+
+    broadcastTeacherAdmRequestStatusUpdate(admRequest.requestor_user_id, {
+      id: requestId,
+      status,
+      approval_pdf_path: approvalPdfPath,
+      review_note: reviewNote || null,
+      reviewed_by: reviewerContext.reviewerName,
+      reviewed_at: nowIso
+    });
+
+    return res.json({ message: "ADM request updated." });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to update ADM request.", detail: error.message });
+  }
+});
+
+app.get("/api/approval-requests", requireLogin, async (req, res) => {
+  try {
+    const requests = await db("approval_requests")
+      .where({ requestor_user_id: req.session.userId })
+      .select("id", "learner_id", "district", "school", "requestor_name", "learner_name", "document_path", "status", "review_note", "reviewed_by", "reviewed_at", "created_at", "updated_at")
+      .orderBy("created_at", "desc");
+
+    return res.json({ requests });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch approval requests.", detail: error.message });
+  }
+});
+
+app.post("/api/approval-requests", requireLogin, approvalRequestUpload.single("document"), async (req, res) => {
+  try {
+    const learnerId = String((req.body || {}).learnerId || "").trim();
+    if (!learnerId) {
+      deleteFileIfExists(req.file && req.file.path);
+      return res.status(400).json({ message: "learnerId is required." });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: "Document file is required." });
+    }
+
+    const learner = await db("learners")
+      .where({ id: learnerId, user_id: req.session.userId })
+      .first("id", "district", "school", "family_name", "firstname", "middlename");
+
+    if (!learner) {
+      deleteFileIfExists(req.file && req.file.path);
+      return res.status(404).json({ message: "Learner record not found." });
+    }
+
+    const existingPending = await db("approval_requests")
+      .where({ learner_id: learnerId, requestor_user_id: req.session.userId, status: "pending" })
+      .first("id");
+
+    if (existingPending) {
+      deleteFileIfExists(req.file && req.file.path);
+      return res.status(409).json({ message: "An approval request for this learner is already pending." });
+    }
+
+    const user = await db("users")
+      .where({ id: req.session.userId })
+      .first("firstname", "lastname", "middlename");
+
+    const requestorName = [String((user || {}).lastname || "").trim(), String((user || {}).firstname || "").trim(), String((user || {}).middlename || "").trim()]
+      .filter(Boolean)
+      .join(", ") || "N/A";
+    const learnerName = [String(learner.family_name || "").trim(), String(learner.firstname || "").trim(), String(learner.middlename || "").trim()]
+      .filter(Boolean)
+      .join(", ") || "N/A";
+    const nowIso = new Date().toISOString();
+
+    await db("approval_requests").insert({
+      id: crypto.randomUUID(),
+      learner_id: learnerId,
+      requestor_user_id: req.session.userId,
+      district: String(learner.district || "N/A").trim() || "N/A",
+      school: String(learner.school || "N/A").trim() || "N/A",
+      requestor_name: requestorName,
+      learner_name: learnerName,
+      document_path: path.posix.join("uploads", "approval-requests", path.basename(String(req.file.filename || "").trim())),
+      status: "pending",
+      created_at: nowIso,
+      updated_at: nowIso
+    });
+
+    return res.json({ message: "ADM approval request submitted." });
+  } catch (error) {
+    deleteFileIfExists(req.file && req.file.path);
+    return res.status(500).json({ message: "Failed to create approval request.", detail: error.message });
+  }
+});
+
+app.post("/api/approval-requests/:id/document", requireLogin, approvalRequestUpload.single("document"), async (req, res) => {
+  try {
+    const requestId = String(req.params.id || "").trim();
+    if (!requestId) {
+      deleteFileIfExists(req.file && req.file.path);
+      return res.status(400).json({ message: "Request id is required." });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: "Document file is required." });
+    }
+
+    const requestRow = await db("approval_requests")
+      .where({ id: requestId, requestor_user_id: req.session.userId })
+      .first("id", "status", "document_path");
+
+    if (!requestRow) {
+      deleteFileIfExists(req.file && req.file.path);
+      return res.status(404).json({ message: "Approval request not found." });
+    }
+
+    const status = String(requestRow.status || "pending").trim().toLowerCase();
+    if (status === "approved") {
+      deleteFileIfExists(req.file && req.file.path);
+      return res.status(400).json({ message: "Approved requests can no longer replace documents." });
+    }
+
+    const newDocumentPath = path.posix.join("uploads", "approval-requests", path.basename(String(req.file.filename || "").trim()));
+    await db("approval_requests")
+      .where({ id: requestId, requestor_user_id: req.session.userId })
+      .update({
+        document_path: newDocumentPath,
+        updated_at: new Date().toISOString()
+      });
+
+    const oldUploadPath = resolveApprovalUploadPath(requestRow.document_path);
+    if (oldUploadPath) {
+      deleteFileIfExists(oldUploadPath);
+    }
+
+    return res.json({ message: "Approval request document replaced.", documentPath: newDocumentPath });
+  } catch (error) {
+    deleteFileIfExists(req.file && req.file.path);
+    return res.status(500).json({ message: "Failed to replace approval request document.", detail: error.message });
+  }
+});
+
+app.get("/api/admin/approval-requests", requireAdmin, async (req, res) => {
+  try {
+    const requests = await db("approval_requests")
+      .select("id", "learner_id", "district", "school", "requestor_name", "learner_name", "document_path", "status", "review_note", "reviewed_by", "reviewed_at", "created_at", "updated_at")
+      .orderBy([
+        { column: "status", order: "asc" },
+        { column: "created_at", order: "desc" }
+      ]);
+
+    return res.json({ requests });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch admin approval requests.", detail: error.message });
+  }
+});
+
+app.post("/api/admin/approval-requests/:id/status", requireAdmin, async (req, res) => {
+  try {
+    const requestId = String(req.params.id || "").trim();
+    const status = String((req.body || {}).status || "").trim().toLowerCase();
+    const pinCode = String((req.body || {}).pinCode || "").trim();
+    const reviewNote = String((req.body || {}).reviewNote || "").trim();
+    const validStatuses = ["approved", "revise"];
+
+    if (!requestId || !validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Valid request id and status are required." });
+    }
+
+    if (status === "approved" && pinCode !== ADM_APPROVAL_PIN) {
+      return res.status(403).json({ message: "Invalid approval PIN code." });
+    }
+
+    const approvalRequest = await db("approval_requests as ar")
+      .leftJoin("users as u", "u.id", "ar.requestor_user_id")
+      .where("ar.id", requestId)
+      .first(
+        "ar.id",
+        "ar.status",
+        "ar.requestor_name",
+        "ar.learner_name",
+        "ar.requestor_user_id",
+        "u.email as requestor_email"
+      );
+
+    if (!approvalRequest) {
+      return res.status(404).json({ message: "Approval request not found." });
+    }
+
+    if (String(approvalRequest.status || "").trim().toLowerCase() === "approved" && status !== "approved") {
+      return res.status(409).json({ message: "Approved request can no longer be changed." });
+    }
+
+    const reviewerContext = await resolveAdminReviewerContext(req);
+    const nowIso = new Date().toISOString();
+
+    const updated = await db("approval_requests")
+      .where({ id: requestId })
+      .update({
+        status,
+        review_note: reviewNote || null,
+        reviewed_by: reviewerContext.reviewerName,
+        reviewed_by_user_id: reviewerContext.reviewerUserId,
+        reviewed_at: nowIso,
+        updated_at: nowIso
+      });
+
+    if (!updated) {
+      return res.status(404).json({ message: "Approval request not found." });
+    }
+
+    const recipientEmail = normalizeEmail((approvalRequest || {}).requestor_email || "");
+    if (recipientEmail) {
+      try {
+        await sendApprovalRequestStatusEmail({
+          email: recipientEmail,
+          requestorName: approvalRequest.requestor_name,
+          learnerName: approvalRequest.learner_name,
+          status,
+          reviewNote
+        });
+      } catch (mailError) {
+        console.warn("Approval status email failed:", mailError.message);
+      }
+    }
+
+    return res.json({ message: "Approval request updated." });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to update approval request.", detail: error.message });
+  }
+});
+
+app.use("/api", (req, res) => {
+  return res.status(404).json({ message: "API route not found." });
+});
+
+app.use((err, req, res, next) => {
+  if (!req.path.startsWith("/api/")) {
+    return next(err);
+  }
+
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({ message: err.message || "File upload failed." });
+  }
+
+  if (String((err && err.message) || "").trim()) {
+    if (String(err.message).includes("Invalid file type")) {
+      return res.status(400).json({ message: err.message });
+    }
+  }
+
+  if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
+    return res.status(400).json({ message: "Invalid JSON payload." });
+  }
+
+  console.error("API error:", err.message);
+  return res.status(500).json({ message: "Internal server error." });
+});
+
+app.use(express.static(__dirname));
+
+async function startServer() {
+  try {
+    if (!ADMIN_ACCESS_KEY) {
+      throw new Error("ADMIN_ACCESS_KEY is required in environment configuration.");
+    }
+
+    await ensureSchema();
+    await ensureAdminAccount();
+
+    app.listen(PORT, () => {
+      console.log(`Server running at ${APP_BASE_URL}`);
+      console.log(`Database client: ${DB_CLIENT}`);
+      console.log("Registration mode: admin approval (email verification disabled).");
+    });
+  } catch (error) {
+    console.error("Failed to initialize server:", error.message);
+    process.exit(1);
+  }
+}
+
+startServer();
