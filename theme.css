@@ -1137,3 +1137,46 @@ html body .deped-fixed-header .nav-greeting {
 		font-size: 1rem;
 	}
 }
+
+/* Unified role navigation: plain icon-and-text controls with underline only. */
+html body .deped-fixed-header button.nav-item,
+html body .deped-fixed-header button.quick-nav-btn,
+html body .deped-fixed-header button.itrack-management-toggle,
+html body .deped-fixed-header button.theme-toggle-nav {
+	min-height:34px !important;
+	padding:7px 9px !important;
+	background:transparent !important;
+	background-color:transparent !important;
+	background-image:none !important;
+	border:0 !important;
+	border-radius:0 !important;
+	box-shadow:none !important;
+	color:var(--navy) !important;
+	filter:none !important;
+	transform:none !important;
+}
+
+html body .deped-fixed-header button.nav-item:hover,
+html body .deped-fixed-header button.nav-item:focus-visible,
+html body .deped-fixed-header button.nav-item.nav-current,
+html body .deped-fixed-header button.quick-nav-btn:hover,
+html body .deped-fixed-header button.quick-nav-btn.active,
+html body .deped-fixed-header button.itrack-management-toggle:hover,
+html body .deped-fixed-header button.theme-toggle-nav:hover {
+	background:transparent !important;
+	background-color:transparent !important;
+	background-image:none !important;
+	box-shadow:none !important;
+	color:var(--project-green) !important;
+	filter:none !important;
+	transform:none !important;
+}
+
+html body .deped-fixed-header .itrack-management-submenu button.nav-item:hover,
+html body .deped-fixed-header .itrack-management-submenu button.nav-item:focus-visible,
+html body .deped-fixed-header .itrack-management-submenu button.nav-item.nav-current {
+	background:transparent !important;
+	background-color:transparent !important;
+	background-image:none !important;
+	box-shadow:none !important;
+}
