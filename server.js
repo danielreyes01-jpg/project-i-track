@@ -926,11 +926,17 @@ app.post("/api/user/theme", async (req, res) => {
   }
 });
 
-function requireAdmin(req, res, next) {
+async function requireAdmin(req, res, next) {
   if (req.session && req.session.userId) {
-    const sessionRole = String(req.session.role || "").trim().toLowerCase();
-    if (sessionRole === "admin") {
-      return next();
+    try {
+      const sessionUser = await db("users").where({ id: req.session.userId }).first("role");
+      const currentRole = String((sessionUser || {}).role || "").trim().toLowerCase();
+      if (currentRole === "admin") {
+        req.session.role = currentRole;
+        return next();
+      }
+    } catch (error) {
+      return res.status(500).json({ message: "Unable to verify administrator access.", detail: error.message });
     }
   }
 

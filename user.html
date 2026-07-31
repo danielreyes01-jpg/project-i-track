@@ -480,6 +480,14 @@
 				return adminKeyInput.value.trim();
 			}
 
+			function getAdminHeaders(includeJson) {
+				const headers = {};
+				const adminKey = getAdminKey();
+				if (adminKey) headers["x-admin-key"] = adminKey;
+				if (includeJson) headers["Content-Type"] = "application/json";
+				return headers;
+			}
+
 			function setUsersSectionVisible(isVisible) {
 				usersSection.classList.toggle("hidden", !isVisible);
 			}
@@ -551,17 +559,9 @@
 					clearMessage();
 				}
 
-				const adminKey = getAdminKey();
-				if (!adminKey) {
-					if (!silent) {
-						setMessage("Enter admin access key first.", "error");
-					}
-					return;
-				}
-
 				try {
 					const response = await fetch("/api/admin/users", {
-						headers: { "x-admin-key": adminKey }
+						headers: getAdminHeaders(false)
 					});
 
 					const payload = await parseApiPayload(response);
@@ -596,10 +596,6 @@
 						return;
 					}
 
-					if (!getAdminKey()) {
-						return;
-					}
-
 					loadUsers({ silent: true });
 				}, AUTO_REFRESH_MS);
 			}
@@ -609,12 +605,6 @@
 				const silent = Boolean(opts.silent);
 				const skipReload = Boolean(opts.skipReload);
 				const skipDeleteConfirm = Boolean(opts.skipDeleteConfirm);
-				const adminKey = getAdminKey();
-				if (!adminKey) {
-					if (!silent) setMessage("Enter admin access key first.", "error");
-					return false;
-				}
-
 				if (action === "delete" && !skipDeleteConfirm) {
 					const confirmed = window.confirm("Delete this account and all linked learner records?");
 					if (!confirmed) {
@@ -627,29 +617,20 @@
 					if (action === "setRole") {
 						response = await fetch("/api/admin/set-user-role", {
 							method: "PUT",
-							headers: {
-								"Content-Type": "application/json",
-								"x-admin-key": adminKey
-							},
+							headers: getAdminHeaders(true),
 							body: JSON.stringify({ userId: userId, role: extra })
 						});
 					} else if (action === "delete") {
 						response = await fetch("/api/admin/delete-user", {
 							method: "DELETE",
-							headers: {
-								"Content-Type": "application/json",
-								"x-admin-key": adminKey
-							},
+							headers: getAdminHeaders(true),
 							body: JSON.stringify({ userId: userId })
 						});
 					} else {
 						const endpoint = action === "approve" ? "/api/admin/approve-user" : "/api/admin/reject-user";
 						response = await fetch(endpoint, {
 							method: "POST",
-							headers: {
-								"Content-Type": "application/json",
-								"x-admin-key": adminKey
-							},
+							headers: getAdminHeaders(true),
 							body: JSON.stringify({ userId: userId })
 						});
 					}
@@ -708,6 +689,20 @@
 			loadBtn.addEventListener("click", function () {
 				loadUsers({ silent: false });
 			});
+
+			async function initializeUserApprovalPage() {
+				try {
+					const response = await fetch("/api/auth/me");
+					if (!response.ok) return;
+					const payload = await parseApiPayload(response);
+					const role = String((payload.user || {}).role || "").toLowerCase();
+					if (role === "admin") loadUsers({ silent: false });
+				} catch (_) {
+					// The manual admin-key fallback remains available.
+				}
+			}
+
+			initializeUserApprovalPage();
 
 			saveBtn.addEventListener("click", function () {
 				localStorage.setItem("adminAccessKey", getAdminKey());
