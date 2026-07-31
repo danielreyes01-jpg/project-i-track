@@ -724,12 +724,26 @@ app.post("/api/auth/register", async (req, res) => {
       middlename,
       district,
       school,
-      isSupervisor
+	  isSupervisor,
+	  accountType,
+	  username,
+	  lrn,
+	  schoolId
     } = req.body || {};
 
-    if (!email || !password || !confirmPassword || !firstname || !lastname || !district || !school) {
+	const normalizedAccountType = String(accountType || "school").trim().toLowerCase();
+	if (!email || !password || !confirmPassword || !firstname || !lastname || !district || !school || !username) {
       return res.status(400).json({ message: "Missing required fields." });
     }
+	if (!/^(school|student)$/.test(normalizedAccountType)) {
+	  return res.status(400).json({ message: "Invalid account type." });
+	}
+	if (normalizedAccountType === "student" && !/^\d{12}$/.test(String(lrn || ""))) {
+	  return res.status(400).json({ message: "LRN must contain exactly 12 digits." });
+	}
+	if (normalizedAccountType === "school" && !String(schoolId || "").trim()) {
+	  return res.status(400).json({ message: "School ID is required." });
+	}
 
     if (password !== confirmPassword) {
       return res.status(400).json({ message: "Password and confirm password do not match." });
@@ -748,6 +762,11 @@ app.post("/api/auth/register", async (req, res) => {
       String(isSupervisor || "").trim().toLowerCase() === "true";
     const requestedRole = requestedSupervisor ? "supervisor" : "teacher";
     const existing = await db("users").where({ email: normalizedEmail }).first();
+	const normalizedUsername = String(username || "").trim().toLowerCase();
+	const usernameOwner = await db("users").whereRaw("LOWER(username) = ?", [normalizedUsername]).first();
+	if (usernameOwner && (!existing || usernameOwner.id !== existing.id)) {
+	  return res.status(409).json({ message: "Username is already registered." });
+	}
 
     if (existing && Boolean(existing.approved)) {
       return res.status(409).json({ message: "Account already exists and is approved." });
@@ -765,7 +784,11 @@ app.post("/api/auth/register", async (req, res) => {
       middlename: String(middlename || "").trim(),
       district: String(district).trim(),
       school: String(school).trim(),
-      role: requestedRole,
+	  account_type: normalizedAccountType,
+	  username: normalizedUsername,
+	  lrn: normalizedAccountType === "student" ? String(lrn).trim() : null,
+	  school_id: normalizedAccountType === "school" ? String(schoolId).trim() : null,
+	  role: normalizedAccountType === "student" ? "student" : requestedRole,
       verified: true,
       approved: false,
       verification_token_hash: null,
@@ -811,7 +834,10 @@ app.post("/api/auth/login", async (req, res) => {
     return res.status(400).json({ message: "Email and password are required." });
   }
 
-  const user = await db("users").where({ email: email }).first();
+	const user = await db("users")
+	  .whereRaw("LOWER(email) = ?", [email])
+	  .orWhereRaw("LOWER(username) = ?", [email])
+	  .first();
   if (!user) {
     return res.status(401).json({ message: "Invalid credentials." });
   }

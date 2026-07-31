@@ -3,671 +3,114 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Create Account</title>
+	<title>Create Account | Project i-Track</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="/theme.css">
 	<style>
-		:root {
-			--bg-1: #f5efe4;
-			--bg-2: #e6f0e2;
-			--ink: #1f2a22;
-			--muted: #5f6c64;
-			--panel: rgba(255, 255, 255, 0.84);
-			--stroke: rgba(31, 42, 34, 0.14);
-			--accent: #175837;
-			--focus: #2c8b58;
-			--radius: 18px;
-			--shadow: 0 24px 58px rgba(20, 55, 36, 0.16);
-		}
-
-		* {
-			box-sizing: border-box;
-			margin: 0;
-			padding: 0;
-		}
-
-		body {
-			min-height: 100vh;
-			min-height: 100dvh;
-			font-family: "Manrope", sans-serif;
-			color: var(--ink);
-			background:
-				radial-gradient(circle at 88% 8%, rgba(64, 149, 96, 0.22), transparent 32%),
-				radial-gradient(circle at 8% 20%, rgba(28, 114, 63, 0.15), transparent 33%),
-				linear-gradient(145deg, var(--bg-1), var(--bg-2));
-			display: grid;
-			place-items: center;
-			padding: 12px;
-			overflow: hidden;
-		}
-
-		.signup-shell {
-			width: min(100%, 1380px);
-			max-height: calc(100vh - 24px);
-			max-height: calc(100dvh - 24px);
-			overflow-y: auto;
-			background: var(--panel);
-			backdrop-filter: blur(10px);
-			border: 1px solid var(--stroke);
-			border-radius: calc(var(--radius) + 4px);
-			box-shadow: var(--shadow);
-			padding: 16px clamp(16px, 2vw, 26px) 18px;
-			animation: lift-in 560ms ease-out both;
-		}
-
-		.brand {
-			display: flex;
-			justify-content: center;
-			margin-bottom: 6px;
-		}
-
-		.brand-logo {
-			width: min(100%, 220px);
-			height: auto;
-			display: block;
-		}
-
-		.title {
-			font-family: "Playfair Display", serif;
-			font-size: clamp(1.55rem, 2.4vw, 2rem);
-			line-height: 1.1;
-			margin-bottom: 6px;
-		}
-
-		.subtitle {
-			font-size: 0.95rem;
-			color: var(--muted);
-			line-height: 1.45;
-			margin-bottom: 12px;
-		}
-
-		form {
-			display: grid;
-			gap: 10px;
-		}
-
-		.grid {
-			display: grid;
-			grid-template-columns: repeat(3, minmax(0, 1fr));
-			gap: 10px 12px;
-		}
-
-		.field {
-			display: grid;
-			gap: 6px;
-		}
-
-		.field.full {
-			grid-column: auto;
-		}
-
-		.input-with-action {
-			display: flex;
-			gap: 8px;
-			align-items: center;
-		}
-
-		.input-with-action input {
-			flex: 1;
-		}
-
-		.toggle-btn {
-			border: 1px solid rgba(23, 88, 55, 0.24);
-			background: #edf8f0;
-			color: var(--accent);
-			padding: 10px 12px;
-			border-radius: 10px;
-			font: inherit;
-			font-weight: 700;
-			cursor: pointer;
-		}
-
-		.toggle-btn:hover {
-			filter: brightness(0.98);
-		}
-
-		label {
-			font-weight: 700;
-			font-size: 0.9rem;
-			letter-spacing: 0.01em;
-		}
-
-		input,
-		select {
-			width: 100%;
-			padding: 10px 12px;
-			border: 1px solid var(--stroke);
-			border-radius: 12px;
-			font: inherit;
-			color: var(--ink);
-			background: rgba(255, 255, 255, 0.95);
-			transition: border-color 180ms ease, box-shadow 180ms ease;
-		}
-
-		input:focus,
-		select:focus {
-			outline: none;
-			border-color: var(--focus);
-			box-shadow: 0 0 0 4px rgba(44, 139, 88, 0.14);
-		}
-
-		.helper {
-			font-size: 0.82rem;
-			color: var(--muted);
-		}
-
-		.helper.ok {
-			color: #1a6a40;
-		}
-
-		.helper.warn {
-			color: #9a3e00;
-		}
-
-		.message-box {
-			display: none;
-			padding: 10px 12px;
-			border-radius: 10px;
-			font-size: 0.88rem;
-			font-weight: 600;
-		}
-
-		.message-box.error {
-			display: block;
-			background: #fde9e2;
-			color: #842600;
-			border: 1px solid #f7c3b1;
-		}
-
-		.message-box.success {
-			display: block;
-			background: #e5f7ea;
-			color: #14532d;
-			border: 1px solid #b8e7c5;
-		}
-
-		.actions {
-			display: flex;
-			gap: 10px;
-			margin-top: 4px;
-		}
-
-		.btn {
-			border: none;
-			border-radius: 12px;
-			padding: 12px 16px;
-			font: inherit;
-			font-weight: 800;
-			cursor: pointer;
-			transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease, background-color 150ms ease;
-		}
-
-		.btn:hover {
-			transform: translateY(-2px);
-			box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-		}
-
-		.btn:active {
-			transform: translateY(1px);
-			box-shadow: none;
-		}
-
-		.btn-primary {
-			background: var(--accent);
-			color: #fff;
-		}
-
-		.btn-primary:hover {
-			filter: brightness(1.06);
-		}
-
-		.btn-secondary {
-			background: #e1edde;
-			color: var(--accent);
-		}
-
-		.btn-secondary:hover {
-			filter: brightness(0.98);
-		}
-
-		@keyframes lift-in {
-			from {
-				opacity: 0;
-				transform: translateY(12px) scale(0.98);
-			}
-			to {
-				opacity: 1;
-				transform: translateY(0) scale(1);
-			}
-		}
-
-		@media (max-width: 760px) {
-			body {
-				overflow: auto;
-			}
-
-			.signup-shell {
-				max-height: none;
-				overflow: visible;
-				padding: 18px 14px;
-			}
-
-			.brand-logo {
-				width: min(100%, 240px);
-			}
-
-			.grid {
-				grid-template-columns: 1fr;
-			}
-
-			.actions {
-				flex-direction: column;
-			}
-		}
-
-		@media (min-width: 761px) and (max-width: 1099px) {
-			.grid {
-				grid-template-columns: repeat(2, minmax(0, 1fr));
-			}
-
-			.field.full {
-				grid-column: 1 / -1;
-			}
-		}
+		:root { --ink:#123d36; --muted:#71817c; --green:#167654; --blue:#147eb3; --line:#bdd9ce; --soft:#f4fbf7; }
+		* { box-sizing:border-box; }
+		body { min-height:100vh; margin:0; font-family:"Manrope",sans-serif; color:var(--ink); background:linear-gradient(145deg,#f3f8f6,#eaf5f2); display:grid; place-items:center; padding:18px; }
+		.account-shell { width:min(100%,780px); position:relative; }
+		.account-picker, .account-dialog { background:rgba(255,255,255,.97); border:1px solid var(--line); border-radius:20px; box-shadow:0 22px 60px rgba(15,75,62,.14); }
+		.account-picker { position:relative; padding:22px; text-align:center; animation:pop .25s ease-out; }
+		.account-picker::before { content:""; position:absolute; top:-10px; left:50%; width:18px; height:18px; background:#fff; border-left:1px solid var(--line); border-top:1px solid var(--line); transform:translateX(-50%) rotate(45deg); }
+		h1,h2,p { margin-top:0; }
+		.account-picker h1 { font-size:1.2rem; margin-bottom:6px; }
+		.account-picker p { color:var(--muted); font-size:.88rem; margin-bottom:16px; }
+		.account-types { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+		.account-type { display:flex; align-items:center; gap:12px; min-height:72px; padding:12px; text-align:left; color:var(--ink); background:#fbfefd; border:1px solid var(--line); border-radius:14px; cursor:pointer; transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease; }
+		.account-type:hover, .account-type:focus-visible { transform:translateY(-2px); border-color:#55ad8d; background:#f2fbf7; box-shadow:0 10px 25px rgba(15,95,72,.12); outline:none; }
+		.type-icon { width:44px; height:44px; flex:0 0 44px; display:grid; place-items:center; border-radius:12px; background:#e2f1fb; color:#0875ae; font-size:1.25rem; }
+		.account-type[data-type="student"] .type-icon { background:#e2f4e8; color:#237a50; }
+		.type-copy strong, .type-copy small { display:block; }
+		.type-copy strong { font-size:.92rem; }
+		.type-copy small { margin-top:2px; color:var(--muted); font-size:.75rem; }
+		.account-dialog { display:none; max-height:calc(100vh - 36px); overflow:auto; }
+		.account-dialog.is-open { display:block; animation:pop .25s ease-out; }
+		.dialog-head { position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:12px; padding:18px 20px; background:rgba(244,251,247,.97); border-bottom:1px solid #d6e7df; }
+		.dialog-head h2 { flex:1; margin:0; font-size:clamp(1.25rem,3vw,1.7rem); }
+		.close-dialog { width:42px; height:42px; border:0; border-radius:50%; background:#e1eee8; color:#527068; font-size:1.35rem; cursor:pointer; }
+		.close-dialog:hover { background:#d5e8df; color:#174f40; }
+		form { padding:22px 20px 18px; }
+		.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px 15px; }
+		.field { display:grid; gap:7px; }
+		.field.full { grid-column:1/-1; }
+		label { font-size:.88rem; font-weight:700; color:#164b3d; }
+		.required-mark { color:inherit; }
+		input { width:100%; min-height:54px; padding:12px 14px; border:1px solid var(--line); border-radius:13px; background:#fff; color:#193f37; font:inherit; transition:border-color .18s ease, box-shadow .18s ease; }
+		input:hover { border-color:#8dbfac; }
+		input:focus { outline:none; border-color:#298b6c; box-shadow:0 0 0 4px rgba(41,139,108,.12); }
+		input:invalid:not(:focus):not(:placeholder-shown) { border-color:var(--line); box-shadow:none; }
+		.hint { margin:0; color:var(--muted); font-size:.76rem; }
+		.message { display:none; margin:0 20px 4px; padding:11px 13px; border-radius:11px; font-size:.85rem; font-weight:600; }
+		.message.error { display:block; background:#fff1ec; color:#8a3519; border:1px solid #f0c8b8; }
+		.message.success { display:block; background:#e9f8ee; color:#145b35; border:1px solid #bde2c9; }
+		.actions { display:flex; justify-content:flex-end; gap:10px; padding:16px 20px 20px; border-top:1px solid #d6e7df; }
+		.actions button { min-height:50px; padding:0 21px; border-radius:12px; font:inherit; font-weight:800; cursor:pointer; transition:transform .18s ease, box-shadow .18s ease; }
+		.actions button:hover { transform:translateY(-2px); }
+		.cancel { color:#315c51; background:#fff; border:1px solid var(--line); }
+		.submit { color:#fff; background:#187554; border:1px solid #187554; }
+		.submit:hover { box-shadow:0 9px 22px rgba(24,117,84,.2); }
+		@keyframes pop { from { opacity:0; transform:translateY(8px) scale(.985); } to { opacity:1; transform:none; } }
+		@media (max-width:600px) { body{padding:10px;} .account-types,.form-grid{grid-template-columns:1fr;} .field.full{grid-column:auto;} .account-dialog{max-height:calc(100vh - 20px);} .actions{position:sticky;bottom:0;background:#fff;} }
 	</style>
 </head>
 <body>
-	<main class="signup-shell" aria-label="Create account form">
-		<div class="brand">
-			<img class="brand-logo" src="assets/itrack-final.png" alt="I-Track Project I-Track logo">
-		</div>
-
-		<h1 class="title">Create Your Account</h1>
-		<p class="subtitle">Fill out the details below to request an account.</p>
-
-		<form id="createForm" action="#" method="post">
-			<div class="grid">
-				<div class="field full">
-					<label for="email">Email</label>
-					<input id="email" name="email" type="email" autocomplete="email" required>
-				</div>
-
-				<div class="field full">
-					<label for="password">Password</label>
-					<div class="input-with-action">
-						<input id="password" name="password" type="password" autocomplete="off" required>
-						<button id="togglePassword" class="toggle-btn" type="button">Show</button>
-					</div>
-					<p id="passwordHint" class="helper">Use 8+ chars with uppercase, lowercase, number, and special character.</p>
-				</div>
-
-				<div class="field full">
-					<label for="confirmPassword">Confirm Password</label>
-					<div class="input-with-action">
-						<input id="confirmPassword" name="confirmPassword" type="password" autocomplete="off" required>
-						<button id="toggleConfirmPassword" class="toggle-btn" type="button">Show</button>
-					</div>
-					<p id="confirmHint" class="helper">Re-enter the same password.</p>
-				</div>
-
-				<div class="field">
-					<label for="firstname">First Name</label>
-					<input id="firstname" name="firstname" type="text" autocomplete="given-name" required>
-				</div>
-
-				<div class="field">
-					<label for="lastname">Last Name</label>
-					<input id="lastname" name="lastname" type="text" autocomplete="family-name" required>
-				</div>
-
-				<div class="field full">
-					<label for="middlename">Middle Name</label>
-					<input id="middlename" name="middlename" type="text" autocomplete="additional-name">
-				</div>
-
-				<div class="field">
-					<label for="isSupervisor">Supervisor Account?</label>
-					<select id="isSupervisor" name="isSupervisor">
-						<option value="no" selected>No</option>
-						<option value="yes">Yes</option>
-					</select>
-				</div>
-
-				<div class="field" id="supervisorFieldWrap" style="display:none;">
-					<label for="supervisorRole">Supervisor Role</label>
-					<input id="supervisorRole" name="supervisorRole" type="text" value="Supervisor" readonly>
-				</div>
-
-				<div class="field">
-					<label for="district">District</label>
-					<select id="district" name="district" required>
-						<option value="" selected disabled>Select District</option>
-						<option value="Division Office">Division Office</option>
-						<option value="Alcantara">Alcantara</option>
-						<option value="Alcoy">Alcoy</option>
-						<option value="Alegria">Alegria</option>
-						<option value="Aloguinsan">Aloguinsan</option>
-						<option value="Argao I">Argao I</option>
-						<option value="Argao II">Argao II</option>
-						<option value="Asturias II">Asturias II</option>
-						<option value="Asturias I">Asturias I</option>
-						<option value="Badian">Badian</option>
-						<option value="Balamban I">Balamban I</option>
-						<option value="Balamban II">Balamban II</option>
-						<option value="Bantayan I">Bantayan I</option>
-						<option value="Bantayan II">Bantayan II</option>
-						<option value="Barili I">Barili I</option>
-						<option value="Barili II">Barili II</option>
-						<option value="Boljoon">Boljoon</option>
-						<option value="Borbon">Borbon</option>
-						<option value="Carmen">Carmen</option>
-						<option value="Catmon">Catmon</option>
-						<option value="Compostela">Compostela</option>
-						<option value="Consolacion I">Consolacion I</option>
-						<option value="Consolacion II">Consolacion II</option>
-						<option value="Cordova">Cordova</option>
-						<option value="Daan Bantayan I">Daan Bantayan I</option>
-						<option value="Daan Bantayan II">Daan Bantayan II</option>
-						<option value="Dalaguete I">Dalaguete I</option>
-						<option value="Dalaguete II">Dalaguete II</option>
-						<option value="Dumanjug I">Dumanjug I</option>
-						<option value="Dumanjug II">Dumanjug II</option>
-						<option value="Ginatilan">Ginatilan</option>
-						<option value="Liloan">Liloan</option>
-						<option value="Madridejos">Madridejos</option>
-						<option value="Malabuyoc">Malabuyoc</option>
-						<option value="Medellin">Medellin</option>
-						<option value="Minglanilla I">Minglanilla I</option>
-						<option value="Minglanilla II">Minglanilla II</option>
-						<option value="Moalboal">Moalboal</option>
-						<option value="Oslob">Oslob</option>
-						<option value="Pilar">Pilar</option>
-						<option value="Pinamungajan I">Pinamungajan I</option>
-						<option value="Pinamungajan II">Pinamungajan II</option>
-						<option value="Poro">Poro</option>
-						<option value="Ronda">Ronda</option>
-						<option value="Samboan">Samboan</option>
-						<option value="San Fernando I">San Fernando I</option>
-						<option value="San Fernando II">San Fernando II</option>
-						<option value="San Francisco">San Francisco</option>
-						<option value="San Remigio I">San Remigio I</option>
-						<option value="San Remigio II">San Remigio II</option>
-						<option value="Santa Fe">Santa Fe</option>
-						<option value="Santander">Santander</option>
-						<option value="Sibonga">Sibonga</option>
-						<option value="Sogod">Sogod</option>
-						<option value="Tabogon">Tabogon</option>
-						<option value="Tabuelan">Tabuelan</option>
-						<option value="Tuburan I">Tuburan I</option>
-						<option value="Tuburan II">Tuburan II</option>
-						<option value="Tudela">Tudela</option>
-					</select>
-				</div>
-
-				<div class="field">
-					<label for="school">School</label>
-					<select id="school" name="school" required disabled>
-						<option value="" selected disabled>Select School</option>
-					</select>
-					<p class="helper" id="schoolHelper">Select a district first to view its schools.</p>
-				</div>
+	<main class="account-shell">
+		<section id="accountPicker" class="account-picker" aria-labelledby="pickerTitle">
+			<h1 id="pickerTitle">Create an account</h1>
+			<p>Select the type of account you want to register.</p>
+			<div class="account-types">
+				<button class="account-type" type="button" data-type="school"><span class="type-icon" aria-hidden="true">▣</span><span class="type-copy"><strong>School Account</strong><small>For teachers and school staff</small></span></button>
+				<button class="account-type" type="button" data-type="student"><span class="type-icon" aria-hidden="true">♙</span><span class="type-copy"><strong>Student Account</strong><small>For registered learners</small></span></button>
 			</div>
+		</section>
 
-			<div id="createMessage" class="message-box" role="status" aria-live="polite"></div>
-
-			<div class="actions">
-				<button class="btn btn-primary" type="submit">Create Account</button>
-				<button class="btn btn-secondary" type="button" onclick="window.location.href='index.html'">Back to Log In</button>
-			</div>
-		</form>
+		<section id="accountDialog" class="account-dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+			<header class="dialog-head"><span id="dialogIcon" class="type-icon" aria-hidden="true">▣</span><h2 id="dialogTitle">Create School Account</h2><button id="closeDialog" class="close-dialog" type="button" aria-label="Close account form">×</button></header>
+			<form id="createForm" novalidate>
+				<input id="accountType" type="hidden" value="school">
+				<div class="form-grid">
+					<div class="field school-only"><label for="district">District <span class="required-mark">*</span></label><input id="district" name="district" type="text" list="districtList" autocomplete="organization" required></div>
+					<div class="field school-only"><label for="schoolId">School ID <span class="required-mark">*</span></label><input id="schoolId" name="schoolId" type="text" inputmode="numeric" autocomplete="off" required></div>
+					<div class="field student-only full" hidden><label for="lrn">LRN (Must be 12 digits) <span class="required-mark">*</span></label><input id="lrn" name="lrn" type="text" inputmode="numeric" maxlength="12" pattern="[0-9]{12}" placeholder="Enter 12-digit LRN"></div>
+					<div class="field full"><label for="school">School Name <span class="required-mark">*</span></label><input id="school" name="school" type="text" list="schoolList" autocomplete="organization" required></div>
+					<div class="field full"><label id="nameLabel" for="fullName">Name (Firstname Lastname) <span class="required-mark">*</span></label><input id="fullName" name="fullName" type="text" autocomplete="name" required></div>
+					<div class="field full"><label for="email">Email Address <span class="required-mark">*</span></label><input id="email" name="email" type="email" autocomplete="email" required></div>
+					<div class="field full"><label for="username">Username <span class="required-mark">*</span></label><input id="username" name="username" type="text" autocomplete="username" minlength="4" required></div>
+					<div class="field"><label for="password">Password <span class="required-mark">*</span></label><input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required><p class="hint">8+ characters with uppercase, lowercase, number and symbol.</p></div>
+					<div class="field"><label for="confirmPassword">Confirm Password <span class="required-mark">*</span></label><input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" required></div>
+				</div>
+			</form>
+			<div id="createMessage" class="message" role="status" aria-live="polite"></div>
+			<footer class="actions"><button id="cancelDialog" class="cancel" type="button">Cancel</button><button class="submit" type="submit" form="createForm">Create Account →</button></footer>
+		</section>
+		<datalist id="districtList"></datalist><datalist id="schoolList"></datalist>
 	</main>
-
 	<script>
-		(function () {
-			const referenceApiUrl = "/api/reference/district-schools";
-
-			const createForm = document.getElementById("createForm");
-			const passwordInput = document.getElementById("password");
-			const confirmPasswordInput = document.getElementById("confirmPassword");
-			const togglePasswordBtn = document.getElementById("togglePassword");
-			const toggleConfirmPasswordBtn = document.getElementById("toggleConfirmPassword");
-			const passwordHint = document.getElementById("passwordHint");
-			const confirmHint = document.getElementById("confirmHint");
-			const createMessage = document.getElementById("createMessage");
-			const isSupervisorSelect = document.getElementById("isSupervisor");
-			const supervisorFieldWrap = document.getElementById("supervisorFieldWrap");
-			const districtSelect = document.getElementById("district");
-			const schoolSelect = document.getElementById("school");
-			const schoolHelper = document.getElementById("schoolHelper");
-			let districtSchoolReference = null;
-
-			function setCreateMessage(message, type) {
-				createMessage.textContent = message;
-				createMessage.className = "message-box " + type;
-			}
-
-			function clearCreateMessage() {
-				createMessage.textContent = "";
-				createMessage.className = "message-box";
-			}
-
-			function setSchoolOptionsForDistrict(district) {
-				schoolSelect.innerHTML = '<option value="" selected disabled>Select School</option>';
-				if (!district || !districtSchoolReference || !districtSchoolReference.schoolsByDistrict) {
-					schoolSelect.disabled = true;
-					schoolHelper.textContent = "Select a district first to view its schools.";
-					schoolHelper.className = "helper";
-					return;
-				}
-
-				const schools = Array.isArray(districtSchoolReference.schoolsByDistrict[district])
-					? districtSchoolReference.schoolsByDistrict[district]
-					: [];
-
-				if (!schools.length) {
-					schoolSelect.disabled = true;
-					schoolHelper.textContent = "No schools listed for this district.";
-					schoolHelper.className = "helper warn";
-					return;
-				}
-
-				schools.forEach(function (school) {
-					const option = document.createElement("option");
-					const name = String((school && school.name) || "").trim();
-					const schoolId = String((school && school.id) || "").trim();
-					option.value = name;
-					option.textContent = schoolId ? (name + " (" + schoolId + ")") : name;
-					schoolSelect.appendChild(option);
-				});
-
-				schoolSelect.disabled = false;
-				schoolHelper.textContent = "School options are filtered by selected district.";
-				schoolHelper.className = "helper ok";
-			}
-
-			async function loadDistrictSchoolReference() {
-				try {
-					const response = await fetch(referenceApiUrl);
-					const payload = await parseApiPayload(response);
-					if (!response.ok) {
-						throw new Error(payload.message || "Failed to load district/school reference.");
-					}
-
-					districtSchoolReference = payload;
-					const districts = Array.isArray(payload.districts) ? payload.districts : [];
-					districtSelect.innerHTML = '<option value="" selected disabled>Select District</option>';
-					districts.forEach(function (district) {
-						const option = document.createElement("option");
-						option.value = String(district || "").trim();
-						option.textContent = String(district || "").trim();
-						districtSelect.appendChild(option);
-					});
-
-					setSchoolOptionsForDistrict("");
-				} catch (error) {
-					schoolSelect.disabled = true;
-					schoolHelper.textContent = "Unable to load school list. Please refresh the page.";
-					schoolHelper.className = "helper warn";
-				}
-			}
-
-			function toggleSupervisorField() {
-				const isSupervisor = isSupervisorSelect.value === "yes";
-				supervisorFieldWrap.style.display = isSupervisor ? "grid" : "none";
-			}
-
-			async function parseApiPayload(response) {
-				const raw = await response.text();
-				if (!raw) {
-					return {};
-				}
-
-				try {
-					return JSON.parse(raw);
-				} catch (error) {
-					return {
-						message: "Server returned an unexpected response format.",
-						detail: raw
-					};
-				}
-			}
-
-			function passwordChecks(password) {
-				return {
-					length: password.length >= 8,
-					upper: /[A-Z]/.test(password),
-					lower: /[a-z]/.test(password),
-					number: /[0-9]/.test(password),
-					special: /[^A-Za-z0-9]/.test(password)
-				};
-			}
-
-			function isStrongPassword(password) {
-				const checks = passwordChecks(password);
-				return checks.length && checks.upper && checks.lower && checks.number && checks.special;
-			}
-
-			function updatePasswordHints() {
-				const password = passwordInput.value;
-				const confirmPassword = confirmPasswordInput.value;
-
-				if (!password) {
-					passwordHint.textContent = "Use 8+ chars with uppercase, lowercase, number, and special character.";
-					passwordHint.className = "helper";
-				} else if (isStrongPassword(password)) {
-					passwordHint.textContent = "Strong password.";
-					passwordHint.className = "helper ok";
-				} else {
-					passwordHint.textContent = "Weak password. Add missing uppercase, lowercase, number, or special character.";
-					passwordHint.className = "helper warn";
-				}
-
-				if (!confirmPassword) {
-					confirmHint.textContent = "Re-enter the same password.";
-					confirmHint.className = "helper";
-				} else if (confirmPassword === password) {
-					confirmHint.textContent = "Passwords match.";
-					confirmHint.className = "helper ok";
-				} else {
-					confirmHint.textContent = "Passwords do not match.";
-					confirmHint.className = "helper warn";
-				}
-			}
-
-			passwordInput.addEventListener("input", updatePasswordHints);
-			confirmPasswordInput.addEventListener("input", updatePasswordHints);
-
-			togglePasswordBtn.addEventListener("click", function () {
-				const hidden = passwordInput.type === "password";
-				passwordInput.type = hidden ? "text" : "password";
-				togglePasswordBtn.textContent = hidden ? "Hide" : "Show";
-			});
-
-			toggleConfirmPasswordBtn.addEventListener("click", function () {
-				const hidden = confirmPasswordInput.type === "password";
-				confirmPasswordInput.type = hidden ? "text" : "password";
-				toggleConfirmPasswordBtn.textContent = hidden ? "Hide" : "Show";
-			});
-
-			isSupervisorSelect.addEventListener("change", toggleSupervisorField);
-			districtSelect.addEventListener("change", function () {
-				setSchoolOptionsForDistrict(districtSelect.value);
-			});
-			toggleSupervisorField();
-			loadDistrictSchoolReference();
-
-			createForm.addEventListener("submit", async function (event) {
-				event.preventDefault();
-				clearCreateMessage();
-
-				const password = passwordInput.value;
-				const confirmPassword = confirmPasswordInput.value;
-
-				if (!isStrongPassword(password)) {
-					setCreateMessage("Password is too weak. Use 8+ chars with uppercase, lowercase, number, and special character.", "error");
-					return;
-				}
-
-				if (password !== confirmPassword) {
-					setCreateMessage("Password and confirm password do not match.", "error");
-					return;
-				}
-
-				const accountData = {
-					email: document.getElementById("email").value.trim(),
-					password: password,
-					confirmPassword: confirmPassword,
-					firstname: document.getElementById("firstname").value.trim(),
-					lastname: document.getElementById("lastname").value.trim(),
-					middlename: document.getElementById("middlename").value.trim(),
-					district: document.getElementById("district").value.trim(),
-					school: document.getElementById("school").value.trim(),
-					isSupervisor: document.getElementById("isSupervisor").value === "yes"
-				};
-
-				try {
-					const response = await fetch("/api/auth/register", {
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json"
-						},
-						body: JSON.stringify(accountData)
-					});
-
-					const payload = await parseApiPayload(response);
-					if (!response.ok) {
-						if (response.status === 405) {
-							throw new Error("Create account API is not available on this host (HTTP 405).");
-						}
-
-						if (response.status === 404) {
-							throw new Error("Create account API endpoint not found on this host (HTTP 404).");
-						}
-
-						const fullMessage = [payload.message, payload.detail].filter(Boolean).join(" ");
-						throw new Error(fullMessage || ("Unable to create account. (HTTP " + response.status + ")"));
-					}
-
-					setCreateMessage("Account request submitted. Please wait for admin approval.", "success");
-					setTimeout(function () {
-						window.location.href = "index.html?notice=" + encodeURIComponent("Account request submitted. Please wait for admin approval.");
-					}, 1200);
-				} catch (error) {
-					const message = String(error && error.message ? error.message : "");
-					if (message.toLowerCase().includes("failed to fetch")) {
-						setCreateMessage("Cannot reach API endpoint on this host. Verify API routes and server configuration.", "error");
-						return;
-					}
-
-					setCreateMessage(message || "Unable to create account.", "error");
-				}
-			});
-		})();
+	(function(){
+		const picker=document.getElementById('accountPicker'),dialog=document.getElementById('accountDialog'),form=document.getElementById('createForm'),message=document.getElementById('createMessage');
+		const typeInput=document.getElementById('accountType'),lrn=document.getElementById('lrn'),district=document.getElementById('district'),school=document.getElementById('school');
+		let schoolDistrictMap=new Map();
+		function setMessage(text,type){message.textContent=text;message.className='message '+type;}
+		function clearMessage(){message.textContent='';message.className='message';}
+		function openForm(type){
+			typeInput.value=type; const student=type==='student';
+			document.querySelectorAll('.school-only').forEach(el=>el.hidden=student);document.querySelectorAll('.student-only').forEach(el=>el.hidden=!student);
+			district.required=!student;document.getElementById('schoolId').required=!student;lrn.required=student;
+			document.getElementById('dialogTitle').textContent=student?'Create Student Account':'Create School Account';document.getElementById('dialogIcon').textContent=student?'♙':'▣';document.getElementById('nameLabel').innerHTML=(student?'Student Name':'Name')+' (Firstname Lastname) <span class="required-mark">*</span>';
+			picker.hidden=true;dialog.classList.add('is-open');clearMessage();setTimeout(()=>student?lrn.focus():district.focus(),50);
+		}
+		function closeForm(){dialog.classList.remove('is-open');picker.hidden=false;form.reset();clearMessage();}
+		document.querySelectorAll('.account-type').forEach(btn=>btn.addEventListener('click',()=>openForm(btn.dataset.type)));document.getElementById('closeDialog').addEventListener('click',closeForm);document.getElementById('cancelDialog').addEventListener('click',closeForm);
+		lrn.addEventListener('input',()=>{lrn.value=lrn.value.replace(/\D/g,'').slice(0,12);});
+		fetch('/api/reference/district-schools').then(r=>r.ok?r.json():Promise.reject()).then(data=>{(data.districts||[]).forEach(name=>document.getElementById('districtList').append(new Option(name)));Object.entries(data.schoolsByDistrict||{}).forEach(([districtName,schools])=>(schools||[]).forEach(item=>{const name=String(item.name||'').trim();if(name){schoolDistrictMap.set(name.toLowerCase(),districtName);document.getElementById('schoolList').append(new Option(name));}}));}).catch(()=>{});
+		function strongPassword(value){return value.length>=8&&/[A-Z]/.test(value)&&/[a-z]/.test(value)&&/\d/.test(value)&&/[^A-Za-z0-9]/.test(value);}
+		form.addEventListener('submit',async event=>{event.preventDefault();clearMessage();if(!form.reportValidity())return;const type=typeInput.value;if(type==='student'&&!/^\d{12}$/.test(lrn.value)){setMessage('LRN must contain exactly 12 digits.','error');lrn.focus();return;}const password=document.getElementById('password').value,confirmPassword=document.getElementById('confirmPassword').value;if(!strongPassword(password)){setMessage('Password must contain at least 8 characters with uppercase, lowercase, number and special character.','error');return;}if(password!==confirmPassword){setMessage('Password and confirm password do not match.','error');return;}const parts=document.getElementById('fullName').value.trim().split(/\s+/);const firstname=parts.shift()||'',lastname=parts.pop()||firstname,middlename=parts.join(' ');const derivedDistrict=type==='student'?(schoolDistrictMap.get(school.value.trim().toLowerCase())||'Unassigned'):district.value.trim();const payload={accountType:type,lrn:lrn.value,schoolId:document.getElementById('schoolId').value.trim(),username:document.getElementById('username').value.trim(),email:document.getElementById('email').value.trim(),password,confirmPassword,firstname,lastname,middlename,district:derivedDistrict,school:school.value.trim(),isSupervisor:false};try{const response=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.message||'Unable to create account.');setMessage('Account request submitted. Please wait for administrator approval.','success');form.reset();setTimeout(()=>location.href='index.html?notice='+encodeURIComponent('Account request submitted. Please wait for administrator approval.'),1400);}catch(error){setMessage(error.message||'Unable to create account.','error');}});
+	})();
 	</script>
-
-<script src="/theme.js"></script>
+	<script src="/theme.js"></script>
 </body>
 </html>
-

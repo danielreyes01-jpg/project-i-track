@@ -53,6 +53,10 @@ async function ensureSchema() {
       table.string("middlename", 120).nullable();
       table.string("district", 150).notNullable();
       table.string("school", 150).notNullable();
+	  table.string("account_type", 20).notNullable().defaultTo("school");
+	  table.string("username", 120).nullable();
+	  table.string("lrn", 12).nullable();
+	  table.string("school_id", 30).nullable();
       table.string("role", 20).notNullable().defaultTo("teacher");
       table.boolean("verified").notNullable().defaultTo(false);
       table.boolean("approved").notNullable().defaultTo(false);
@@ -112,6 +116,18 @@ async function ensureSchema() {
       table.string("role", 20).notNullable().defaultTo("teacher");
     });
   }
+	if (!columns.account_type) {
+	  await db.schema.alterTable("users", (table) => table.string("account_type", 20).notNullable().defaultTo("school"));
+	}
+	if (!columns.username) {
+	  await db.schema.alterTable("users", (table) => table.string("username", 120).nullable());
+	}
+	if (!columns.lrn) {
+	  await db.schema.alterTable("users", (table) => table.string("lrn", 12).nullable());
+	}
+	if (!columns.school_id) {
+	  await db.schema.alterTable("users", (table) => table.string("school_id", 30).nullable());
+	}
 
   const learnersExists = await db.schema.hasTable("learners");
   if (!learnersExists) {
