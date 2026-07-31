@@ -232,15 +232,20 @@
 	</style>
 </head>
 <body>
+	<div class="nav-panel">
+		<nav class="nav-menu" aria-label="Teacher navigation">
+			<button class="nav-item" type="button" onclick="window.location.href='learner.html'">📋 Learner Record</button>
+			<button class="nav-item" type="button" onclick="window.location.href='adm-request.html'">📄 ADM Request</button>
+			<span id="navGreeting" class="nav-greeting"></span>
+			<button class="nav-item nav-item-signout" type="button" onclick="window.location.href='signout.html'">↪ Sign Out</button>
+		</nav>
+	</div>
 	<div class="page">
 		<section class="panel">
 			<div class="header">
 				<div>
 					<h1>ADM Request Form</h1>
 					<p class="subtitle">Teacher accounts can submit ADM requests with PSDS Endorsement and Secondary Supporting Document files.</p>
-				</div>
-				<div class="actions">
-					<button class="btn-secondary" type="button" onclick="window.location.href='learner.html'">Back to Learner</button>
 				</div>
 			</div>
 			<div id="message" class="message" role="status" aria-live="polite"></div>
@@ -485,6 +490,9 @@
 					}
 					districtInput.value = String(user.district || "").trim();
 					schoolInput.value = String(user.school || "").trim();
+					const navGreeting = document.getElementById("navGreeting");
+					const teacherName = String(user.firstname || "").trim();
+					if (navGreeting && teacherName) navGreeting.textContent = "👤 " + teacherName;
 					if (!requestDateInput.value) {
 						requestDateInput.value = new Date().toISOString().slice(0, 10);
 					}
