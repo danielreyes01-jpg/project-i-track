@@ -385,17 +385,47 @@ html.has-deped-fixed-header body {
 
 .deped-compact-menu-dock .nav-item {
 	min-height: 34px;
-	padding: 6px 8px;
+	padding: 7px 10px;
 	font-size: clamp(0.7rem, 0.78vw, 0.82rem) !important;
 	line-height: 1.1 !important;
-	border-radius: 7px !important;
+	position: relative;
+	background: transparent !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+	color: var(--navy) !important;
 }
 
+.deped-compact-menu-dock .nav-item::after {
+	content: "";
+	position: absolute;
+	left: 10px;
+	right: 10px;
+	bottom: 2px;
+	height: 2px;
+	border-radius: 999px;
+	background: linear-gradient(90deg, var(--project-green), var(--project-blue));
+	transform: scaleX(0);
+	transform-origin: center;
+	transition: transform 180ms ease;
+}
+
+.deped-compact-menu-dock .nav-item:hover,
+.deped-compact-menu-dock .nav-item:focus-visible,
+.deped-compact-menu-dock .nav-item.nav-current,
 .deped-compact-menu-dock .quick-nav-btn.active {
 	background: transparent !important;
 	color: var(--project-green) !important;
-	border-color: transparent !important;
-	box-shadow: inset 0 -2px 0 var(--project-green) !important;
+	border: 0 !important;
+	box-shadow: none !important;
+	transform: translateY(-1px) !important;
+}
+
+.deped-compact-menu-dock .nav-item:hover::after,
+.deped-compact-menu-dock .nav-item:focus-visible::after,
+.deped-compact-menu-dock .nav-item.nav-current::after,
+.deped-compact-menu-dock .quick-nav-btn.active::after {
+	transform: scaleX(1);
 }
 
 .deped-compact-menu-dock .nav-greeting {
@@ -429,8 +459,8 @@ html.has-deped-fixed-header .theme-toggle-fixed {
 	padding: 9px 13px;
 	background: transparent !important;
 	color: var(--navy) !important;
-	border: 1px solid transparent !important;
-	border-radius: 9px !important;
+	border: 0 !important;
+	border-radius: 0 !important;
 	box-shadow: none !important;
 	font-weight: 700 !important;
 	letter-spacing: 0 !important;
@@ -441,8 +471,8 @@ html.has-deped-fixed-header .theme-toggle-fixed {
 .nav-menu .nav-item:hover {
 	background: transparent !important;
 	color: var(--project-green) !important;
-	border-color: rgba(33, 139, 105, 0.18) !important;
-	box-shadow: inset 0 -2px 0 var(--project-green) !important;
+	border: 0 !important;
+	box-shadow: none !important;
 	transform: translateY(-1px) !important;
 }
 
@@ -453,15 +483,15 @@ html.has-deped-fixed-header .theme-toggle-fixed {
 
 .nav-menu .nav-item-signout {
 	margin-left: 4px;
-	color: #9d2f26 !important;
-	border-color: rgba(157, 47, 38, 0.18) !important;
+	color: var(--navy) !important;
+	border: 0 !important;
 }
 
 .nav-menu .nav-item-signout:hover {
 	background: transparent !important;
 	color: #b42318 !important;
-	border-color: rgba(180, 35, 24, 0.24) !important;
-	box-shadow: inset 0 -2px 0 #b42318 !important;
+	border: 0 !important;
+	box-shadow: none !important;
 }
 
 h1,

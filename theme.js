@@ -71,11 +71,25 @@ function dockNavigationInHeader(menuDock) {
 		return Boolean(navMenu);
 	}
 
+	simplifyNavigation(navMenu);
 	menuDock.appendChild(navMenu);
 	if (navPanel) {
 		navPanel.classList.add('nav-menu-is-docked');
 	}
 	return true;
+}
+
+function simplifyNavigation(navMenu) {
+	const currentPage = String(window.location.pathname || '').split('/').pop().toLowerCase() || 'dashboard.html';
+	navMenu.querySelectorAll('.nav-item').forEach((item) => {
+		const cleanLabel = String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+		if (cleanLabel) {
+			item.textContent = cleanLabel;
+		}
+
+		const action = String(item.getAttribute('onclick') || item.getAttribute('href') || '').toLowerCase();
+		item.classList.toggle('nav-current', action.includes(currentPage));
+	});
 }
 
 function initializeMobileNavigation(header, menuToggle, menuDock) {
