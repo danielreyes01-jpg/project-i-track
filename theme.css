@@ -252,11 +252,10 @@ label:has(+ textarea[required]) {
 	font-weight: 700;
 }
 
-/* Permanent DepEd division banner */
+/* Permanent compact Project i-Track header */
 :root {
-	--deped-header-expanded-height: clamp(92px, 9.15vw, 174px);
 	--deped-header-compact-height: 72px;
-	--deped-header-height: var(--deped-header-expanded-height);
+	--deped-header-height: var(--deped-header-compact-height);
 	--surface-page: #f2f7f5;
 	--surface-card: #ffffff;
 	--navy: #102f49;
@@ -265,34 +264,18 @@ label:has(+ textarea[required]) {
 	--project-blue: #147cb3;
 }
 
-html.header-collapsed:not(.header-preview-expanded) {
-	--deped-header-height: var(--deped-header-compact-height);
-}
-
 .deped-fixed-header {
 	position: fixed;
 	inset: 0 0 auto 0;
 	z-index: 10000;
 	height: var(--deped-header-height);
 	overflow: hidden;
-	background: #147f9c;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+	background: rgba(248, 253, 252, 0.98);
+	border-bottom: 1px solid rgba(20, 124, 179, 0.25);
 	box-shadow: 0 4px 18px rgba(8, 47, 72, 0.18);
 	pointer-events: auto;
 	user-select: none;
-	transition: height 360ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 240ms ease !important;
-}
-
-.deped-fixed-header-image {
-	display: block;
-	width: 100%;
-	height: 100%;
-	object-fit: cover;
-	object-position: center center;
-	pointer-events: none;
-	opacity: 1;
-	transform: scale(1);
-	transition: opacity 220ms ease, transform 420ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+	transition: box-shadow 240ms ease !important;
 }
 
 html.has-deped-fixed-header body {
@@ -311,11 +294,11 @@ html.has-deped-fixed-header body {
 	gap: 18px;
 	padding: 8px clamp(14px, 3vw, 48px);
 	background: linear-gradient(110deg, rgba(255, 255, 255, 0.98), rgba(246, 252, 250, 0.98));
-	opacity: 0;
-	visibility: hidden;
-	transform: translateY(-10px);
-	pointer-events: none;
-	transition: opacity 220ms ease, transform 320ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 320ms !important;
+	opacity: 1;
+	visibility: visible;
+	transform: translateY(0);
+	pointer-events: auto;
+	transition: background-color 220ms ease !important;
 }
 
 .deped-compact-brand {
@@ -341,23 +324,6 @@ html.has-deped-fixed-header body {
 .deped-compact-menu-dock {
 	min-width: 0;
 	flex: 1 1 auto;
-}
-
-html.header-collapsed:not(.header-preview-expanded) .deped-fixed-header {
-	box-shadow: 0 8px 24px rgba(8, 47, 72, 0.18);
-}
-
-html.header-collapsed:not(.header-preview-expanded) .deped-fixed-header-image {
-	opacity: 0;
-	transform: scale(1.025);
-}
-
-html.header-collapsed:not(.header-preview-expanded) .deped-compact-bar {
-	opacity: 1;
-	visibility: visible;
-	transform: translateY(0);
-	pointer-events: auto;
-	transition-delay: 80ms, 80ms, 0s !important;
 }
 
 .nav-panel.nav-menu-is-docked {
