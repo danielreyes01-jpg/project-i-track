@@ -16,8 +16,110 @@ function createDepEdFixedHeader() {
 	image.className = 'deped-fixed-header-image';
 	header.appendChild(image);
 
+	const compactBar = document.createElement('div');
+	compactBar.className = 'deped-compact-bar';
+	compactBar.setAttribute('aria-hidden', 'true');
+
+	const compactBrand = document.createElement('a');
+	compactBrand.className = 'deped-compact-brand';
+	compactBrand.href = '/index.html';
+	compactBrand.setAttribute('aria-label', 'Project i-Track home');
+
+	const compactLogo = document.createElement('img');
+	compactLogo.src = '/assets/itrack-final.png';
+	compactLogo.alt = 'Project i-Track';
+	compactLogo.className = 'deped-compact-logo';
+	compactBrand.appendChild(compactLogo);
+
+	const menuDock = document.createElement('div');
+	menuDock.className = 'deped-compact-menu-dock';
+	menuDock.setAttribute('aria-label', 'Site navigation');
+
+	compactBar.appendChild(compactBrand);
+	compactBar.appendChild(menuDock);
+	header.appendChild(compactBar);
+
 	document.body.insertBefore(header, document.body.firstChild);
 	document.documentElement.classList.add('has-deped-fixed-header');
+	initializeSmartHeader(header, compactBar, menuDock);
+}
+
+function initializeSmartHeader(header, compactBar, menuDock) {
+	const navMenu = document.querySelector('.nav-menu');
+	const navPanel = navMenu ? navMenu.closest('.nav-panel') : null;
+	let navPlaceholder = null;
+	let previewExpanded = false;
+
+	if (navMenu && navMenu.parentNode) {
+		navPlaceholder = document.createElement('span');
+		navPlaceholder.className = 'nav-menu-origin';
+		navPlaceholder.hidden = true;
+		navMenu.parentNode.insertBefore(navPlaceholder, navMenu);
+	}
+
+	function dockMenu() {
+		if (!navMenu || navMenu.parentNode === menuDock) {
+			return;
+		}
+		menuDock.appendChild(navMenu);
+		compactBar.setAttribute('aria-hidden', 'false');
+		if (navPanel) {
+			navPanel.classList.add('nav-menu-is-docked');
+		}
+	}
+
+	function restoreMenu() {
+		if (!navMenu || !navPlaceholder || !navPlaceholder.parentNode) {
+			return;
+		}
+		navPlaceholder.parentNode.insertBefore(navMenu, navPlaceholder.nextSibling);
+		if (navPanel) {
+			navPanel.classList.remove('nav-menu-is-docked');
+		}
+	}
+
+	function updateHeader() {
+		const shouldCollapse = window.scrollY > 110;
+		const isCompact = shouldCollapse && !previewExpanded;
+		document.documentElement.classList.toggle('header-collapsed', shouldCollapse);
+		document.documentElement.classList.toggle('header-preview-expanded', shouldCollapse && previewExpanded);
+
+		if (isCompact) {
+			dockMenu();
+		} else {
+			restoreMenu();
+			compactBar.setAttribute('aria-hidden', 'true');
+		}
+	}
+
+	header.addEventListener('mouseenter', () => {
+		if (window.scrollY > 110) {
+			previewExpanded = true;
+			updateHeader();
+		}
+	});
+
+	header.addEventListener('mouseleave', () => {
+		previewExpanded = false;
+		updateHeader();
+	});
+
+	header.addEventListener('focusin', () => {
+		if (window.scrollY > 110) {
+			previewExpanded = true;
+			updateHeader();
+		}
+	});
+
+	header.addEventListener('focusout', (event) => {
+		if (!header.contains(event.relatedTarget)) {
+			previewExpanded = false;
+			updateHeader();
+		}
+	});
+
+	window.addEventListener('scroll', updateHeader, { passive: true });
+	updateHeader();
 }
 
 function enforceRequiredFields(root = document) {

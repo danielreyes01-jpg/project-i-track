@@ -254,13 +254,19 @@ label:has(+ textarea[required]) {
 
 /* Permanent DepEd division banner */
 :root {
-	--deped-header-height: clamp(92px, 9.15vw, 174px);
+	--deped-header-expanded-height: clamp(92px, 9.15vw, 174px);
+	--deped-header-compact-height: 72px;
+	--deped-header-height: var(--deped-header-expanded-height);
 	--surface-page: #f2f7f5;
 	--surface-card: #ffffff;
 	--navy: #102f49;
 	--navy-soft: #607789;
 	--project-green: #218b69;
 	--project-blue: #147cb3;
+}
+
+html.header-collapsed:not(.header-preview-expanded) {
+	--deped-header-height: var(--deped-header-compact-height);
 }
 
 .deped-fixed-header {
@@ -272,8 +278,9 @@ label:has(+ textarea[required]) {
 	background: #147f9c;
 	border-bottom: 1px solid rgba(255, 255, 255, 0.28);
 	box-shadow: 0 4px 18px rgba(8, 47, 72, 0.18);
-	pointer-events: none;
+	pointer-events: auto;
 	user-select: none;
+	transition: height 360ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 240ms ease !important;
 }
 
 .deped-fixed-header-image {
@@ -282,6 +289,10 @@ label:has(+ textarea[required]) {
 	height: 100%;
 	object-fit: cover;
 	object-position: center center;
+	pointer-events: none;
+	opacity: 1;
+	transform: scale(1);
+	transition: opacity 220ms ease, transform 420ms cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
 
 html.has-deped-fixed-header body {
@@ -289,6 +300,90 @@ html.has-deped-fixed-header body {
 	background: var(--surface-page) !important;
 	font-family: Manrope, Inter, "Segoe UI", Arial, sans-serif !important;
 	color: var(--navy) !important;
+	transition: padding-top 360ms cubic-bezier(0.22, 1, 0.36, 1), background-color 200ms ease !important;
+}
+
+.deped-compact-bar {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	gap: 18px;
+	padding: 8px clamp(14px, 3vw, 48px);
+	background: linear-gradient(110deg, rgba(255, 255, 255, 0.98), rgba(246, 252, 250, 0.98));
+	opacity: 0;
+	visibility: hidden;
+	transform: translateY(-10px);
+	pointer-events: none;
+	transition: opacity 220ms ease, transform 320ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 320ms !important;
+}
+
+.deped-compact-brand {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	height: 54px;
+	min-width: 142px;
+	padding: 4px 10px;
+	border-radius: 12px;
+	background: #ffffff;
+	box-shadow: 0 5px 16px rgba(16, 47, 73, 0.10);
+}
+
+.deped-compact-logo {
+	display: block;
+	max-width: 138px;
+	max-height: 48px;
+	object-fit: contain;
+}
+
+.deped-compact-menu-dock {
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+html.header-collapsed:not(.header-preview-expanded) .deped-fixed-header {
+	box-shadow: 0 8px 24px rgba(8, 47, 72, 0.18);
+}
+
+html.header-collapsed:not(.header-preview-expanded) .deped-fixed-header-image {
+	opacity: 0;
+	transform: scale(1.025);
+}
+
+html.header-collapsed:not(.header-preview-expanded) .deped-compact-bar {
+	opacity: 1;
+	visibility: visible;
+	transform: translateY(0);
+	pointer-events: auto;
+	transition-delay: 80ms, 80ms, 0s !important;
+}
+
+.nav-panel.nav-menu-is-docked {
+	display: none !important;
+}
+
+.deped-compact-menu-dock .nav-menu {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 4px;
+	margin: 0;
+	padding: 0;
+	overflow-x: auto;
+	scrollbar-width: thin;
+}
+
+.deped-compact-menu-dock .nav-item {
+	min-height: 38px;
+	padding: 8px 11px;
+	font-size: 0.86rem !important;
+}
+
+.deped-compact-menu-dock .nav-greeting {
+	white-space: nowrap;
+	font-size: 0.84rem;
 }
 
 html.has-deped-fixed-header .theme-toggle-fixed {
@@ -410,7 +505,8 @@ a.btn:hover {
 
 @media (max-width: 760px) {
 	:root {
-		--deped-header-height: 92px;
+		--deped-header-expanded-height: 92px;
+		--deped-header-compact-height: 62px;
 	}
 
 	.deped-fixed-header-image {
@@ -424,6 +520,28 @@ a.btn:hover {
 	.nav-menu {
 		overflow-x: auto;
 		scrollbar-width: thin;
+	}
+
+	.deped-compact-bar {
+		gap: 8px;
+		padding: 6px 10px;
+	}
+
+	.deped-compact-brand {
+		height: 48px;
+		min-width: 88px;
+		padding: 3px 6px;
+	}
+
+	.deped-compact-logo {
+		max-width: 84px;
+		max-height: 42px;
+	}
+
+	.deped-compact-menu-dock .nav-item {
+		min-height: 36px;
+		padding: 7px 9px;
+		font-size: 0.78rem !important;
 	}
 }
 
