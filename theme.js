@@ -338,7 +338,7 @@ function enforceRequiredFields(root = document) {
 			label = fieldContainer ? fieldContainer.querySelector('label') : null;
 		}
 
-		if (label && !label.querySelector('.required-marker')) {
+		if (label && !label.querySelector('.required-marker, .required-mark')) {
 			const marker = document.createElement('span');
 			marker.className = 'required-marker';
 			marker.textContent = ' *';
