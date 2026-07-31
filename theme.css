@@ -277,9 +277,10 @@ label:has(+ textarea[required]) {
 
 .itrack-page-loader-logo {
 	display: block;
-	width: clamp(150px, 24vw, 260px);
+	width: clamp(220px, 38vw, 420px);
+	max-width: 88vw;
 	height: auto;
-	border-radius: 50%;
+	border-radius: 0;
 	filter: drop-shadow(0 14px 22px rgba(20, 124, 179, 0.16));
 	animation: itrack-loader-pulse 1.15s ease-in-out infinite;
 }
