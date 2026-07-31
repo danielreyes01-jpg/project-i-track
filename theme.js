@@ -1,5 +1,25 @@
 // Theme System - Manage dark/light mode per user
 
+function createDepEdFixedHeader() {
+	if (document.getElementById('deped-fixed-header')) {
+		return;
+	}
+
+	const header = document.createElement('header');
+	header.id = 'deped-fixed-header';
+	header.className = 'deped-fixed-header';
+	header.setAttribute('role', 'banner');
+
+	const image = document.createElement('img');
+	image.src = '/assets/deped-cebu-header.png';
+	image.alt = 'Department of Education, Region VII - Central Visayas, Division of Cebu Province';
+	image.className = 'deped-fixed-header-image';
+	header.appendChild(image);
+
+	document.body.insertBefore(header, document.body.firstChild);
+	document.documentElement.classList.add('has-deped-fixed-header');
+}
+
 class ThemeManager {
 	constructor() {
 		this.THEME_KEY = 'adm-dashboard-theme';
@@ -141,9 +161,11 @@ class ThemeManager {
 // Initialize theme manager when DOM is ready
 if (document.readyState === 'loading') {
 	document.addEventListener('DOMContentLoaded', () => {
+		createDepEdFixedHeader();
 		window.themeManager = new ThemeManager();
 	});
 } else {
+	createDepEdFixedHeader();
 	window.themeManager = new ThemeManager();
 }
 

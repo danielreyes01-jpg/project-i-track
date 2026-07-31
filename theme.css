@@ -220,6 +220,181 @@ table th {
 	}
 }
 
+/* Permanent DepEd division banner */
+:root {
+	--deped-header-height: clamp(92px, 9.15vw, 174px);
+	--surface-page: #f2f7f5;
+	--surface-card: #ffffff;
+	--navy: #102f49;
+	--navy-soft: #607789;
+	--project-green: #218b69;
+	--project-blue: #147cb3;
+}
+
+.deped-fixed-header {
+	position: fixed;
+	inset: 0 0 auto 0;
+	z-index: 10000;
+	height: var(--deped-header-height);
+	overflow: hidden;
+	background: #147f9c;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+	box-shadow: 0 4px 18px rgba(8, 47, 72, 0.18);
+	pointer-events: none;
+	user-select: none;
+}
+
+.deped-fixed-header-image {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: center center;
+}
+
+html.has-deped-fixed-header body {
+	padding-top: calc(var(--deped-header-height) + 1px) !important;
+	background: var(--surface-page) !important;
+	font-family: Manrope, Inter, "Segoe UI", Arial, sans-serif !important;
+	color: var(--navy) !important;
+}
+
+html.has-deped-fixed-header .theme-toggle-fixed {
+	top: calc(var(--deped-header-height) + 14px);
+}
+
+/* Clean navigation treatment inspired by the supplied Project HELPS reference */
+.nav-panel {
+	position: sticky;
+	top: var(--deped-header-height);
+	z-index: 900;
+	background: rgba(255, 255, 255, 0.97) !important;
+	border: 1px solid rgba(16, 47, 73, 0.10) !important;
+	box-shadow: 0 8px 24px rgba(16, 47, 73, 0.07) !important;
+	backdrop-filter: blur(12px);
+}
+
+.nav-menu {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.nav-menu .nav-item {
+	min-height: 40px;
+	padding: 9px 13px;
+	background: transparent !important;
+	color: var(--navy) !important;
+	border: 1px solid transparent !important;
+	border-radius: 9px !important;
+	box-shadow: none !important;
+	font-weight: 700 !important;
+	letter-spacing: 0 !important;
+	white-space: nowrap;
+	transform: none !important;
+}
+
+.nav-menu .nav-item:hover {
+	background: linear-gradient(180deg, #eefaf5, #e2f4ec) !important;
+	color: var(--project-green) !important;
+	border-color: rgba(33, 139, 105, 0.18) !important;
+	box-shadow: inset 0 -2px 0 var(--project-green) !important;
+	transform: translateY(-1px) !important;
+}
+
+.nav-menu .nav-item:focus-visible {
+	outline: none !important;
+	box-shadow: 0 0 0 4px rgba(20, 124, 179, 0.17) !important;
+}
+
+.nav-menu .nav-item-signout {
+	margin-left: 4px;
+	color: #9d2f26 !important;
+	border-color: rgba(157, 47, 38, 0.18) !important;
+}
+
+.nav-menu .nav-item-signout:hover {
+	background: #fff1ef !important;
+	color: #b42318 !important;
+	border-color: rgba(180, 35, 24, 0.24) !important;
+	box-shadow: inset 0 -2px 0 #b42318 !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	font-family: Manrope, Inter, "Segoe UI", Arial, sans-serif !important;
+	color: var(--navy) !important;
+	letter-spacing: -0.025em;
+}
+
+h1 {
+	font-weight: 800 !important;
+}
+
+h2,
+h3 {
+	font-weight: 750 !important;
+}
+
+p,
+small,
+.muted,
+.subtitle,
+.helper-text {
+	color: var(--navy-soft);
+}
+
+.card,
+.panel,
+.form-card,
+.stat-card,
+.dashboard-card,
+.content-card,
+.modal,
+.dialog {
+	border-radius: 18px !important;
+	border-color: rgba(16, 47, 73, 0.11) !important;
+	box-shadow: 0 10px 28px rgba(16, 47, 73, 0.075) !important;
+}
+
+button:not(.theme-toggle-nav):not(.theme-toggle-fixed):not(.nav-item),
+.btn:not(.nav-item),
+a.btn {
+	background: linear-gradient(120deg, var(--project-green), #198f86 52%, var(--project-blue)) !important;
+	box-shadow: 0 9px 20px rgba(25, 119, 125, 0.20) !important;
+}
+
+button:not(.theme-toggle-nav):not(.theme-toggle-fixed):not(.nav-item):hover,
+.btn:not(.nav-item):hover,
+a.btn:hover {
+	filter: brightness(1.06) saturate(1.08);
+	transform: translateY(-2px) scale(1.01);
+	box-shadow: 0 14px 28px rgba(20, 124, 179, 0.23) !important;
+}
+
+@media (max-width: 760px) {
+	:root {
+		--deped-header-height: 92px;
+	}
+
+	.deped-fixed-header-image {
+		object-position: 20% center;
+	}
+
+	.nav-panel {
+		top: var(--deped-header-height);
+	}
+
+	.nav-menu {
+		overflow-x: auto;
+		scrollbar-width: thin;
+	}
+}
+
 /* Theme Toggle Button Styles */
 
 /* Button placed beside user name in nav */
