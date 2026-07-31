@@ -198,6 +198,35 @@ function simplifyNavigation(navMenu) {
 	if (accountGreeting && !String(accountGreeting.textContent || '').trim()) {
 		fetch('/api/auth/me', { credentials: 'include' }).then((response) => response.ok ? response.json() : null).then((payload) => {
 			const firstName = String((payload && payload.user && payload.user.firstname) || '').trim();
+			const role = String((payload && payload.user && payload.user.role) || '').trim().toLowerCase();
+			if (role === 'admin' && !navMenu.dataset.adminNavigationLoaded) {
+				navMenu.dataset.adminNavigationLoaded = 'true';
+				const adminItems = [
+					['Student Dashboard', 'admin-students.html'], ['ADM Approval', 'approval-request.html'],
+					['User Management', 'user.html'], ['Approval Portal', 'approval.html'],
+					['Pending Approvals', 'admin.html'], ['Approved Users', 'approved.html'],
+					['Create Account', 'create.html'], ['Login Page', 'index.html']
+				];
+				const existing = () => Array.from(navMenu.querySelectorAll('.nav-item')).map((item) =>
+					String(item.dataset.navLabel || item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase()
+				);
+				adminItems.forEach(([label, target]) => {
+					if (existing().includes(label.toLowerCase())) return;
+					const item = document.createElement('button');
+					item.type = 'button';
+					item.className = 'nav-item nav-admin-only';
+					item.textContent = label;
+					item.setAttribute('onclick', `window.location.href='${target}'`);
+					const signOut = Array.from(navMenu.children).find((child) => /sign out/i.test(String(child.textContent || '')));
+					navMenu.insertBefore(item, signOut || null);
+				});
+				const learnerMenu = navMenu.querySelector(':scope > .itrack-learner-menu');
+				if (learnerMenu) {
+					learnerMenu.querySelectorAll('.itrack-learner-submenu > .nav-item').forEach((item) => navMenu.insertBefore(item, learnerMenu));
+					learnerMenu.remove();
+				}
+				simplifyNavigation(navMenu);
+			}
 			if (firstName) accountGreeting.textContent = `👤 ${firstName}`;
 		}).catch(() => {});
 	}
