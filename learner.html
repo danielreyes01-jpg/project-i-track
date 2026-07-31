@@ -165,14 +165,26 @@
 
 		.welcome-banner {
 			display: none;
-			padding: 12px 18px;
-			border-radius: 12px;
-			background: linear-gradient(90deg, #d1fae5 0%, #ecfdf5 100%);
+			position: fixed;
+			inset: 50% auto auto 50%;
+			z-index: 12000;
+			width: 2in;
+			height: 2in;
+			padding: 18px;
+			transform: translate(-50%, -50%);
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			border-radius: 16px;
+			background: rgba(236, 253, 245, 0.76);
+			backdrop-filter: blur(8px);
 			border: 1px solid rgba(23, 88, 55, 0.18);
 			color: #14532d;
 			font-weight: 700;
 			font-size: 0.95rem;
-			margin-bottom: 14px;
+			opacity: 0;
+			box-shadow: 0 18px 45px rgba(16, 75, 57, 0.16);
+			transition: opacity 250ms ease;
 		}
 
 		.summary-head {
@@ -1290,7 +1302,12 @@
 					if (navGreeting && fn) navGreeting.textContent = "\uD83D\uDC64 " + fn;
 					if (welcomeBanner && fn) {
 						welcomeBanner.textContent = "Welcome to ADM Site, " + fn + "!";
-						welcomeBanner.style.display = "block";
+						welcomeBanner.style.display = "flex";
+						requestAnimationFrame(function () { welcomeBanner.style.opacity = "1"; });
+						setTimeout(function () {
+							welcomeBanner.style.opacity = "0";
+							setTimeout(function () { welcomeBanner.style.display = "none"; }, 250);
+						}, 1750);
 					}
 					const validRoles = ["teacher", "admin", "supervisor"];
 					if (!validRoles.includes(userRole)) {
