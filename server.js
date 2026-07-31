@@ -40,6 +40,7 @@ const DISTRICT_SCHOOL_XLSX_PATH = String(
 const APPROVAL_REQUEST_UPLOAD_DIR = path.join(__dirname, "uploads", "approval-requests");
 const ADM_APPROVAL_TEMPLATE_PATH = path.join(__dirname, "assets", "documents", "ADM-Approval.pdf");
 const ADM_APPROVAL_OUTPUT_DIR = path.join(__dirname, "uploads", "adm-approvals");
+const DATABASE_RESET_EVENT = "reset-retain-configured-admin-2026-07-31-v1";
 
 const districtSchoolReferenceCache = {
   sourceFile: "",
@@ -2556,6 +2557,7 @@ async function startServer() {
 
     await ensureSchema();
     await ensureAdminAccount();
+    await resetDatabaseRetainingAdministratorOnce();
     await removePlaceholderLearners();
 
     app.listen(PORT, () => {
@@ -2567,6 +2569,89 @@ async function startServer() {
     console.error("Failed to initialize server:", error.message);
     process.exit(1);
   }
+}
+
+async function resetDatabaseRetainingAdministratorOnce() {
+  const resetTableExists = await db.schema.hasTable("maintenance_events");
+  if (!resetTableExists) {
+    await db.schema.createTable("maintenance_events", (table) => {
+      table.string("event_key", 120).primary();
+      table.string("completed_at", 40).notNullable();
+      table.text("details").nullable();
+    });
+  }
+
+  const backupTableExists = await db.schema.hasTable("maintenance_reset_backup");
+  if (!backupTableExists) {
+    await db.schema.createTable("maintenance_reset_backup", (table) => {
+      table.increments("backup_id").primary();
+      table.string("batch_id", 80).notNullable();
+      table.string("table_name", 80).notNullable();
+      table.string("record_id", 120).nullable();
+      table.text("record_json").notNullable();
+      table.string("backed_up_at", 40).notNullable();
+      table.index(["batch_id", "table_name"], "idx_reset_backup_batch_table");
+    });
+  }
+
+  const completedReset = await db("maintenance_events").where({ event_key: DATABASE_RESET_EVENT }).first();
+  if (completedReset) {
+    return;
+  }
+
+  const administrator = await db("users").where({ email: normalizeEmail(ADMIN_EMAIL) }).first("id", "email");
+  if (!administrator) {
+    throw new Error("Database reset stopped because the configured administrator account was not found.");
+  }
+
+  const counts = {};
+  const backupBatchId = `reset-${Date.now()}`;
+  await db.transaction(async (trx) => {
+    const recordsToBackup = {
+      approval_requests: await trx("approval_requests").select("*"),
+      adm_requests: await trx("adm_requests").select("*"),
+      learners: await trx("learners").select("*"),
+      users: await trx("users").whereNot({ id: administrator.id }).select("*")
+    };
+
+    const backupRows = Object.entries(recordsToBackup).flatMap(([tableName, records]) =>
+      records.map((record) => ({
+        batch_id: backupBatchId,
+        table_name: tableName,
+        record_id: String(record.id || ""),
+        record_json: JSON.stringify(record),
+        backed_up_at: new Date().toISOString()
+      }))
+    );
+
+    if (backupRows.length) {
+      for (let index = 0; index < backupRows.length; index += 100) {
+        await trx("maintenance_reset_backup").insert(backupRows.slice(index, index + 100));
+      }
+    }
+
+    counts.approvalRequests = await trx("approval_requests").del();
+    counts.admRequests = await trx("adm_requests").del();
+    counts.learners = await trx("learners").del();
+    counts.nonAdministratorUsers = await trx("users").whereNot({ id: administrator.id }).del();
+
+    await trx("users").where({ id: administrator.id }).update({
+      role: "admin",
+      approved: true,
+      verified: true,
+      failed_login_count: 0,
+      lockout_until: null,
+      updated_at: new Date().toISOString()
+    });
+
+    await trx("maintenance_events").insert({
+      event_key: DATABASE_RESET_EVENT,
+      completed_at: new Date().toISOString(),
+      details: JSON.stringify({ retainedAdministrator: administrator.email, deleted: counts, backupBatchId })
+    });
+  });
+
+  console.log("Recoverable one-time database reset completed; configured administrator retained.", { counts, backupBatchId });
 }
 
 async function removePlaceholderLearners() {
