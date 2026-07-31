@@ -275,14 +275,35 @@ label:has(+ textarea[required]) {
 	pointer-events: none;
 }
 
+.itrack-page-loader-logo-frame {
+	position: relative;
+	display: grid;
+	place-items: center;
+	width: 1in;
+	height: 1in;
+	filter: drop-shadow(0 10px 16px rgba(20, 124, 179, 0.18));
+}
+
 .itrack-page-loader-logo {
+	position: relative;
+	z-index: 1;
 	display: block;
-	width: clamp(220px, 38vw, 420px);
-	max-width: 88vw;
-	height: auto;
-	border-radius: 0;
-	filter: drop-shadow(0 14px 22px rgba(20, 124, 179, 0.16));
-	animation: itrack-loader-pulse 1.15s ease-in-out infinite;
+	width: 1in;
+	height: 1in;
+	object-fit: contain;
+	border-radius: 50%;
+	background: #ffffff;
+}
+
+.itrack-page-loader-ring {
+	position: absolute;
+	inset: -7px;
+	z-index: 0;
+	border: 4px solid #f4c430;
+	border-top-color: #147cb3;
+	border-bottom-color: #147cb3;
+	border-radius: 50%;
+	animation: itrack-loader-spin 0.9s linear infinite;
 }
 
 .itrack-page-loader-text {
@@ -291,19 +312,14 @@ label:has(+ textarea[required]) {
 	letter-spacing: 0.02em;
 }
 
-@keyframes itrack-loader-pulse {
-	0%, 100% {
-		transform: scale(0.96);
-		opacity: 0.82;
-	}
-	50% {
-		transform: scale(1);
-		opacity: 1;
+@keyframes itrack-loader-spin {
+	to {
+		transform: rotate(360deg);
 	}
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.itrack-page-loader-logo {
+	.itrack-page-loader-ring {
 		animation: none;
 	}
 }
