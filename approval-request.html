@@ -229,7 +229,7 @@
 
 	<script>
 		(function () {
-			const isLocalNodeMode = window.location.port === "3000";
+			const isLocalNodeMode = true;
 			const apiRoot = isLocalNodeMode ? "/api" : "api";
 
 			function apiUrl(path) {

@@ -956,7 +956,7 @@
 
 	<script>
 		(function () {
-			const isLocalNodeMode = window.location.port === "3000";
+			const isLocalNodeMode = true;
 
 			function apiUrl(path) {
 				const normalized = String(path || "").startsWith("/") ? String(path) : ("/" + String(path || ""));

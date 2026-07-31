@@ -271,7 +271,7 @@
 			const passwordInput = document.getElementById("password");
 			const togglePasswordBtn = document.getElementById("togglePassword");
 			const loginMessage = document.getElementById("loginMessage");
-			const isLocalNodeMode = window.location.port === "3000";
+			const isLocalNodeMode = true;
 			const authEndpoints = isLocalNodeMode
 				? {
 					login: "api/auth/login",
