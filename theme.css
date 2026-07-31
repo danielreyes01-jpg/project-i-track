@@ -1122,11 +1122,16 @@ html body .deped-fixed-header .nav-greeting {
 
 /* Navigation integration for theme toggle */
 .nav-menu .theme-toggle-nav {
-	margin-left: auto;
+	margin-left: 6px;
 	display: inline-flex;
 	align-items: center;
 	white-space: nowrap;
 	order: 999;
+}
+
+/* Keep account identity and session controls on the opposite side. */
+html body .deped-fixed-header .deped-compact-menu-dock .nav-menu > .nav-greeting {
+	margin-left:auto !important;
 }
 
 /* Responsive layout for theme toggle on mobile */
@@ -1179,4 +1184,10 @@ html body .deped-fixed-header .itrack-management-submenu button.nav-item.nav-cur
 	background-color:transparent !important;
 	background-image:none !important;
 	box-shadow:none !important;
+}
+
+@media (max-width:1024px) and (hover:none) and (pointer:coarse) {
+	html body .deped-fixed-header .deped-compact-menu-dock .nav-menu > .nav-greeting {
+		margin-left:0 !important;
+	}
 }
