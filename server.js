@@ -2430,6 +2430,13 @@ app.post("/api/admin/approval-requests/:id/status", requireAdmin, async (req, re
   }
 });
 
+// Treat the API base URL as a friendly entry point. Hostinger preview links or
+// saved browser bookmarks may open /api directly, which should lead users back
+// to the website instead of displaying the JSON 404 fallback.
+app.get(["/api", "/api/"], (req, res) => {
+  return res.redirect(302, "/");
+});
+
 app.use("/api", (req, res) => {
   return res.status(404).json({ message: "API route not found." });
 });
