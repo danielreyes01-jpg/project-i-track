@@ -49,6 +49,8 @@ function initializeITrackPageLoader() {
 	document.addEventListener('click', (event) => {
 		const target = event.target.closest('a[href], button');
 		if (!target || target.hasAttribute('download') || target.getAttribute('target') === '_blank') return;
+		const targetLabel = String(target.dataset.navLabel || target.textContent || '').trim();
+		if (/create account/i.test(targetLabel) || target.closest('.itrack-account-popover, .itrack-account-overlay')) return;
 
 		const href = String(target.getAttribute('href') || '');
 		const action = String(target.getAttribute('onclick') || '');
