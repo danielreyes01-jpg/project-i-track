@@ -22,7 +22,7 @@
 			<div id="prospectus" class="tab-panel"><div class="empty">Prospectus records will appear here.</div></div><div id="anecdotal" class="tab-panel"><div class="empty">Anecdotal records will appear here.</div></div>
 		</section><div id="profileMessage" class="warning"></div>
 	</main>
-	<script>
+	<script src="/compat-student-api.js"></script><script>
 	(function(){
 		document.querySelectorAll('.tab').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('.tab,.tab-panel').forEach(el=>el.classList.remove('active'));button.classList.add('active');document.getElementById(button.dataset.tab).classList.add('active');}));
 		const esc=value=>String(value==null?'':value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
