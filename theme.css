@@ -1039,6 +1039,30 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
 	background: var(--muted);
 }
 
+.itrack-account-popover { position:fixed; top:var(--popover-top,80px); left:var(--popover-left,50%); z-index:10040; display:none; width:min(520px,calc(100vw - 24px)); padding:18px; transform:translateX(-50%); background:#fff; border:1px solid rgba(33,139,105,.28); border-radius:18px; box-shadow:0 18px 45px rgba(16,47,73,.18); text-align:center; }
+.itrack-account-popover.is-open { display:block; animation:deped-menu-drop 180ms ease-out both; }
+.itrack-account-popover::before { content:""; position:absolute; top:-9px; left:50%; width:16px; height:16px; transform:translateX(-50%) rotate(45deg); background:#fff; border-left:1px solid rgba(33,139,105,.28); border-top:1px solid rgba(33,139,105,.28); }
+.itrack-account-popover h2 { margin:0 0 5px; font-size:1.05rem; color:var(--navy); }
+.itrack-account-popover>p { margin:0 0 13px; color:var(--muted); font-size:.8rem; }
+.itrack-account-choices { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.itrack-account-choices button { display:grid; grid-template-columns:42px 1fr; grid-template-rows:auto auto; gap:1px 10px; align-items:center; min-height:66px; padding:10px; text-align:left; font:inherit; color:var(--navy); background:#f9fdfb; border:1px solid rgba(33,139,105,.25); border-radius:13px; cursor:pointer; }
+.itrack-account-choices button:hover { background:#eef9f4; border-color:var(--project-green); transform:translateY(-1px); }
+.itrack-account-choices button>span { grid-row:1/3; display:grid; place-items:center; width:42px; height:42px; border-radius:11px; background:#e2f1fb; color:var(--project-blue); font-size:1.15rem; }
+.itrack-account-choices button:last-child>span { background:#e2f4e8; color:var(--project-green); }
+.itrack-account-choices strong,.itrack-account-choices small { display:block; }
+.itrack-account-choices strong { font-size:.86rem; }
+.itrack-account-choices small { color:var(--muted); font-size:.69rem; }
+.itrack-account-overlay { position:fixed; inset:0; z-index:10050; display:none; place-items:center; padding:12px; background:rgba(9,35,46,.38); backdrop-filter:blur(4px); }
+.itrack-account-overlay.is-open { display:grid; }
+.itrack-account-frame { position:relative; width:min(800px,100%); height:min(690px,calc(100vh - 24px)); background:#f5fbf8; border-radius:20px; box-shadow:0 24px 70px rgba(5,35,30,.28); overflow:hidden; }
+.itrack-account-frame iframe { width:100%; height:100%; border:0; }
+.itrack-account-frame-close { position:absolute; top:10px; right:10px; z-index:3; width:40px; height:40px; border:0; border-radius:50%; background:#dfeee7; color:#355f54; font-size:1.3rem; cursor:pointer; }
+
+@media (max-width:600px) {
+	.itrack-account-choices { grid-template-columns:1fr; }
+	.itrack-account-popover { max-height:calc(100vh - 90px); overflow:auto; }
+}
+
 /* Navigation integration for theme toggle */
 .nav-menu .theme-toggle-nav {
 	margin-left: auto;

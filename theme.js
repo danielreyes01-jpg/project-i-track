@@ -258,6 +258,43 @@ function initializeMobileNavigation(header, menuToggle, menuDock) {
 	}, { passive: true });
 }
 
+function initializeCreateAccountPopover() {
+	if (new URLSearchParams(window.location.search).get('embed') === '1') return;
+	if (document.getElementById('itrack-account-popover')) return;
+	const popover = document.createElement('section');
+	popover.id = 'itrack-account-popover';
+	popover.className = 'itrack-account-popover';
+	popover.setAttribute('aria-label', 'Create an account');
+	popover.innerHTML = '<h2>Create an account</h2><p>Select the type of account you want to register.</p><div class="itrack-account-choices"><button type="button" data-account-type="school"><span aria-hidden="true">▣</span><strong>School Account</strong><small>For teachers and school staff</small></button><button type="button" data-account-type="student"><span aria-hidden="true">♙</span><strong>Student Account</strong><small>For registered learners</small></button></div>';
+	document.body.appendChild(popover);
+	const overlay = document.createElement('div');
+	overlay.className = 'itrack-account-overlay';
+	overlay.innerHTML = '<div class="itrack-account-frame"><button class="itrack-account-frame-close" type="button" aria-label="Close create account window">×</button><iframe title="Create account form"></iframe></div>';
+	document.body.appendChild(overlay);
+	const frame = overlay.querySelector('iframe');
+	const closeOverlay = () => { overlay.classList.remove('is-open'); frame.removeAttribute('src'); };
+	overlay.querySelector('.itrack-account-frame-close').addEventListener('click', closeOverlay);
+	overlay.addEventListener('click', (event) => { if (event.target === overlay) closeOverlay(); });
+	window.addEventListener('message', (event) => { if (event.data === 'itrack-account-created') closeOverlay(); });
+	function positionPopover(trigger) {
+		const rect = trigger.getBoundingClientRect();
+		popover.style.setProperty('--popover-left', Math.max(12, Math.min(rect.left + rect.width / 2, window.innerWidth - 12)) + 'px');
+		popover.style.setProperty('--popover-top', Math.min(rect.bottom + 10, window.innerHeight - 190) + 'px');
+	}
+	document.addEventListener('click', (event) => {
+		const trigger = event.target.closest('a,button');
+		if (trigger && /create account/i.test(String(trigger.dataset.navLabel || trigger.textContent || '')) && !trigger.closest('.itrack-account-popover')) {
+			event.preventDefault(); event.stopImmediatePropagation(); positionPopover(trigger); popover.classList.toggle('is-open'); return;
+		}
+		if (!popover.contains(event.target)) popover.classList.remove('is-open');
+	}, true);
+	popover.addEventListener('click', (event) => {
+		const choice = event.target.closest('[data-account-type]'); if (!choice) return;
+		popover.classList.remove('is-open'); frame.src = 'create.html?embed=1&type=' + encodeURIComponent(choice.dataset.accountType); overlay.classList.add('is-open');
+	});
+	document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { popover.classList.remove('is-open'); closeOverlay(); } });
+}
+
 function enforceRequiredFields(root = document) {
 	const controls = root.querySelectorAll
 		? root.querySelectorAll('input, select, textarea')
@@ -462,12 +499,14 @@ if (document.readyState === 'loading') {
 		initializeITrackPageLoader();
 		createDepEdFixedHeader();
 		initializeRequiredFields();
+		initializeCreateAccountPopover();
 		window.themeManager = new ThemeManager();
 	});
 } else {
 	initializeITrackPageLoader();
 	createDepEdFixedHeader();
 	initializeRequiredFields();
+	initializeCreateAccountPopover();
 	window.themeManager = new ThemeManager();
 }
 

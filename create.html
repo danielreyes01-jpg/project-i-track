@@ -11,7 +11,7 @@
 	<style>
 		:root { --ink:#123d36; --muted:#71817c; --green:#167654; --blue:#147eb3; --line:#bdd9ce; --soft:#f4fbf7; }
 		* { box-sizing:border-box; }
-		body { min-height:100vh; margin:0; font-family:"Manrope",sans-serif; color:var(--ink); background:linear-gradient(145deg,#f3f8f6,#eaf5f2); display:grid; place-items:center; padding:18px; }
+		body { height:100vh; margin:0; font-family:"Manrope",sans-serif; color:var(--ink); background:linear-gradient(145deg,#f3f8f6,#eaf5f2); display:grid; place-items:center; padding:10px; overflow:hidden; }
 		.account-shell { width:min(100%,780px); position:relative; }
 		.account-picker, .account-dialog { background:rgba(255,255,255,.97); border:1px solid var(--line); border-radius:20px; box-shadow:0 22px 60px rgba(15,75,62,.14); }
 		.account-picker { position:relative; padding:22px; text-align:center; animation:pop .25s ease-out; }
@@ -27,19 +27,19 @@
 		.type-copy strong, .type-copy small { display:block; }
 		.type-copy strong { font-size:.92rem; }
 		.type-copy small { margin-top:2px; color:var(--muted); font-size:.75rem; }
-		.account-dialog { display:none; max-height:calc(100vh - 36px); overflow:auto; }
+		.account-dialog { display:none; max-height:calc(100vh - 20px); overflow:hidden; }
 		.account-dialog.is-open { display:block; animation:pop .25s ease-out; }
-		.dialog-head { position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:12px; padding:18px 20px; background:rgba(244,251,247,.97); border-bottom:1px solid #d6e7df; }
+		.dialog-head { position:relative; z-index:2; display:flex; align-items:center; gap:10px; padding:11px 16px; background:rgba(244,251,247,.97); border-bottom:1px solid #d6e7df; }
 		.dialog-head h2 { flex:1; margin:0; font-size:clamp(1.25rem,3vw,1.7rem); }
 		.close-dialog { width:42px; height:42px; border:0; border-radius:50%; background:#e1eee8; color:#527068; font-size:1.35rem; cursor:pointer; }
 		.close-dialog:hover { background:#d5e8df; color:#174f40; }
-		form { padding:22px 20px 18px; }
-		.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px 15px; }
+		form { padding:12px 16px 10px; }
+		.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px 13px; }
 		.field { display:grid; gap:7px; }
 		.field.full { grid-column:1/-1; }
 		label { font-size:.88rem; font-weight:700; color:#164b3d; }
 		.required-mark { color:inherit; }
-		input { width:100%; min-height:54px; padding:12px 14px; border:1px solid var(--line); border-radius:13px; background:#fff; color:#193f37; font:inherit; transition:border-color .18s ease, box-shadow .18s ease; }
+		input { width:100%; min-height:43px; padding:8px 12px; border:1px solid var(--line); border-radius:13px; background:#fff; color:#193f37; font:inherit; transition:border-color .18s ease, box-shadow .18s ease; }
 		input:hover { border-color:#8dbfac; }
 		input:focus { outline:none; border-color:#298b6c; box-shadow:0 0 0 4px rgba(41,139,108,.12); }
 		input:invalid:not(:focus):not(:placeholder-shown) { border-color:var(--line); box-shadow:none; }
@@ -47,7 +47,7 @@
 		.message { display:none; margin:0 20px 4px; padding:11px 13px; border-radius:11px; font-size:.85rem; font-weight:600; }
 		.message.error { display:block; background:#fff1ec; color:#8a3519; border:1px solid #f0c8b8; }
 		.message.success { display:block; background:#e9f8ee; color:#145b35; border:1px solid #bde2c9; }
-		.actions { display:flex; justify-content:flex-end; gap:10px; padding:16px 20px 20px; border-top:1px solid #d6e7df; }
+		.actions { display:flex; justify-content:flex-end; gap:10px; padding:10px 16px 12px; border-top:1px solid #d6e7df; }
 		.actions button { min-height:50px; padding:0 21px; border-radius:12px; font:inherit; font-weight:800; cursor:pointer; transition:transform .18s ease, box-shadow .18s ease; }
 		.actions button:hover { transform:translateY(-2px); }
 		.cancel { color:#315c51; background:#fff; border:1px solid var(--line); }
@@ -105,10 +105,11 @@
 		}
 		function closeForm(){dialog.classList.remove('is-open');picker.hidden=false;form.reset();clearMessage();}
 		document.querySelectorAll('.account-type').forEach(btn=>btn.addEventListener('click',()=>openForm(btn.dataset.type)));document.getElementById('closeDialog').addEventListener('click',closeForm);document.getElementById('cancelDialog').addEventListener('click',closeForm);
+		const pageParams=new URLSearchParams(location.search);const requestedType=pageParams.get('type');if(requestedType==='school'||requestedType==='student')openForm(requestedType);
 		lrn.addEventListener('input',()=>{lrn.value=lrn.value.replace(/\D/g,'').slice(0,12);});
 		fetch('/api/reference/district-schools').then(r=>r.ok?r.json():Promise.reject()).then(data=>{(data.districts||[]).forEach(name=>document.getElementById('districtList').append(new Option(name)));Object.entries(data.schoolsByDistrict||{}).forEach(([districtName,schools])=>(schools||[]).forEach(item=>{const name=String(item.name||'').trim();if(name){schoolDistrictMap.set(name.toLowerCase(),districtName);document.getElementById('schoolList').append(new Option(name));}}));}).catch(()=>{});
 		function strongPassword(value){return value.length>=8&&/[A-Z]/.test(value)&&/[a-z]/.test(value)&&/\d/.test(value)&&/[^A-Za-z0-9]/.test(value);}
-		form.addEventListener('submit',async event=>{event.preventDefault();clearMessage();if(!form.reportValidity())return;const type=typeInput.value;if(type==='student'&&!/^\d{12}$/.test(lrn.value)){setMessage('LRN must contain exactly 12 digits.','error');lrn.focus();return;}const password=document.getElementById('password').value,confirmPassword=document.getElementById('confirmPassword').value;if(!strongPassword(password)){setMessage('Password must contain at least 8 characters with uppercase, lowercase, number and special character.','error');return;}if(password!==confirmPassword){setMessage('Password and confirm password do not match.','error');return;}const parts=document.getElementById('fullName').value.trim().split(/\s+/);const firstname=parts.shift()||'',lastname=parts.pop()||firstname,middlename=parts.join(' ');const derivedDistrict=type==='student'?(schoolDistrictMap.get(school.value.trim().toLowerCase())||'Unassigned'):district.value.trim();const payload={accountType:type,lrn:lrn.value,schoolId:document.getElementById('schoolId').value.trim(),username:document.getElementById('username').value.trim(),email:document.getElementById('email').value.trim(),password,confirmPassword,firstname,lastname,middlename,district:derivedDistrict,school:school.value.trim(),isSupervisor:false};try{const response=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.message||'Unable to create account.');setMessage('Account request submitted. Please wait for administrator approval.','success');form.reset();setTimeout(()=>location.href='index.html?notice='+encodeURIComponent('Account request submitted. Please wait for administrator approval.'),1400);}catch(error){setMessage(error.message||'Unable to create account.','error');}});
+		form.addEventListener('submit',async event=>{event.preventDefault();clearMessage();if(!form.reportValidity())return;const type=typeInput.value;if(type==='student'&&!/^\d{12}$/.test(lrn.value)){setMessage('LRN must contain exactly 12 digits.','error');lrn.focus();return;}const password=document.getElementById('password').value,confirmPassword=document.getElementById('confirmPassword').value;if(!strongPassword(password)){setMessage('Password must contain at least 8 characters with uppercase, lowercase, number and special character.','error');return;}if(password!==confirmPassword){setMessage('Password and confirm password do not match.','error');return;}const parts=document.getElementById('fullName').value.trim().split(/\s+/);const firstname=parts.shift()||'',lastname=parts.pop()||firstname,middlename=parts.join(' ');const derivedDistrict=type==='student'?(schoolDistrictMap.get(school.value.trim().toLowerCase())||'Unassigned'):district.value.trim();const payload={accountType:type,lrn:lrn.value,schoolId:document.getElementById('schoolId').value.trim(),username:document.getElementById('username').value.trim(),email:document.getElementById('email').value.trim(),password,confirmPassword,firstname,lastname,middlename,district:derivedDistrict,school:school.value.trim(),isSupervisor:false};try{const response=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.message||'Unable to create account.');setMessage('Account request submitted. Please wait for administrator approval.','success');form.reset();setTimeout(()=>{if(pageParams.get('embed')==='1'){parent.postMessage('itrack-account-created','*');}else{location.href='index.html?notice='+encodeURIComponent('Account request submitted. Please wait for administrator approval.');}},1400);}catch(error){setMessage(error.message||'Unable to create account.','error');}});
 	})();
 	</script>
 	<script src="/theme.js"></script>
