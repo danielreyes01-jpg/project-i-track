@@ -1,5 +1,66 @@
 // Theme System - Manage dark/light mode per user
 
+function initializeITrackPageLoader() {
+	if (document.getElementById('itrack-page-loader')) return;
+
+	const loader = document.createElement('div');
+	loader.id = 'itrack-page-loader';
+	loader.className = 'itrack-page-loader';
+	loader.setAttribute('role', 'status');
+	loader.setAttribute('aria-live', 'polite');
+	loader.setAttribute('aria-label', 'Loading Project i-Track');
+
+	const logo = document.createElement('img');
+	logo.src = '/assets/i-track-loading.png';
+	logo.alt = 'Project i-Track loading';
+	logo.className = 'itrack-page-loader-logo';
+
+	const loadingText = document.createElement('div');
+	loadingText.className = 'itrack-page-loader-text';
+	loadingText.textContent = 'Loading Project i-Track...';
+
+	loader.appendChild(logo);
+	loader.appendChild(loadingText);
+	document.body.appendChild(loader);
+
+	function showLoader() {
+		loader.hidden = false;
+		requestAnimationFrame(() => loader.classList.remove('is-hidden'));
+	}
+
+	function hideLoader() {
+		setTimeout(() => {
+			loader.classList.add('is-hidden');
+			setTimeout(() => { loader.hidden = true; }, 260);
+		}, 280);
+	}
+
+	window.showITrackLoader = showLoader;
+	window.hideITrackLoader = hideLoader;
+
+	document.addEventListener('click', (event) => {
+		const target = event.target.closest('a[href], button');
+		if (!target || target.hasAttribute('download') || target.getAttribute('target') === '_blank') return;
+
+		const href = String(target.getAttribute('href') || '');
+		const action = String(target.getAttribute('onclick') || '');
+		if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+			try {
+				const destination = new URL(href, window.location.href);
+				if (destination.origin === window.location.origin) showLoader();
+			} catch (_) {
+				// Ignore malformed or non-navigation links.
+			}
+		} else if (/location(?:\.href)?\s*=|location\.assign|location\.replace/i.test(action)) {
+			showLoader();
+		}
+	}, true);
+
+	window.addEventListener('beforeunload', showLoader);
+	if (document.readyState === 'complete') hideLoader();
+	else window.addEventListener('load', hideLoader, { once: true });
+}
+
 function createDepEdFixedHeader() {
 	const pathname = String(window.location.pathname || '/').toLowerCase();
 	const isHeaderlessPage = pathname === '/' || pathname.endsWith('/index.html') || pathname.endsWith('/create.html');
@@ -330,11 +391,13 @@ class ThemeManager {
 // Initialize theme manager when DOM is ready
 if (document.readyState === 'loading') {
 	document.addEventListener('DOMContentLoaded', () => {
+		initializeITrackPageLoader();
 		createDepEdFixedHeader();
 		initializeRequiredFields();
 		window.themeManager = new ThemeManager();
 	});
 } else {
+	initializeITrackPageLoader();
 	createDepEdFixedHeader();
 	initializeRequiredFields();
 	window.themeManager = new ThemeManager();

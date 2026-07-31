@@ -252,6 +252,61 @@ label:has(+ textarea[required]) {
 	font-weight: 700;
 }
 
+/* Project i-Track page loading transition */
+.itrack-page-loader {
+	position: fixed;
+	inset: 0;
+	z-index: 20000;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 18px;
+	padding: 24px;
+	background: rgba(255, 255, 255, 0.98);
+	opacity: 1;
+	visibility: visible;
+	transition: opacity 240ms ease, visibility 240ms ease;
+}
+
+.itrack-page-loader.is-hidden {
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+}
+
+.itrack-page-loader-logo {
+	display: block;
+	width: clamp(150px, 24vw, 260px);
+	height: auto;
+	border-radius: 50%;
+	filter: drop-shadow(0 14px 22px rgba(20, 124, 179, 0.16));
+	animation: itrack-loader-pulse 1.15s ease-in-out infinite;
+}
+
+.itrack-page-loader-text {
+	font: 800 clamp(0.85rem, 1.6vw, 1rem) Manrope, Inter, "Segoe UI", Arial, sans-serif;
+	color: var(--navy, #102f49);
+	letter-spacing: 0.02em;
+}
+
+@keyframes itrack-loader-pulse {
+	0%, 100% {
+		transform: scale(0.96);
+		opacity: 0.82;
+	}
+	50% {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.itrack-page-loader-logo {
+		animation: none;
+	}
+}
+
 /* Permanent compact Project i-Track header */
 :root {
 	--deped-header-compact-height: 72px;

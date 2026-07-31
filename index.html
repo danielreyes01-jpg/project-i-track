@@ -330,6 +330,7 @@
 					if (response.ok) {
 						const payload = await response.json();
 						const role = String((payload.user || {}).role || "teacher").toLowerCase();
+						if (window.showITrackLoader) window.showITrackLoader();
 						window.location.href = (role === "admin" || role === "supervisor") ? "dashboard.html" : "learner.html";
 					}
 				} catch (error) {
@@ -371,6 +372,7 @@
 
 					setLoginMessage("Login successful. Redirecting...", "success");
 					const role = String((payload.user || {}).role || "teacher").toLowerCase();
+					if (window.showITrackLoader) window.showITrackLoader();
 					window.location.href = (role === "admin" || role === "supervisor") ? "dashboard.html" : "learner.html";
 				} catch (error) {
 					setLoginMessage(error.message || "Login failed.", "error");
