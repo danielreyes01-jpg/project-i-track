@@ -10,6 +10,7 @@ const multer = require("multer");
 const nodemailer = require("nodemailer");
 const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
 const xlsx = require("xlsx");
+const ExcelJS = require("exceljs");
 
 dotenv.config();
 
@@ -617,6 +618,80 @@ app.use(
     }
   })
 );
+const GENERATED_EXCEL_TEMPLATE_PATH = path.join(__dirname, "assets", "document-template-generated-excel.xlsx");
+
+function excelColumnName(columnNumber) {
+  let name = "";
+  let number = Math.max(1, Number(columnNumber) || 1);
+  while (number > 0) {
+    const remainder = (number - 1) % 26;
+    name = String.fromCharCode(65 + remainder) + name;
+    number = Math.floor((number - 1) / 26);
+  }
+  return name;
+}
+
+async function createTemplatedExcelBuffer({ title, sheetName, rows, emptyRow }) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(GENERATED_EXCEL_TEMPLATE_PATH);
+  const worksheet = workbook.worksheets[0] || workbook.addWorksheet(sheetName);
+  worksheet.name = String(sheetName || "Report").slice(0, 31);
+
+  const reportRows = rows.length ? rows : [emptyRow];
+  const headers = Object.keys(reportRows[0] || {});
+  const columnCount = Math.max(11, headers.length || 1);
+  const lastColumn = excelColumnName(columnCount);
+
+  for (let rowNumber = 1; rowNumber <= 12; rowNumber += 1) {
+    try {
+      worksheet.unMergeCells(`A${rowNumber}:K${rowNumber}`);
+    } catch (_) {
+      // The template may already contain an unmerged row.
+    }
+    worksheet.mergeCells(`A${rowNumber}:${lastColumn}${rowNumber}`);
+  }
+
+  const titleCell = worksheet.getCell("A11");
+  titleCell.value = String(title || "PROJECT I-TRACK REPORT").toUpperCase();
+  titleCell.style = { ...titleCell.style, font: { name: "Bookman Old Style", size: 12, bold: true } };
+  titleCell.alignment = { horizontal: "center", vertical: "middle" };
+
+  const noteCell = worksheet.getCell("A12");
+  noteCell.value = "Note: Generated data from Project i-Track Website";
+  noteCell.style = { ...noteCell.style, font: { name: "Bookman Old Style", size: 10, italic: true } };
+  noteCell.alignment = { horizontal: "center", vertical: "middle" };
+
+  const headerRow = worksheet.getRow(13);
+  headerRow.values = headers;
+  headerRow.font = { name: "Bookman Old Style", size: 11, bold: true };
+  headerRow.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+
+  reportRows.forEach((record, index) => {
+    const row = worksheet.getRow(14 + index);
+    row.values = headers.map((header) => record[header]);
+    row.font = { name: "Bookman Old Style", size: 11 };
+    row.alignment = { vertical: "top", wrapText: true };
+    headers.forEach((header, columnIndex) => {
+      if (typeof record[header] === "string") {
+        row.getCell(columnIndex + 1).numFmt = "@";
+      }
+    });
+  });
+
+  headers.forEach((header, index) => {
+    const longestValue = reportRows.reduce(
+      (length, record) => Math.max(length, String(record[header] == null ? "" : record[header]).length),
+      String(header).length
+    );
+    worksheet.getColumn(index + 1).width = Math.min(35, Math.max(12, longestValue + 2));
+  });
+
+  worksheet.views = [{ state: "frozen", ySplit: 13 }];
+  worksheet.autoFilter = { from: { row: 13, column: 1 }, to: { row: 13, column: Math.max(1, headers.length) } };
+  worksheet.pageSetup = { orientation: headers.length > 8 ? "landscape" : "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+
+  return Buffer.from(await workbook.xlsx.writeBuffer());
+}
 
 app.get("/api/reference/district-schools", (req, res) => {
   try {
@@ -943,21 +1018,12 @@ app.get("/api/admin/pending-users/export", requireAdmin, async (req, res) => {
       CreatedAt: String(user.created_at || "").trim()
     }));
 
-    const workbook = xlsx.utils.book_new();
-    const worksheet = xlsx.utils.json_to_sheet(rows.length ? rows : [
-      {
-        Firstname: "",
-        Middlename: "",
-        Lastname: "",
-        Email: "",
-        District: "",
-        School: "",
-        CreatedAt: ""
-      }
-    ]);
-
-    xlsx.utils.book_append_sheet(workbook, worksheet, "Pending Users");
-    const fileBuffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" });
+    const fileBuffer = await createTemplatedExcelBuffer({
+      title: "Pending User Accounts",
+      sheetName: "Pending Users",
+      rows,
+      emptyRow: { Firstname: "", Middlename: "", Lastname: "", Email: "", District: "", School: "", CreatedAt: "" }
+    });
 
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="pending-users-${Date.now()}.xlsx"`);
@@ -1266,10 +1332,12 @@ app.get("/api/admin/export/adm-percentage-graph", requireSupervisorOrAdmin, asyn
       Total: Number(row.learner_count || 0)
     }));
 
-    const workbook = xlsx.utils.book_new();
-    const worksheet = xlsx.utils.json_to_sheet(exportRows.length ? exportRows : [{ District: "", School: "", GradeLevel: "", Total: 0 }]);
-    xlsx.utils.book_append_sheet(workbook, worksheet, "ADM Percentage Graph");
-    const fileBuffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" });
+    const fileBuffer = await createTemplatedExcelBuffer({
+      title: "ADM Percentage Graph Report",
+      sheetName: "ADM Percentage Graph",
+      rows: exportRows,
+      emptyRow: { District: "", School: "", GradeLevel: "", Total: 0 }
+    });
 
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="adm-percentage-graph-${Date.now()}.xlsx"`);
@@ -1320,10 +1388,12 @@ app.get("/api/admin/export/grade-level-graph", requireSupervisorOrAdmin, async (
       .map((entry) => ({ Grade: entry[0], Learners: entry[1] }))
       .sort((a, b) => String(a.Grade).localeCompare(String(b.Grade)));
 
-    const workbook = xlsx.utils.book_new();
-    const worksheet = xlsx.utils.json_to_sheet(exportRows.length ? exportRows : [{ Grade: "", Learners: 0 }]);
-    xlsx.utils.book_append_sheet(workbook, worksheet, "Grade Level Graph");
-    const fileBuffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" });
+    const fileBuffer = await createTemplatedExcelBuffer({
+      title: "Grade Level Graph Report",
+      sheetName: "Grade Level Graph",
+      rows: exportRows,
+      emptyRow: { Grade: "", Learners: 0 }
+    });
 
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="grade-level-graph-${Date.now()}.xlsx"`);
@@ -1385,10 +1455,12 @@ app.get("/api/admin/export/graph-report", requireSupervisorOrAdmin, async (req, 
         Percentage: `${((Number(row.total || 0) / totalAll) * 100).toFixed(2)}%`
       }));
 
-      const workbook = xlsx.utils.book_new();
-      const worksheet = xlsx.utils.json_to_sheet(exportRows.length ? exportRows : [{ District: "", School: "", GradeLevel: "", Total: 0 }]);
-      xlsx.utils.book_append_sheet(workbook, worksheet, "ADM Percentage Graph");
-      const fileBuffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" });
+      const fileBuffer = await createTemplatedExcelBuffer({
+        title: "ADM Percentage Graph Report",
+        sheetName: "ADM Percentage Graph",
+        rows: exportRows,
+        emptyRow: { District: "", School: "", Total: 0, Percentage: "" }
+      });
 
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       res.setHeader("Content-Disposition", `attachment; filename="adm-percentage-graph-${Date.now()}.xlsx"`);
@@ -1431,10 +1503,12 @@ app.get("/api/admin/export/graph-report", requireSupervisorOrAdmin, async (req, 
         Percentage: `${((Number(row.total || 0) / totalAll) * 100).toFixed(2)}%`
       }));
 
-      const workbook = xlsx.utils.book_new();
-      const worksheet = xlsx.utils.json_to_sheet(exportRows.length ? exportRows : [{ District: "", School: "", GradeLevel: "", Total: 0 }]);
-      xlsx.utils.book_append_sheet(workbook, worksheet, "Grade Level Graph");
-      const fileBuffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" });
+      const fileBuffer = await createTemplatedExcelBuffer({
+        title: "Grade Level Graph Report",
+        sheetName: "Grade Level Graph",
+        rows: exportRows,
+        emptyRow: { GradeLevel: "", Total: 0, Percentage: "" }
+      });
 
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       res.setHeader("Content-Disposition", `attachment; filename="grade-level-graph-${Date.now()}.xlsx"`);
@@ -1477,10 +1551,12 @@ app.get("/api/admin/export/graph-report", requireSupervisorOrAdmin, async (req, 
         Percentage: `${((Number(row.total || 0) / totalAll) * 100).toFixed(2)}%`
       }));
 
-      const workbook = xlsx.utils.book_new();
-      const worksheet = xlsx.utils.json_to_sheet(exportRows.length ? exportRows : [{ District: "", School: "", Modality: "", Total: 0 }]);
-      xlsx.utils.book_append_sheet(workbook, worksheet, "Modality Graph");
-      const fileBuffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" });
+      const fileBuffer = await createTemplatedExcelBuffer({
+        title: "Learning Modality Graph Report",
+        sheetName: "Modality Graph",
+        rows: exportRows,
+        emptyRow: { Modality: "", Total: 0, Percentage: "" }
+      });
 
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       res.setHeader("Content-Disposition", `attachment; filename="modality-graph-${Date.now()}.xlsx"`);
@@ -1773,10 +1849,12 @@ app.get("/api/learners/export", requireLogin, async (req, res) => {
       CreatedAt: String(item.created_at || "").trim()
     }));
 
-    const workbook = xlsx.utils.book_new();
-    const worksheet = xlsx.utils.json_to_sheet(rows.length ? rows : [{ LRN: "", FamilyName: "", FirstName: "", Grade: "", District: "", School: "" }]);
-    xlsx.utils.book_append_sheet(workbook, worksheet, "Learner Records");
-    const fileBuffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" });
+    const fileBuffer = await createTemplatedExcelBuffer({
+      title: "Learner Records",
+      sheetName: "Learner Records",
+      rows,
+      emptyRow: { LRN: "", FamilyName: "", FirstName: "", Grade: "", District: "", School: "" }
+    });
 
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="learner-records-${Date.now()}.xlsx"`);
@@ -2096,14 +2174,12 @@ app.get("/api/admin/approval-requests/export", requireAdmin, async (req, res) =>
       return rightDate - leftDate;
     });
 
-    const workbook = xlsx.utils.book_new();
-    const worksheet = xlsx.utils.json_to_sheet(
-      exportRows.length
-        ? exportRows
-        : [{ RequestType: "", DateRequested: "", District: "", School: "", Requestor: "", Details: "", DocumentsSubmitted: "", DocumentPaths: "", Result: "", ReviewedBy: "", ReviewedAt: "", Status: "" }]
-    );
-    xlsx.utils.book_append_sheet(workbook, worksheet, "ADM Approval Dashboard");
-    const fileBuffer = xlsx.write(workbook, { bookType: "xlsx", type: "buffer" });
+    const fileBuffer = await createTemplatedExcelBuffer({
+      title: "ADM Approval Dashboard",
+      sheetName: "ADM Approval Dashboard",
+      rows: exportRows,
+      emptyRow: { RequestType: "", DateRequested: "", District: "", School: "", Requestor: "", Details: "", DocumentsSubmitted: "", DocumentPaths: "", Result: "", ReviewedBy: "", ReviewedAt: "", Status: "" }
+    });
 
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="adm-approval-dashboard-${Date.now()}.xlsx"`);
