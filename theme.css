@@ -471,12 +471,7 @@ a.btn:hover {
 
 @media (max-width: 760px) {
 	:root {
-		--deped-header-expanded-height: 92px;
 		--deped-header-compact-height: 62px;
-	}
-
-	.deped-fixed-header-image {
-		object-position: 20% center;
 	}
 
 	.nav-panel {
