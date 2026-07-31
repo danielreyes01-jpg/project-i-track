@@ -39,9 +39,9 @@
 		.field.full { grid-column:1/-1; }
 		label { font-size:.88rem; font-weight:700; color:#164b3d; }
 		.required-mark { color:inherit; }
-		input { width:100%; min-height:43px; padding:8px 12px; border:1px solid var(--line); border-radius:13px; background:#fff; color:#193f37; font:inherit; transition:border-color .18s ease, box-shadow .18s ease; }
-		input:hover { border-color:#8dbfac; }
-		input:focus { outline:none; border-color:#298b6c; box-shadow:0 0 0 4px rgba(41,139,108,.12); }
+		input,select { width:100%; min-height:43px; padding:8px 12px; border:1px solid var(--line); border-radius:13px; background:#fff; color:#193f37; font:inherit; transition:border-color .18s ease, box-shadow .18s ease; }
+		input:hover,select:hover { border-color:#8dbfac; }
+		input:focus,select:focus { outline:none; border-color:#298b6c; box-shadow:0 0 0 4px rgba(41,139,108,.12); }
 		input:invalid:not(:focus):not(:placeholder-shown) { border-color:var(--line); box-shadow:none; }
 		.hint { margin:0; color:var(--muted); font-size:.76rem; }
 		.message { display:none; margin:0 20px 4px; padding:11px 13px; border-radius:11px; font-size:.85rem; font-weight:600; }
@@ -73,10 +73,10 @@
 			<form id="createForm" novalidate>
 				<input id="accountType" type="hidden" value="school">
 				<div class="form-grid">
-					<div class="field school-only"><label for="district">District <span class="required-mark">*</span></label><input id="district" name="district" type="text" list="districtList" autocomplete="organization" required></div>
+					<div class="field"><label for="district">District <span class="required-mark">*</span></label><select id="district" name="district" required><option value="">Select District</option></select></div>
 					<div class="field school-only"><label for="schoolId">School ID <span class="required-mark">*</span></label><input id="schoolId" name="schoolId" type="text" inputmode="numeric" autocomplete="off" required></div>
+					<div class="field"><label for="school">School Name <span class="required-mark">*</span></label><select id="school" name="school" required disabled><option value="">Select District First</option></select></div>
 					<div class="field student-only full" hidden><label for="lrn">LRN (Must be 12 digits) <span class="required-mark">*</span></label><input id="lrn" name="lrn" type="text" inputmode="numeric" maxlength="12" pattern="[0-9]{12}" placeholder="Enter 12-digit LRN"></div>
-					<div class="field full"><label for="school">School Name <span class="required-mark">*</span></label><input id="school" name="school" type="text" list="schoolList" autocomplete="organization" required></div>
 					<div class="field full"><label id="nameLabel" for="fullName">Name (Firstname Lastname) <span class="required-mark">*</span></label><input id="fullName" name="fullName" type="text" autocomplete="name" required></div>
 					<div class="field full"><label for="email">Email Address <span class="required-mark">*</span></label><input id="email" name="email" type="email" autocomplete="email" required></div>
 					<div class="field full"><label for="username">Username <span class="required-mark">*</span></label><input id="username" name="username" type="text" autocomplete="username" minlength="4" required></div>
@@ -87,29 +87,30 @@
 			<div id="createMessage" class="message" role="status" aria-live="polite"></div>
 			<footer class="actions"><button id="cancelDialog" class="cancel" type="button">Cancel</button><button class="submit" type="submit" form="createForm">Create Account →</button></footer>
 		</section>
-		<datalist id="districtList"></datalist><datalist id="schoolList"></datalist>
 	</main>
 	<script>
 	(function(){
 		const picker=document.getElementById('accountPicker'),dialog=document.getElementById('accountDialog'),form=document.getElementById('createForm'),message=document.getElementById('createMessage');
 		const typeInput=document.getElementById('accountType'),lrn=document.getElementById('lrn'),district=document.getElementById('district'),school=document.getElementById('school');
-		let schoolDistrictMap=new Map();
+		let schoolsByDistrict={};
 		function setMessage(text,type){message.textContent=text;message.className='message '+type;}
 		function clearMessage(){message.textContent='';message.className='message';}
 		function openForm(type){
 			typeInput.value=type; const student=type==='student';
 			document.querySelectorAll('.school-only').forEach(el=>el.hidden=student);document.querySelectorAll('.student-only').forEach(el=>el.hidden=!student);
-			district.required=!student;document.getElementById('schoolId').required=!student;lrn.required=student;
+			district.required=true;document.getElementById('schoolId').required=!student;document.getElementById('schoolId').disabled=student;lrn.required=student;lrn.disabled=!student;
 			document.getElementById('dialogTitle').textContent=student?'Create Student Account':'Create School Account';document.getElementById('dialogIcon').textContent=student?'♙':'▣';document.getElementById('nameLabel').innerHTML=(student?'Student Name':'Name')+' (Firstname Lastname) <span class="required-mark">*</span>';
-			picker.hidden=true;dialog.classList.add('is-open');clearMessage();setTimeout(()=>student?lrn.focus():district.focus(),50);
+			picker.hidden=true;dialog.classList.add('is-open');clearMessage();setTimeout(()=>district.focus(),50);
 		}
 		function closeForm(){dialog.classList.remove('is-open');picker.hidden=false;form.reset();clearMessage();}
 		document.querySelectorAll('.account-type').forEach(btn=>btn.addEventListener('click',()=>openForm(btn.dataset.type)));document.getElementById('closeDialog').addEventListener('click',closeForm);document.getElementById('cancelDialog').addEventListener('click',closeForm);
 		const pageParams=new URLSearchParams(location.search);const requestedType=pageParams.get('type');if(requestedType==='school'||requestedType==='student')openForm(requestedType);
 		lrn.addEventListener('input',()=>{lrn.value=lrn.value.replace(/\D/g,'').slice(0,12);});
-		fetch('/api/reference/district-schools').then(r=>r.ok?r.json():Promise.reject()).then(data=>{(data.districts||[]).forEach(name=>document.getElementById('districtList').append(new Option(name)));Object.entries(data.schoolsByDistrict||{}).forEach(([districtName,schools])=>(schools||[]).forEach(item=>{const name=String(item.name||'').trim();if(name){schoolDistrictMap.set(name.toLowerCase(),districtName);document.getElementById('schoolList').append(new Option(name));}}));}).catch(()=>{});
+		function showAssignedSchools(){const selected=district.value;school.innerHTML='<option value="">Select School</option>';const assigned=schoolsByDistrict[selected]||[];assigned.forEach(item=>{const option=new Option(String(item.name||'').trim(),String(item.name||'').trim());option.dataset.schoolId=String(item.id||'').trim();school.append(option);});school.disabled=!assigned.length;document.getElementById('schoolId').value='';}
+		fetch('/api/reference/district-schools').then(r=>r.ok?r.json():Promise.reject()).then(data=>{schoolsByDistrict=data.schoolsByDistrict||{};(data.districts||Object.keys(schoolsByDistrict)).forEach(name=>district.append(new Option(name,name)));}).catch(()=>{});
+		district.addEventListener('change',showAssignedSchools);school.addEventListener('change',()=>{const selected=school.options[school.selectedIndex];document.getElementById('schoolId').value=selected&&selected.dataset.schoolId||'';});
 		function strongPassword(value){return value.length>=8&&/[A-Z]/.test(value)&&/[a-z]/.test(value)&&/\d/.test(value)&&/[^A-Za-z0-9]/.test(value);}
-		form.addEventListener('submit',async event=>{event.preventDefault();clearMessage();if(!form.reportValidity())return;const type=typeInput.value;if(type==='student'&&!/^\d{12}$/.test(lrn.value)){setMessage('LRN must contain exactly 12 digits.','error');lrn.focus();return;}const password=document.getElementById('password').value,confirmPassword=document.getElementById('confirmPassword').value;if(!strongPassword(password)){setMessage('Password must contain at least 8 characters with uppercase, lowercase, number and special character.','error');return;}if(password!==confirmPassword){setMessage('Password and confirm password do not match.','error');return;}const parts=document.getElementById('fullName').value.trim().split(/\s+/);const firstname=parts.shift()||'',lastname=parts.pop()||firstname,middlename=parts.join(' ');const derivedDistrict=type==='student'?(schoolDistrictMap.get(school.value.trim().toLowerCase())||'Unassigned'):district.value.trim();const payload={accountType:type,lrn:lrn.value,schoolId:document.getElementById('schoolId').value.trim(),username:document.getElementById('username').value.trim(),email:document.getElementById('email').value.trim(),password,confirmPassword,firstname,lastname,middlename,district:derivedDistrict,school:school.value.trim(),isSupervisor:false};try{const response=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.message||'Unable to create account.');setMessage('Account request submitted. Please wait for administrator approval.','success');form.reset();setTimeout(()=>{if(pageParams.get('embed')==='1'){parent.postMessage('itrack-account-created','*');}else{location.href='index.html?notice='+encodeURIComponent('Account request submitted. Please wait for administrator approval.');}},1400);}catch(error){setMessage(error.message||'Unable to create account.','error');}});
+		form.addEventListener('submit',async event=>{event.preventDefault();clearMessage();if(!form.reportValidity())return;const type=typeInput.value;if(type==='student'&&!/^\d{12}$/.test(lrn.value)){setMessage('LRN must contain exactly 12 digits.','error');lrn.focus();return;}const password=document.getElementById('password').value,confirmPassword=document.getElementById('confirmPassword').value;if(!strongPassword(password)){setMessage('Password must contain at least 8 characters with uppercase, lowercase, number and special character.','error');return;}if(password!==confirmPassword){setMessage('Password and confirm password do not match.','error');return;}const parts=document.getElementById('fullName').value.trim().split(/\s+/);const firstname=parts.shift()||'',lastname=parts.pop()||firstname,middlename=parts.join(' ');const payload={accountType:type,lrn:lrn.value,schoolId:document.getElementById('schoolId').value.trim(),username:document.getElementById('username').value.trim(),email:document.getElementById('email').value.trim(),password,confirmPassword,firstname,lastname,middlename,district:district.value.trim(),school:school.value.trim(),isSupervisor:false};try{const response=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.message||'Unable to create account.');setMessage('Account request submitted. Please wait for administrator approval.','success');form.reset();setTimeout(()=>{if(pageParams.get('embed')==='1'){parent.postMessage('itrack-account-created','*');}else{location.href='index.html?notice='+encodeURIComponent('Account request submitted. Please wait for administrator approval.');}},1400);}catch(error){setMessage(error.message||'Unable to create account.','error');}});
 	})();
 	</script>
 	<script src="/theme.js"></script>

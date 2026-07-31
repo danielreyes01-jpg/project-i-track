@@ -275,6 +275,7 @@ function initializeCreateAccountPopover() {
 	document.body.appendChild(overlay);
 	const frame = overlay.querySelector('iframe');
 	const closeOverlay = () => { overlay.classList.remove('is-open'); frame.removeAttribute('src'); };
+	const openAccountForm = (type) => { frame.src = 'create.html?embed=1&type=' + encodeURIComponent(type); overlay.classList.add('is-open'); };
 	overlay.querySelector('.itrack-account-frame-close').addEventListener('click', closeOverlay);
 	overlay.addEventListener('click', (event) => { if (event.target === overlay) closeOverlay(); });
 	window.addEventListener('message', (event) => { if (event.data === 'itrack-account-created') closeOverlay(); });
@@ -287,6 +288,10 @@ function initializeCreateAccountPopover() {
 	}
 	document.addEventListener('click', (event) => {
 		const trigger = event.target.closest('a,button');
+		const directType = trigger && trigger.dataset.openAccountType;
+		if (directType === 'school' || directType === 'student') {
+			event.preventDefault(); event.stopImmediatePropagation(); popover.classList.remove('is-open'); openAccountForm(directType); return;
+		}
 		if (trigger && /create account/i.test(String(trigger.dataset.navLabel || trigger.textContent || '')) && !trigger.closest('.itrack-account-popover')) {
 			event.preventDefault(); event.stopImmediatePropagation(); positionPopover(trigger); popover.classList.toggle('is-open'); return;
 		}
@@ -294,7 +299,7 @@ function initializeCreateAccountPopover() {
 	}, true);
 	popover.addEventListener('click', (event) => {
 		const choice = event.target.closest('[data-account-type]'); if (!choice) return;
-		popover.classList.remove('is-open'); frame.src = 'create.html?embed=1&type=' + encodeURIComponent(choice.dataset.accountType); overlay.classList.add('is-open');
+		popover.classList.remove('is-open'); openAccountForm(choice.dataset.accountType);
 	});
 	document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { popover.classList.remove('is-open'); closeOverlay(); } });
 }

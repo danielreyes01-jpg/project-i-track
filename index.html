@@ -203,6 +203,17 @@
 			background: #c8e7d3;
 		}
 
+		.login-account-selector { position:relative; margin-top:16px; padding:22px 18px 18px; background:#fff; border:1px solid #bedfd1; border-radius:17px; text-align:center; }
+		.login-account-selector::before { content:""; position:absolute; top:-9px; left:50%; width:16px; height:16px; transform:translateX(-50%) rotate(45deg); background:#fff; border-left:1px solid #bedfd1; border-top:1px solid #bedfd1; }
+		.login-account-selector h2 { margin:0 0 4px; color:#174c3d; font-size:1rem; }
+		.login-account-selector>p { margin:0 0 13px; color:#778a84; font-size:.76rem; }
+		.login-account-options { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+		.login-account-options button { display:grid; grid-template-columns:42px 1fr; grid-template-rows:auto auto; align-items:center; gap:1px 9px; min-height:66px; padding:10px; color:#174c3d; background:#fbfefd; border:1px solid #bedfd1; border-radius:13px; text-align:left; font:inherit; cursor:pointer; }
+		.login-account-options button:hover { background:#f1faf6; border-color:#65ad92; transform:translateY(-1px); }
+		.login-account-options span { grid-row:1/3; display:grid; place-items:center; width:42px; height:42px; border-radius:11px; color:#147cb3; background:#e1f1fa; }
+		.login-account-options button:last-child span { color:#23815c; background:#e2f4e8; }
+		.login-account-options strong { font-size:.8rem; }.login-account-options small { color:#788a84; font-size:.64rem; }
+
 		.hint {
 			margin-top: 8px;
 			font-size: 0.82rem;
@@ -225,6 +236,7 @@
 			.login-shell {
 				padding: 24px 18px 20px;
 			}
+			.login-account-options { grid-template-columns:1fr; }
 		}
 
 		@media (min-width: 1100px) {
@@ -258,8 +270,15 @@
 
 			<div id="loginMessage" class="message-box" role="status" aria-live="polite"></div>
 
-			<button class="btn btn-login" type="submit">Log In</button>
-			<button class="btn btn-create" type="button" onclick="window.location.href='create.html'">Create Account</button>
+			<button class="btn btn-login" type="submit">Log In &nbsp; →</button>
+			<section class="login-account-selector" aria-labelledby="loginAccountTitle">
+				<h2 id="loginAccountTitle">Create an account</h2>
+				<p>Select the type of account you want to register.</p>
+				<div class="login-account-options">
+					<button type="button" data-open-account-type="school"><span aria-hidden="true">▣</span><strong>School Account</strong><small>For teachers and school staff</small></button>
+					<button type="button" data-open-account-type="student"><span aria-hidden="true">♙</span><strong>Student Account</strong><small>For registered learners</small></button>
+				</div>
+			</section>
 		</form>
 
 		<p class="hint">Secure access for authorized users only.</p>
