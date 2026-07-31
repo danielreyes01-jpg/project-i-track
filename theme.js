@@ -20,6 +20,66 @@ function createDepEdFixedHeader() {
 	document.documentElement.classList.add('has-deped-fixed-header');
 }
 
+function enforceRequiredFields(root = document) {
+	const controls = root.querySelectorAll
+		? root.querySelectorAll('input, select, textarea')
+		: [];
+
+	controls.forEach((control) => {
+		const type = String(control.getAttribute('type') || '').toLowerCase();
+		const excludedTypes = ['hidden', 'button', 'submit', 'reset', 'image'];
+		const isChoiceControl = type === 'checkbox' || type === 'radio';
+
+		if (
+			excludedTypes.includes(type) ||
+			control.disabled ||
+			control.readOnly ||
+			isChoiceControl
+		) {
+			return;
+		}
+
+		control.required = true;
+		control.setAttribute('aria-required', 'true');
+
+		let label = null;
+		if (control.id) {
+			label = document.querySelector('label[for="' + CSS.escape(control.id) + '"]');
+		}
+		if (!label) {
+			label = control.closest('label');
+		}
+		if (!label) {
+			const fieldContainer = control.closest('.form-group, .form-field, .field, .input-group, .filter-group');
+			label = fieldContainer ? fieldContainer.querySelector('label') : null;
+		}
+
+		if (label && !label.querySelector('.required-marker')) {
+			const marker = document.createElement('span');
+			marker.className = 'required-marker';
+			marker.textContent = ' *';
+			marker.setAttribute('aria-hidden', 'true');
+			label.appendChild(marker);
+		}
+	});
+}
+
+function initializeRequiredFields() {
+	enforceRequiredFields(document);
+
+	const observer = new MutationObserver((mutations) => {
+		mutations.forEach((mutation) => {
+			mutation.addedNodes.forEach((node) => {
+				if (node.nodeType === Node.ELEMENT_NODE) {
+					enforceRequiredFields(node);
+				}
+			});
+		});
+	});
+
+	observer.observe(document.body, { childList: true, subtree: true });
+}
+
 class ThemeManager {
 	constructor() {
 		this.THEME_KEY = 'adm-dashboard-theme';
@@ -162,10 +222,12 @@ class ThemeManager {
 if (document.readyState === 'loading') {
 	document.addEventListener('DOMContentLoaded', () => {
 		createDepEdFixedHeader();
+		initializeRequiredFields();
 		window.themeManager = new ThemeManager();
 	});
 } else {
 	createDepEdFixedHeader();
+	initializeRequiredFields();
 	window.themeManager = new ThemeManager();
 }
 
