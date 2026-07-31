@@ -2,8 +2,8 @@
 
 function createDepEdFixedHeader() {
 	const pathname = String(window.location.pathname || '/').toLowerCase();
-	const isLoginPage = pathname === '/' || pathname.endsWith('/index.html');
-	if (isLoginPage) {
+	const isHeaderlessPage = pathname === '/' || pathname.endsWith('/index.html') || pathname.endsWith('/create.html');
+	if (isHeaderlessPage) {
 		document.documentElement.classList.add('login-page-without-deped-header');
 		return;
 	}
