@@ -1732,12 +1732,27 @@
 						: modalitySummary;
 					modalityAllRowsCache = modalityRowsCache.slice();
 
-					const userCountsResponse = await fetch(apiUrl("/dashboard/user-counts"), requestOptions);
-					if (userCountsResponse.ok) {
-						const userCounts = await parseApiPayload(userCountsResponse);
-						divisionPersonnelCountEl.textContent = String(Number(userCounts.divisionPersonnel) || 0);
-						teacherUserCountEl.textContent = String(Number(userCounts.teacherUsers) || 0);
-						studentUserCountEl.textContent = String(Number(userCounts.students) || 0);
+					if (currentRole === "supervisor") {
+						const districtUsers = new Set(filteredSummary.map(function (row) { return String(row.user_id || "").trim(); }).filter(Boolean)).size;
+						divisionPersonnelCountEl.textContent = "0";
+						teacherUserCountEl.textContent = String(districtUsers);
+						studentUserCountEl.textContent = "0";
+					} else {
+						const usersResponse = await fetch(apiUrl("/admin/users"), requestOptions);
+						if (usersResponse.ok) {
+							const usersPayload = await parseApiPayload(usersResponse);
+							const users = Array.isArray(usersPayload.users) ? usersPayload.users : [];
+							const counts = users.reduce(function (summary, user) {
+								const role = String(user.role || "").trim().toLowerCase();
+								if (role === "student") summary.students += 1;
+								else if (["admin", "administrator", "supervisor", "division", "division_personnel"].includes(role)) summary.divisionPersonnel += 1;
+								else summary.teacherUsers += 1;
+								return summary;
+							}, { divisionPersonnel: 0, teacherUsers: 0, students: 0 });
+							divisionPersonnelCountEl.textContent = String(counts.divisionPersonnel);
+							teacherUserCountEl.textContent = String(counts.teacherUsers);
+							studentUserCountEl.textContent = String(counts.students);
+						}
 					}
 
 					const districtMap = new Map();

@@ -2546,23 +2546,6 @@ app.get(["/api", "/api/"], (req, res) => {
   return res.redirect(302, "/");
 });
 
-app.get("/api/dashboard/user-counts", requireAuth, async (req, res) => {
-  try {
-    const users = await db("users").select("role", "account_type");
-    const counts = users.reduce((summary, user) => {
-      const role = String(user.role || "").trim().toLowerCase();
-      const accountType = String(user.account_type || "").trim().toLowerCase();
-      if (role === "student" || accountType === "student") summary.students += 1;
-      else if (["admin", "administrator", "supervisor", "division", "division_personnel"].includes(role)) summary.divisionPersonnel += 1;
-      else summary.teacherUsers += 1;
-      return summary;
-    }, { divisionPersonnel: 0, teacherUsers: 0, students: 0 });
-    return res.json(counts);
-  } catch (error) {
-    return res.status(500).json({ message: "Failed to load dashboard user counts.", detail: error.message });
-  }
-});
-
 app.use("/api", (req, res) => {
   return res.status(404).json({ message: "API route not found." });
 });
