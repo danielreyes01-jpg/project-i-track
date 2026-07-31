@@ -158,15 +158,48 @@ function simplifyNavigation(navMenu) {
 	];
 	let navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
 	const hasAdministratorNavigation = navItems.some((item) => /user management|adm approval|approval portal/i.test(String(item.textContent || '')));
-	if (hasAdministratorNavigation && !navItems.some((item) => /student dashboard/i.test(String(item.textContent || '')))) {
-		const studentDashboard = document.createElement('button');
-		studentDashboard.type = 'button';
-		studentDashboard.className = 'nav-item';
-		studentDashboard.textContent = 'Student Dashboard';
-		studentDashboard.addEventListener('click', () => { window.location.href = 'admin-students.html'; });
-		const dashboardItem = navItems.find((item) => /^\s*[^\p{L}\p{N}]*dashboard\s*$/iu.test(String(item.textContent || '')));
-		navMenu.insertBefore(studentDashboard, dashboardItem ? dashboardItem.nextSibling : navMenu.firstChild);
+	if (hasAdministratorNavigation) {
+		const requiredAdministratorItems = [
+			['Learner Record', 'learner.html'], ['Dashboard', 'dashboard.html'], ['Student Dashboard', 'admin-students.html'],
+			['ADM Approval', 'approval-request.html'], ['User Management', 'user.html'], ['Approval Portal', 'approval.html'],
+			['Pending Approvals', 'admin.html'], ['Approved Users', 'approved.html'], ['Create Account', 'create.html'], ['Login Page', 'index.html']
+		];
+		const currentLabels = () => Array.from(navMenu.querySelectorAll('.nav-item')).map((item) => String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase());
+		requiredAdministratorItems.forEach(([label, target]) => {
+			if (currentLabels().includes(label.toLowerCase())) return;
+			const item = document.createElement('button');
+			item.type = 'button';
+			item.className = 'nav-item nav-admin-only';
+			item.textContent = label;
+			item.setAttribute('onclick', `window.location.href='${target}'`);
+			navMenu.appendChild(item);
+		});
+		if (!navMenu.querySelector('.nav-greeting')) {
+			const greeting = document.createElement('span');
+			greeting.id = 'navGreeting';
+			greeting.className = 'nav-greeting';
+			navMenu.appendChild(greeting);
+		}
+		if (!Array.from(navMenu.querySelectorAll('.nav-item')).some((item) => /sign out/i.test(String(item.textContent || '')))) {
+			const signOut = document.createElement('button');
+			signOut.type = 'button';
+			signOut.className = 'nav-item nav-item-signout';
+			signOut.textContent = 'Sign Out';
+			signOut.setAttribute('onclick', "window.location.href='signout.html'");
+			navMenu.appendChild(signOut);
+		}
+		['Student Dashboard', 'Dashboard', 'Learner Record'].forEach((label) => {
+			const item = Array.from(navMenu.querySelectorAll('.nav-item')).find((candidate) => String(candidate.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase() === label.toLowerCase());
+			if (item) navMenu.insertBefore(item, navMenu.firstChild);
+		});
 		navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
+	}
+	const accountGreeting = navMenu.querySelector('.nav-greeting');
+	if (accountGreeting && !String(accountGreeting.textContent || '').trim()) {
+		fetch('/api/auth/me', { credentials: 'include' }).then((response) => response.ok ? response.json() : null).then((payload) => {
+			const firstName = String((payload && payload.user && payload.user.firstname) || '').trim();
+			if (firstName) accountGreeting.textContent = `👤 ${firstName}`;
+		}).catch(() => {});
 	}
 
 	navItems.forEach((item) => {
