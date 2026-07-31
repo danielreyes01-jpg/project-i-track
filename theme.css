@@ -468,6 +468,62 @@ html.has-deped-fixed-header body {
 	color: var(--navy) !important;
 }
 
+.deped-compact-menu-dock .nav-item-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.25em;
+	margin-right: 5px;
+	font-size: 0.98em;
+	line-height: 1;
+}
+
+.itrack-management-menu {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+}
+
+.management-caret {
+	margin-left: 5px;
+	font-size: 0.72em;
+	transition: transform 180ms ease;
+}
+
+.itrack-management-menu.is-open .management-caret {
+	transform: rotate(180deg);
+}
+
+.itrack-management-submenu {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	z-index: 10020;
+	display: none;
+	flex-direction: column;
+	align-items: stretch;
+	min-width: 220px;
+	padding: 8px;
+	border: 1px solid rgba(20, 124, 179, 0.16);
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.99);
+	box-shadow: 0 14px 28px rgba(16, 47, 73, 0.16);
+}
+
+.itrack-management-menu:hover .itrack-management-submenu,
+.itrack-management-menu:focus-within .itrack-management-submenu,
+.itrack-management-menu.is-open .itrack-management-submenu {
+	display: flex;
+}
+
+.deped-compact-menu-dock .itrack-management-submenu .nav-item {
+	width: 100%;
+	min-height: 38px;
+	padding: 9px 10px !important;
+	text-align: left;
+	justify-content: flex-start;
+}
+
 .deped-compact-menu-dock .nav-item::after {
 	content: "";
 	position: absolute;
@@ -622,7 +678,7 @@ a.btn:hover {
 	box-shadow: 0 14px 28px rgba(20, 124, 179, 0.23) !important;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1024px) and (hover: none) and (pointer: coarse) {
 	.deped-compact-bar {
 		padding-inline: 12px;
 	}
@@ -682,6 +738,30 @@ a.btn:hover {
 		font-size: 0.84rem !important;
 		text-align: left;
 		justify-content: flex-start;
+	}
+
+	.itrack-management-menu {
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		width: 100%;
+	}
+
+	.itrack-management-submenu {
+		position: static;
+		display: none;
+		min-width: 0;
+		margin: 2px 0 6px 14px;
+		padding: 4px 0 4px 10px;
+		border: 0;
+		border-left: 2px solid rgba(33, 139, 105, 0.24);
+		border-radius: 0;
+		background: transparent;
+		box-shadow: none;
+	}
+
+	.itrack-management-menu.is-open .itrack-management-submenu {
+		display: flex;
 	}
 }
 

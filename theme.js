@@ -150,14 +150,73 @@ function dockNavigationInHeader(menuDock) {
 
 function simplifyNavigation(navMenu) {
 	const currentPage = String(window.location.pathname || '').split('/').pop().toLowerCase() || 'dashboard.html';
-	navMenu.querySelectorAll('.nav-item').forEach((item) => {
+	const iconByLabel = [
+		[/learner/i, '📋'], [/dashboard/i, '📊'], [/account/i, '👤'], [/adm request/i, '📄'],
+		[/approval/i, '✅'], [/user/i, '👥'], [/create/i, '➕'], [/login/i, '🔐'], [/sign out/i, '↪']
+	];
+	const navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
+
+	navItems.forEach((item) => {
 		const cleanLabel = String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
 		if (cleanLabel) {
-			item.textContent = cleanLabel;
+			const icon = (iconByLabel.find(([pattern]) => pattern.test(cleanLabel)) || [null, '•'])[1];
+			const iconSpan = document.createElement('span');
+			iconSpan.className = 'nav-item-icon';
+			iconSpan.textContent = icon;
+			iconSpan.setAttribute('aria-hidden', 'true');
+			item.replaceChildren(iconSpan, document.createTextNode(cleanLabel));
+			item.dataset.navLabel = cleanLabel;
 		}
 
 		const action = String(item.getAttribute('onclick') || item.getAttribute('href') || '').toLowerCase();
 		item.classList.toggle('nav-current', action.includes(currentPage));
+	});
+
+	const managementPattern = /adm approval|approval request|approval portal|pending approval|approved user|user management|create account|login page/i;
+	const managementItems = navItems.filter((item) => managementPattern.test(String(item.dataset.navLabel || '')));
+	if (!managementItems.length) return;
+
+	const previousGroups = new Set(managementItems.map((item) => item.closest('.nav-dropdown')).filter(Boolean));
+	const managementMenu = document.createElement('div');
+	managementMenu.className = 'itrack-management-menu';
+
+	const managementToggle = document.createElement('button');
+	managementToggle.type = 'button';
+	managementToggle.className = 'nav-item itrack-management-toggle';
+	managementToggle.setAttribute('aria-expanded', 'false');
+	managementToggle.setAttribute('aria-haspopup', 'true');
+	managementToggle.innerHTML = '<span class="nav-item-icon" aria-hidden="true">⚙️</span>Management<span class="management-caret" aria-hidden="true">▾</span>';
+
+	const managementSubmenu = document.createElement('div');
+	managementSubmenu.className = 'itrack-management-submenu';
+	managementSubmenu.setAttribute('aria-label', 'Management submenu');
+	managementItems.forEach((item) => managementSubmenu.appendChild(item));
+
+	if (managementItems.some((item) => item.classList.contains('nav-current'))) {
+		managementToggle.classList.add('nav-current');
+	}
+
+	managementMenu.appendChild(managementToggle);
+	managementMenu.appendChild(managementSubmenu);
+	const greeting = navMenu.querySelector('.nav-greeting');
+	const signOut = Array.from(navMenu.querySelectorAll('.nav-item')).find((item) => /sign out/i.test(String(item.dataset.navLabel || '')));
+	navMenu.insertBefore(managementMenu, greeting || signOut || null);
+
+	previousGroups.forEach((group) => {
+		if (!group.querySelector('.nav-item')) group.remove();
+	});
+
+	managementToggle.addEventListener('click', (event) => {
+		event.stopPropagation();
+		const isOpen = managementMenu.classList.toggle('is-open');
+		managementToggle.setAttribute('aria-expanded', String(isOpen));
+	});
+
+	document.addEventListener('click', (event) => {
+		if (!managementMenu.contains(event.target)) {
+			managementMenu.classList.remove('is-open');
+			managementToggle.setAttribute('aria-expanded', 'false');
+		}
 	});
 }
 
@@ -173,6 +232,7 @@ function initializeMobileNavigation(header, menuToggle, menuDock) {
 	});
 
 	menuDock.addEventListener('click', (event) => {
+		if (event.target.closest('.itrack-management-toggle')) return;
 		if (event.target.closest('a, button')) {
 			setOpen(false);
 		}
