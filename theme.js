@@ -156,7 +156,18 @@ function simplifyNavigation(navMenu) {
 		[/learner/i, '📋'], [/dashboard/i, '📊'], [/account/i, '👤'], [/adm request/i, '📄'],
 		[/approval/i, '✅'], [/user/i, '👥'], [/create/i, '➕'], [/login/i, '🔐'], [/sign out/i, '↪']
 	];
-	const navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
+	let navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
+	const hasAdministratorNavigation = navItems.some((item) => /user management|adm approval|approval portal/i.test(String(item.textContent || '')));
+	if (hasAdministratorNavigation && !navItems.some((item) => /student dashboard/i.test(String(item.textContent || '')))) {
+		const studentDashboard = document.createElement('button');
+		studentDashboard.type = 'button';
+		studentDashboard.className = 'nav-item';
+		studentDashboard.textContent = 'Student Dashboard';
+		studentDashboard.addEventListener('click', () => { window.location.href = 'admin-students.html'; });
+		const dashboardItem = navItems.find((item) => /^\s*[^\p{L}\p{N}]*dashboard\s*$/iu.test(String(item.textContent || '')));
+		navMenu.insertBefore(studentDashboard, dashboardItem ? dashboardItem.nextSibling : navMenu.firstChild);
+		navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
+	}
 
 	navItems.forEach((item) => {
 		const cleanLabel = String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
