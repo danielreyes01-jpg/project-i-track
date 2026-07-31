@@ -4,3 +4,4 @@ data/*.local.json
 data/*.db
 data/*.sqlite
 data/*.sqlite3
+npm-debug.log*

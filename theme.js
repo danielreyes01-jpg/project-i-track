@@ -1,0 +1,155 @@
+// Theme System - Manage dark/light mode per user
+
+class ThemeManager {
+	constructor() {
+		this.THEME_KEY = 'adm-dashboard-theme';
+		this.THEME_DB_KEY = 'theme_preference';
+		this.init();
+	}
+
+	init() {
+		// Load theme from localStorage immediately to avoid flicker
+		const savedTheme = this.loadFromStorage();
+		if (savedTheme) {
+			this.setTheme(savedTheme);
+		} else {
+			// Check system preference
+			const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+			this.setTheme(prefersDark ? 'dark' : 'light');
+		}
+
+		// Create and setup theme toggle button
+		this.createThemeToggle();
+
+		// Add listener for system theme changes
+		window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+			if (!localStorage.getItem(this.THEME_KEY)) {
+				this.setTheme(e.matches ? 'dark' : 'light');
+			}
+		});
+
+		// Load theme from database when user is authenticated
+		this.loadFromDatabase();
+	}
+
+	setTheme(theme) {
+		if (theme === 'dark' || theme === 'light') {
+			document.documentElement.setAttribute('data-theme', theme);
+			localStorage.setItem(this.THEME_KEY, theme);
+			
+			// Update button appearance
+			const btn = document.getElementById('theme-toggle-btn');
+			if (btn) {
+				btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+				btn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+			}
+
+			// Notify server if user is authenticated
+			this.syncWithServer(theme);
+		}
+	}
+
+	getTheme() {
+		return document.documentElement.getAttribute('data-theme') || 'light';
+	}
+
+	toggleTheme() {
+		const current = this.getTheme();
+		const next = current === 'dark' ? 'light' : 'dark';
+		this.setTheme(next);
+	}
+
+	loadFromStorage() {
+		try {
+			return localStorage.getItem(this.THEME_KEY);
+		} catch (e) {
+			console.warn('Could not access localStorage:', e);
+			return null;
+		}
+	}
+
+	async loadFromDatabase() {
+		// Only attempt to load from DB if user is logged in
+		try {
+			const response = await fetch('/api/auth/me');
+			if (response.ok) {
+				const user = await response.json();
+				const dbTheme = user.theme_preference || this.getTheme();
+				// Don't override if user has already set a local preference
+				if (!localStorage.getItem(this.THEME_KEY)) {
+					this.setTheme(dbTheme);
+				}
+			}
+		} catch (e) {
+			// User not logged in, that's fine
+		}
+	}
+
+	async syncWithServer(theme) {
+		// Only sync if user is authenticated
+		try {
+			// Check if user is authenticated first
+			const authResponse = await fetch('/api/auth/me');
+			if (authResponse.ok) {
+				// Send theme preference to server
+				await fetch('/api/user/theme', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ theme_preference: theme })
+				}).catch(e => {
+					// If endpoint doesn't exist yet, silently fail
+					console.debug('Theme sync with server not yet implemented');
+				});
+			}
+		} catch (e) {
+			// Not logged in, that's okay
+		}
+	}
+
+	createThemeToggle() {
+		// Only create if not already present
+		if (document.getElementById('theme-toggle-btn')) {
+			return;
+		}
+
+		const button = document.createElement('button');
+		button.id = 'theme-toggle-btn';
+		button.className = 'theme-toggle-nav';
+		button.type = 'button';
+		
+		const currentTheme = this.getTheme();
+		button.textContent = currentTheme === 'dark' ? '☀️' : '🌙';
+		button.setAttribute('aria-label', currentTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+		
+		button.addEventListener('click', () => this.toggleTheme());
+		
+		// Try to insert beside user greeting first
+		const navGreeting = document.getElementById('navGreeting');
+		if (navGreeting && navGreeting.parentNode) {
+			navGreeting.parentNode.insertBefore(button, navGreeting.nextSibling);
+		} else {
+			// Fallback: append to body
+			document.body.appendChild(button);
+			// Add fixed positioning class as fallback
+			button.classList.add('theme-toggle-fixed');
+		}
+	}
+}
+
+// Initialize theme manager when DOM is ready
+if (document.readyState === 'loading') {
+	document.addEventListener('DOMContentLoaded', () => {
+		window.themeManager = new ThemeManager();
+	});
+} else {
+	window.themeManager = new ThemeManager();
+}
+
+// Expose toggle function globally for inline onclick handlers if needed
+window.toggleTheme = () => {
+	if (window.themeManager) {
+		window.themeManager.toggleTheme();
+	}
+};

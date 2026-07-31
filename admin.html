@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Admin Approval</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/theme.css">
+	<style>
+		:root {
+			--bg-1: #f3efe6;
+			--bg-2: #dfecd9;
+			--ink: #1e2a21;
+			--muted: #5d6a61;
+			--panel: rgba(255, 255, 255, 0.86);
+			--stroke: rgba(30, 42, 33, 0.14);
+			--accent: #14532d;
+			--warn: #8a2d0a;
+			--radius: 16px;
+			--shadow: 0 22px 52px rgba(20, 52, 33, 0.14);
+		}
+
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+
+		body {
+			min-height: 100vh;
+			font-family: "Manrope", sans-serif;
+			color: var(--ink);
+			background:
+				radial-gradient(circle at 15% 20%, rgba(31, 122, 68, 0.18), transparent 38%),
+				radial-gradient(circle at 80% 5%, rgba(95, 142, 104, 0.22), transparent 36%),
+				linear-gradient(145deg, var(--bg-1), var(--bg-2));
+			display: grid;
+			place-items: center;
+			padding: clamp(12px, 2.2vw, 24px);
+		}
+
+		.shell {
+			width: min(100%, 1120px);
+			max-height: calc(100vh - clamp(24px, 4.4vw, 48px));
+			overflow: auto;
+			background: var(--panel);
+			border: 1px solid var(--stroke);
+			border-radius: calc(var(--radius) + 4px);
+			box-shadow: var(--shadow);
+			padding: clamp(16px, 2vw, 24px);
+		}
+
+		.brand {
+			display: flex;
+			justify-content: center;
+			margin-bottom: 12px;
+		}
+
+		.brand-logo {
+			width: min(100%, 280px);
+			height: auto;
+			display: block;
+		}
+
+		h1 {
+			font-family: "Playfair Display", serif;
+			font-size: clamp(1.6rem, 3.2vw, 2.1rem);
+			margin-bottom: 6px;
+		}
+
+		.subtitle {
+			color: var(--muted);
+			font-size: 0.95rem;
+			line-height: 1.45;
+			margin-bottom: 18px;
+		}
+
+		.toolbar {
+			display: grid;
+			grid-template-columns: 1fr auto auto auto auto;
+			gap: 10px;
+			margin-bottom: 12px;
+		}
+
+		input {
+			width: 100%;
+			border: 1px solid var(--stroke);
+			border-radius: 10px;
+			padding: 11px 12px;
+			font: inherit;
+			background: #fff;
+		}
+
+		button {
+			border: none;
+			border-radius: 10px;
+			padding: 11px 14px;
+			font: inherit;
+			font-weight: 800;
+			cursor: pointer;
+			transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+		}
+
+		button:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 6px 20px rgba(0, 0, 0, 0.10);
+			filter: brightness(1.04);
+		}
+
+		button:active {
+			transform: translateY(1px);
+			box-shadow: none;
+		}
+
+		.btn-primary {
+			background: var(--accent);
+			color: #fff;
+		}
+
+		.btn-secondary {
+			background: #d7e9dd;
+			color: var(--accent);
+		}
+
+		.btn-excel {
+			background: #217346;
+			color: #fff;
+		}
+
+		.message {
+			display: none;
+			padding: 10px 12px;
+			border-radius: 10px;
+			font-size: 0.88rem;
+			font-weight: 700;
+			margin-bottom: 10px;
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			z-index: 9999;
+			background: #ffffff;
+			border: 1px solid #d1d5db;
+			color: #1f2937;
+			box-shadow: 0 16px 38px rgba(0, 0, 0, 0.18);
+			min-width: min(88vw, 320px);
+			max-width: min(92vw, 460px);
+			text-align: center;
+			opacity: 1;
+			transition: opacity 300ms ease;
+		}
+
+		.message.fade-out {
+			opacity: 0;
+		}
+
+		.message.error {
+			display: block;
+			color: var(--warn);
+			border-color: #f7c3b1;
+		}
+
+		.message.success {
+			display: block;
+			color: #14532d;
+			border-color: #b8e7c5;
+		}
+
+		.table-wrap {
+			overflow: auto;
+			border: 1px solid var(--stroke);
+			border-radius: 12px;
+			background: #fff;
+		}
+
+		table {
+			width: 100%;
+			border-collapse: collapse;
+			min-width: 860px;
+		}
+
+		th,
+		td {
+			padding: 10px 11px;
+			border-bottom: 1px solid #edf2ed;
+			text-align: left;
+			font-size: 0.9rem;
+			vertical-align: top;
+		}
+
+		th {
+			background: #f5faf7;
+			font-size: 0.82rem;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+		}
+
+		.row-actions {
+			display: flex;
+			gap: 8px;
+		}
+
+		.row-actions button {
+			padding: 8px 10px;
+			font-size: 0.8rem;
+			border-radius: 8px;
+		}
+
+		.approve {
+			background: #14532d;
+			color: #fff;
+		}
+
+		.reject {
+			background: #f3d8ce;
+			color: #7b2503;
+		}
+
+		.empty {
+			padding: 16px;
+			color: var(--muted);
+			font-size: 0.9rem;
+		}
+
+		.footer {
+			margin-top: 12px;
+			display: flex;
+			justify-content: flex-end;
+			gap: 10px;
+			flex-wrap: wrap;
+		}
+
+		@media (min-width: 1200px) {
+			.table-wrap {
+				max-height: 58vh;
+			}
+		}
+
+		@media (max-width: 1024px) {
+			table {
+				min-width: 760px;
+			}
+		}
+
+		@media (max-width: 860px) {
+			.toolbar {
+				grid-template-columns: 1fr;
+			}
+
+			.footer {
+				justify-content: stretch;
+			}
+
+			.footer button {
+				width: 100%;
+			}
+		}
+	</style>
+</head>
+<body>
+	<main class="shell">
+		<div class="brand">
+			<img class="brand-logo" src="assets/itrack-final.png" alt="I-Track Project I-Track logo">
+		</div>
+		<h1>Admin Approval</h1>
+		<p class="subtitle">Review pending account requests and approve or reject them.</p>
+
+		<div class="toolbar">
+			<input id="adminKey" type="password" placeholder="Enter ADMIN_ACCESS_KEY">
+			<button id="loadBtn" class="btn-primary" type="button">Load Pending</button>
+			<button id="saveBtn" class="btn-secondary" type="button">Save Key</button>
+			<button id="exportExcelBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+			<button id="generateExcelBtn" class="btn-excel" type="button">Generate via Excel File</button>
+		</div>
+		<input id="excelFileInput" type="file" accept=".xlsx,.xls" hidden>
+
+		<div id="message" class="message" role="status" aria-live="polite"></div>
+
+		<div class="table-wrap">
+			<table>
+				<thead>
+					<tr>
+						<th>Name</th>
+						<th>Email</th>
+						<th>District</th>
+						<th>School</th>
+						<th>Created</th>
+						<th>Actions</th>
+					</tr>
+				</thead>
+				<tbody id="pendingBody"></tbody>
+			</table>
+		</div>
+
+		<div class="footer">
+			<button class="btn-secondary" type="button" onclick="window.location.href='user.html'">Open User Approval Page</button>
+			<button class="btn-secondary" type="button" onclick="window.location.href='approval.html'">Back to Approval Portal</button>
+			<button class="btn-secondary" type="button" onclick="window.location.href='signout.html'">Sign Out</button>
+		</div>
+	</main>
+
+	<script>
+		(function () {
+			const adminKeyInput = document.getElementById("adminKey");
+			const loadBtn = document.getElementById("loadBtn");
+			const saveBtn = document.getElementById("saveBtn");
+			const exportExcelBtn = document.getElementById("exportExcelBtn");
+			const generateExcelBtn = document.getElementById("generateExcelBtn");
+			const excelFileInput = document.getElementById("excelFileInput");
+			const message = document.getElementById("message");
+						let messageTimer = null;
+
+			const pendingBody = document.getElementById("pendingBody");
+			const urlParams = new URLSearchParams(window.location.search);
+			const notice = urlParams.get("notice");
+
+			if (notice) {
+				setMessage(notice, "success");
+			}
+
+			adminKeyInput.value = localStorage.getItem("adminAccessKey") || "";
+
+			function setMessage(text, type) {
+				if (messageTimer) {
+					clearTimeout(messageTimer);
+					messageTimer = null;
+				}
+				message.classList.remove("fade-out");
+				message.textContent = text;
+				message.className = "message " + type;
+				messageTimer = setTimeout(function () {
+					message.classList.add("fade-out");
+					setTimeout(function () {
+						clearMessage();
+					}, 320);
+				}, 3000);
+			}
+
+			function clearMessage() {
+				if (messageTimer) {
+					clearTimeout(messageTimer);
+					messageTimer = null;
+				}
+				message.classList.remove("fade-out");
+				message.textContent = "";
+				message.className = "message";
+			}
+
+			function fileToBase64(file) {
+				return new Promise(function (resolve, reject) {
+					const reader = new FileReader();
+					reader.onload = function () {
+						const result = String(reader.result || "");
+						const base64 = result.includes(",") ? result.split(",")[1] : result;
+						resolve(base64);
+					};
+					reader.onerror = function () {
+						reject(new Error("Failed to read selected Excel file."));
+					};
+					reader.readAsDataURL(file);
+				});
+			}
+
+			function escapeCsv(value) {
+				const text = String(value == null ? "" : value);
+				if (/[",\n]/.test(text)) {
+					return '"' + text.replace(/"/g, '""') + '"';
+				}
+				return text;
+			}
+
+			function downloadCsv(fileName, headers, rows) {
+				const csvLines = [headers.map(escapeCsv).join(",")]
+					.concat(rows.map(function (row) { return row.map(escapeCsv).join(","); }));
+				const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
+				const url = URL.createObjectURL(blob);
+				const link = document.createElement("a");
+				link.href = url;
+				link.download = fileName;
+				document.body.appendChild(link);
+				link.click();
+				link.remove();
+				URL.revokeObjectURL(url);
+			}
+
+			function getAdminKey() {
+				return adminKeyInput.value.trim();
+			}
+
+			async function parseApiPayload(response) {
+				const raw = await response.text();
+				if (!raw) {
+					return {};
+				}
+
+				try {
+					return JSON.parse(raw);
+				} catch (error) {
+					return { message: "Server returned an unexpected response format." };
+				}
+			}
+
+			function renderRows(users) {
+				if (!users.length) {
+					pendingBody.innerHTML = '<tr><td class="empty" colspan="6">No pending accounts found.</td></tr>';
+					return;
+				}
+
+				pendingBody.innerHTML = users.map(function (user) {
+					const name = [user.firstname, user.middlename, user.lastname].filter(Boolean).join(" ");
+					const created = user.created_at ? new Date(user.created_at).toLocaleString() : "-";
+					return '<tr>' +
+						'<td>' + name + '</td>' +
+						'<td>' + user.email + '</td>' +
+						'<td>' + (user.district || "-") + '</td>' +
+						'<td>' + (user.school || "-") + '</td>' +
+						'<td>' + created + '</td>' +
+						'<td><div class="row-actions">' +
+							'<button class="approve" type="button" data-action="approve" data-id="' + user.id + '">Approve</button>' +
+							'<button class="reject" type="button" data-action="reject" data-id="' + user.id + '">Reject</button>' +
+						'</div></td>' +
+					'</tr>';
+				}).join("");
+			}
+
+			async function loadPendingUsers() {
+				clearMessage();
+				const adminKey = getAdminKey();
+				if (!adminKey) {
+					setMessage("Enter admin access key first.", "error");
+					return;
+				}
+
+				try {
+					const response = await fetch("/api/admin/pending-users", {
+						headers: { "x-admin-key": adminKey }
+					});
+
+					const payload = await parseApiPayload(response);
+					if (!response.ok) {
+						throw new Error(payload.message || "Failed to load pending users.");
+					}
+
+					renderRows(Array.isArray(payload.users) ? payload.users : []);
+					setMessage("Pending users loaded.", "success");
+				} catch (error) {
+					setMessage(error.message || "Failed to load pending users.", "error");
+				}
+			}
+
+			async function applyAction(action, userId) {
+				const adminKey = getAdminKey();
+				if (!adminKey) {
+					setMessage("Enter admin access key first.", "error");
+					return;
+				}
+
+				const endpoint = action === "approve" ? "/api/admin/approve-user" : "/api/admin/reject-user";
+
+				try {
+					const response = await fetch(endpoint, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							"x-admin-key": adminKey
+						},
+						body: JSON.stringify({ userId: userId })
+					});
+
+					const payload = await parseApiPayload(response);
+					if (!response.ok) {
+						throw new Error(payload.message || "Action failed.");
+					}
+
+					setMessage(payload.message || "Action completed.", "success");
+					loadPendingUsers();
+				} catch (error) {
+					setMessage(error.message || "Action failed.", "error");
+				}
+			}
+
+			loadBtn.addEventListener("click", loadPendingUsers);
+
+			saveBtn.addEventListener("click", function () {
+				localStorage.setItem("adminAccessKey", getAdminKey());
+				setMessage("Admin key saved on this browser.", "success");
+			});
+
+			exportExcelBtn.addEventListener("click", async function () {
+				clearMessage();
+				const adminKey = getAdminKey();
+				if (!adminKey) {
+					setMessage("Enter admin access key first.", "error");
+					return;
+				}
+
+				try {
+					const response = await fetch("/api/admin/pending-users/export", {
+						headers: { "x-admin-key": adminKey }
+					});
+
+					if (!response.ok) {
+						const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+						if (contentType.includes("application/json")) {
+							const payload = await parseApiPayload(response);
+							throw new Error(payload.message || "Failed to export pending users.");
+						}
+						if (response.status === 404) {
+							const pendingResponse = await fetch("/api/admin/pending-users", { headers: { "x-admin-key": adminKey } });
+							if (pendingResponse.ok) {
+								const pendingPayload = await parseApiPayload(pendingResponse);
+								const users = Array.isArray(pendingPayload.users) ? pendingPayload.users : [];
+								const csvRows = users.map(function (user) {
+									return [
+										String(user.firstname || "").trim(),
+										String(user.middlename || "").trim(),
+										String(user.lastname || "").trim(),
+										String(user.email || "").trim(),
+										String(user.district || "").trim(),
+										String(user.school || "").trim(),
+										String(user.created_at || "").trim()
+									];
+								});
+								downloadCsv("pending-users.csv", ["Firstname", "Middlename", "Lastname", "Email", "District", "School", "CreatedAt"], csvRows);
+								setMessage("Pending users exported as CSV fallback.", "success");
+								return;
+							}
+						}
+						throw new Error("Failed to export pending users (HTTP " + response.status + ").");
+					}
+
+					const blob = await response.blob();
+					const url = URL.createObjectURL(blob);
+					const link = document.createElement("a");
+					link.href = url;
+					link.download = "pending-users.xlsx";
+					document.body.appendChild(link);
+					link.click();
+					link.remove();
+					URL.revokeObjectURL(url);
+					setMessage("Pending users exported to Excel.", "success");
+				} catch (error) {
+					setMessage(error.message || "Failed to export pending users.", "error");
+				}
+			});
+
+			generateExcelBtn.addEventListener("click", function () {
+				excelFileInput.click();
+			});
+
+			excelFileInput.addEventListener("change", async function () {
+				clearMessage();
+				const adminKey = getAdminKey();
+				if (!adminKey) {
+					setMessage("Enter admin access key first.", "error");
+					return;
+				}
+
+				const file = excelFileInput.files && excelFileInput.files[0];
+				if (!file) {
+					return;
+				}
+
+				try {
+					const fileBase64 = await fileToBase64(file);
+					const response = await fetch("/api/admin/preview-pending-users-from-excel", {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							"x-admin-key": adminKey
+						},
+						body: JSON.stringify({ fileBase64: fileBase64 })
+					});
+
+					const payload = await parseApiPayload(response);
+					if (!response.ok) {
+						throw new Error(payload.message || "Failed to generate pending rows from Excel.");
+					}
+
+					const users = Array.isArray(payload.users) ? payload.users : [];
+					renderRows(users);
+					const skipped = Array.isArray(payload.skippedRows) ? payload.skippedRows.length : 0;
+					setMessage("Generated " + users.length + " row(s) from Excel file. Skipped " + skipped + " row(s).", "success");
+				} catch (error) {
+					setMessage(error.message || "Failed to generate rows from Excel file.", "error");
+				} finally {
+					excelFileInput.value = "";
+				}
+			});
+
+			pendingBody.addEventListener("click", function (event) {
+				const button = event.target.closest("button[data-action]");
+				if (!button) {
+					return;
+				}
+
+				const action = button.getAttribute("data-action");
+				const userId = button.getAttribute("data-id");
+				applyAction(action, userId);
+			});
+		})();
+	</script>
+
+<script src="/theme.js"></script>
+</body>
+</html>
+

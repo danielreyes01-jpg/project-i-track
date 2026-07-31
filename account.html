@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>My Account</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/theme.css">
+	<style>
+		:root {
+			--bg-1: #f4f0e6;
+			--bg-2: #ddefdd;
+			--ink: #1e2a22;
+			--muted: #5d6b63;
+			--panel: rgba(255, 255, 255, 0.85);
+			--stroke: rgba(30, 42, 34, 0.14);
+			--accent: #165b37;
+			--accent-soft: #d7ecd9;
+			--radius: 18px;
+			--shadow: 0 24px 56px rgba(20, 56, 36, 0.14);
+		}
+
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+
+		body {
+			min-height: 100vh;
+			font-family: "Manrope", sans-serif;
+			color: var(--ink);
+			background:
+				radial-gradient(circle at 84% 10%, rgba(62, 145, 92, 0.2), transparent 32%),
+				radial-gradient(circle at 10% 16%, rgba(39, 122, 69, 0.18), transparent 30%),
+				linear-gradient(145deg, var(--bg-1), var(--bg-2));
+			display: grid;
+			place-items: center;
+			padding: clamp(12px, 2.2vw, 24px);
+		}
+
+		.account-shell {
+			width: min(100%, 1120px);
+			max-height: calc(100vh - clamp(24px, 4vw, 48px));
+			overflow: auto;
+			background: var(--panel);
+			backdrop-filter: blur(10px);
+			border: 1px solid var(--stroke);
+			border-radius: calc(var(--radius) + 4px);
+			box-shadow: var(--shadow);
+			padding: clamp(18px, 2.6vw, 30px) clamp(16px, 2.2vw, 24px) clamp(18px, 2vw, 24px);
+			animation: lift-in 560ms ease-out both;
+		}
+
+		.brand {
+			display: flex;
+			justify-content: center;
+			margin-bottom: 14px;
+		}
+
+		.brand-logo {
+			width: min(100%, 340px);
+			height: auto;
+			display: block;
+		}
+
+		.title {
+			font-family: "Playfair Display", serif;
+			font-size: clamp(1.7rem, 3.5vw, 2.2rem);
+			line-height: 1.1;
+			margin-bottom: 8px;
+		}
+
+		.subtitle {
+			color: var(--muted);
+			line-height: 1.45;
+			margin-bottom: 18px;
+		}
+
+		.grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 12px;
+			margin-bottom: 18px;
+		}
+
+		.card {
+			background: rgba(255, 255, 255, 0.95);
+			border: 1px solid var(--stroke);
+			border-radius: 12px;
+			padding: 12px;
+		}
+
+		.card-label {
+			display: block;
+			font-size: 0.78rem;
+			letter-spacing: 0.04em;
+			text-transform: uppercase;
+			color: var(--muted);
+			margin-bottom: 4px;
+		}
+
+		.card-value {
+			font-weight: 700;
+			word-break: break-word;
+		}
+
+		.actions {
+			display: flex;
+			gap: 10px;
+		}
+
+		.nav-section-label {
+			font-size: 0.78rem;
+			letter-spacing: 0.06em;
+			text-transform: uppercase;
+			color: var(--muted);
+			font-weight: 700;
+			margin-bottom: 10px;
+			margin-top: 20px;
+		}
+
+		.nav-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+			gap: 10px;
+			margin-bottom: 14px;
+		}
+
+		.nav-btn {
+			display: flex;
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 4px;
+			border: 1px solid var(--stroke);
+			border-radius: 12px;
+			padding: 14px 16px;
+			background: rgba(255,255,255,0.9);
+			color: var(--ink);
+			font: inherit;
+			font-weight: 700;
+			cursor: pointer;
+			transition: background 150ms, border-color 150ms, transform 120ms, box-shadow 150ms;
+			text-align: left;
+		}
+
+		.nav-btn:hover {
+			background: #f0f8f2;
+			border-color: rgba(22, 91, 55, 0.4);
+			transform: translateY(-2px);
+			box-shadow: 0 6px 18px rgba(22, 91, 55, 0.12);
+		}
+
+		.nav-btn:active {
+			transform: translateY(0);
+		}
+
+		.nav-btn-icon {
+			font-size: 1.3rem;
+			line-height: 1;
+		}
+
+		.nav-btn-label {
+			font-size: 0.92rem;
+			font-weight: 700;
+		}
+
+		.nav-btn-sub {
+			font-size: 0.75rem;
+			color: var(--muted);
+			font-weight: 500;
+		}
+
+		.nav-btn-signout {
+			border-color: rgba(185, 28, 28, 0.28);
+			color: #b91c1c;
+		}
+
+		.nav-btn-signout:hover {
+			background: #fff1f1;
+			border-color: rgba(185, 28, 28, 0.5);
+			color: #991b1b;
+		}
+
+		.nav-menu {
+			display: grid;
+			grid-template-columns: repeat(5, minmax(0, 1fr));
+			gap: 8px;
+			margin-top: 8px;
+		}
+
+		.nav-item {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			border: 1px solid var(--stroke);
+			border-radius: 10px;
+			padding: 9px 10px;
+			background: rgba(255, 255, 255, 0.9);
+			color: var(--ink);
+			font: inherit;
+			font-size: 0.84rem;
+			font-weight: 700;
+			cursor: pointer;
+			text-align: center;
+			line-height: 1.2;
+			transition: background 150ms, border-color 150ms, transform 120ms, box-shadow 150ms;
+		}
+
+		.nav-item:hover {
+			background: #f0f8f2;
+			border-color: rgba(22, 91, 55, 0.4);
+			transform: translateY(-1px);
+			box-shadow: 0 6px 16px rgba(22, 91, 55, 0.12);
+		}
+
+		.nav-item-signout {
+			border-color: rgba(185, 28, 28, 0.28);
+			color: #b91c1c;
+		}
+
+		.nav-item-signout:hover {
+			background: #fff1f1;
+			border-color: rgba(185, 28, 28, 0.5);
+			color: #991b1b;
+		}
+
+		.btn {
+			border: none;
+			border-radius: 12px;
+			padding: 12px 14px;
+			font: inherit;
+			font-weight: 800;
+			cursor: pointer;
+			transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease, background-color 150ms ease;
+		}
+
+		.btn:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+		}
+
+		.btn:active {
+			transform: translateY(1px);
+			box-shadow: none;
+		}
+
+		.btn-logout {
+			background: var(--accent);
+			color: #fff;
+		}
+
+		.btn-logout:hover {
+			filter: brightness(1.06);
+		}
+
+		.btn-home {
+			background: var(--accent-soft);
+			color: var(--accent);
+		}
+
+		.btn-home:hover {
+			filter: brightness(0.98);
+		}
+
+		@keyframes lift-in {
+			from {
+				opacity: 0;
+				transform: translateY(12px) scale(0.98);
+			}
+			to {
+				opacity: 1;
+				transform: translateY(0) scale(1);
+			}
+		}
+
+		@media (max-width: 760px) {
+			.account-shell {
+				padding: 24px 18px 20px;
+			}
+
+			.brand-logo {
+				width: min(100%, 230px);
+			}
+
+			.grid {
+				grid-template-columns: 1fr;
+			}
+
+			.actions {
+				flex-direction: column;
+			}
+
+			.nav-grid {
+				grid-template-columns: repeat(2, 1fr);
+			}
+
+			.nav-menu {
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+			}
+
+			.nav-item {
+				padding: 8px 6px;
+				font-size: 0.78rem;
+			}
+		}
+
+		@media (max-width: 980px) {
+			.grid {
+				grid-template-columns: 1fr;
+			}
+
+			.nav-menu {
+				grid-template-columns: repeat(4, minmax(0, 1fr));
+			}
+		}
+
+		@media (min-width: 1200px) {
+			.account-shell {
+				width: min(100%, 1220px);
+			}
+		}
+	</style>
+</head>
+<body>
+	<main class="account-shell" aria-label="Logged in account">
+		<div class="brand">
+			<img class="brand-logo" src="assets/itrack-final.png" alt="I-Track Project I-Track logo">
+		</div>
+
+		<h1 class="title">You Are Logged In</h1>
+		<p class="subtitle">Your account has been verified successfully.</p>
+
+		<div class="grid" id="accountGrid"></div>
+
+		<nav class="nav-menu" aria-label="Admin navigation">
+			<button class="nav-item" type="button" onclick="window.location.href='learner.html'">&#128203; Learner Record</button>
+			<button class="nav-item" type="button" onclick="window.location.href='dashboard.html'">&#128202; Dashboard</button>
+			<button class="nav-item" type="button" onclick="window.location.href='approval.html'">&#128273; Approval Portal</button>
+			<button class="nav-item" type="button" onclick="window.location.href='approval-request.html'">&#128221; Approval Requests</button>
+			<button class="nav-item" type="button" onclick="window.location.href='admin.html'">&#9203; Pending Approvals</button>
+			<button class="nav-item" type="button" onclick="window.location.href='approved.html'">&#9989; Approved Users</button>
+			<button class="nav-item" type="button" onclick="window.location.href='user.html'">&#128101; User Management</button>
+			<button class="nav-item" type="button" onclick="window.location.href='create.html'">&#127379; Create Account</button>
+			<button class="nav-item" type="button" onclick="window.location.href='index.html'">&#128274; Login Page</button>
+			<button class="nav-item nav-item-signout" type="button" onclick="window.location.href='signout.html'">Sign Out</button>
+		</nav>
+	</main>
+
+	<script>
+		(function () {
+			const accountGrid = document.getElementById("accountGrid");
+
+			async function loadAccount() {
+				try {
+					const response = await fetch("/api/auth/me");
+					if (!response.ok) {
+						window.location.href = "index.html";
+						return;
+					}
+
+					const payload = await response.json();
+					const account = payload.user;
+					const role = String((account || {}).role || "teacher").toLowerCase();
+					if (role === "teacher") {
+						window.location.href = "learner.html";
+						return;
+					}
+
+					const fields = [
+						["Role", account.role || "teacher"],
+						["Email", account.email],
+						["First Name", account.firstname],
+						["Middle Name", account.middlename || "N/A"],
+						["Last Name", account.lastname],
+						["District", account.district],
+						["School", account.school]
+					];
+
+					accountGrid.innerHTML = fields.map(function (field) {
+						return '<div class="card"><span class="card-label">' + field[0] + '</span><div class="card-value">' + field[1] + "</div></div>";
+					}).join("");
+				} catch (error) {
+					window.location.href = "index.html";
+				}
+			}
+
+			loadAccount();
+		})();
+	</script>
+
+<script src="/theme.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,2076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Dashboard</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/theme.css">
+	<style>
+		:root {
+			--bg-1: #f4efe5;
+			--bg-2: #e3efe0;
+			--ink: #1f2a22;
+			--muted: #5f6c64;
+			--panel: rgba(255, 255, 255, 0.88);
+			--stroke: rgba(31, 42, 34, 0.14);
+			--accent: #175837;
+			--soft: #e2eee0;
+			--shadow: 0 24px 58px rgba(20, 55, 36, 0.14);
+		}
+
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+
+		body {
+			min-height: 100vh;
+			font-family: "Manrope", sans-serif;
+			color: var(--ink);
+			background:
+				radial-gradient(circle at 88% 8%, rgba(64, 149, 96, 0.2), transparent 33%),
+				radial-gradient(circle at 10% 18%, rgba(28, 114, 63, 0.14), transparent 34%),
+				linear-gradient(145deg, var(--bg-1), var(--bg-2));
+			padding: clamp(14px, 2.2vw, 34px) clamp(12px, 2.2vw, 28px) clamp(20px, 3.6vw, 52px);
+		}
+
+		.page {
+			width: min(100%, 1320px);
+			margin: 0 auto;
+			display: grid;
+			gap: 18px;
+		}
+
+		.panel {
+			background: var(--panel);
+			border: 1px solid var(--stroke);
+			border-radius: 18px;
+			box-shadow: var(--shadow);
+			padding: clamp(16px, 2vw, 24px);
+		}
+
+		.brand {
+			display: flex;
+			justify-content: center;
+			margin-bottom: 12px;
+		}
+
+		.brand-logo {
+			width: min(100%, 300px);
+			height: auto;
+			display: block;
+		}
+
+		h1 {
+			font-family: "Playfair Display", serif;
+			font-size: clamp(1.8rem, 4vw, 2.4rem);
+			margin-bottom: 6px;
+		}
+
+		.subtitle {
+			color: var(--muted);
+			margin-bottom: 14px;
+		}
+
+		.topbar {
+			display: flex;
+			gap: 10px;
+			flex-wrap: wrap;
+			align-items: center;
+		}
+
+		input {
+			border: 1px solid var(--stroke);
+			border-radius: 10px;
+			padding: 10px 12px;
+			font: inherit;
+			min-width: 280px;
+			background: #fff;
+		}
+
+		button {
+			border: none;
+			border-radius: 10px;
+			padding: 10px 14px;
+			font: inherit;
+			font-weight: 800;
+			cursor: pointer;
+			transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease, background-color 180ms ease, color 180ms ease;
+		}
+
+		button:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 10px 22px rgba(0, 0, 0, 0.14);
+			filter: brightness(1.03);
+		}
+
+		button:active {
+			transform: translateY(1px);
+			box-shadow: none;
+		}
+
+		.btn-primary {
+			background: var(--accent);
+			color: #fff;
+		}
+
+		.btn-secondary {
+			background: var(--soft);
+			color: var(--accent);
+		}
+
+		.btn-excel {
+			background: #217346;
+			color: #fff;
+		}
+
+		.cards {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 14px;
+		}
+
+		.card {
+			border: 1px solid var(--stroke);
+			border-radius: 14px;
+			padding: 16px;
+			background: rgba(255, 255, 255, 0.78);
+		}
+
+		.card-label {
+			font-size: 0.82rem;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			color: var(--muted);
+			font-weight: 700;
+		}
+
+		.card-value {
+			font-size: clamp(1.5rem, 4vw, 2.2rem);
+			font-weight: 800;
+			margin-top: 8px;
+		}
+
+		.section-title {
+			font-size: 0.95rem;
+			font-weight: 800;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			color: var(--accent);
+			margin-bottom: 10px;
+		}
+
+		.tables {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 14px;
+		}
+
+		.table-wrap {
+			overflow-x: auto;
+			border: 1px solid var(--stroke);
+			border-radius: 12px;
+			background: rgba(255, 255, 255, 0.76);
+		}
+
+		.graph-toolbar {
+			display: flex;
+			gap: 10px;
+			align-items: center;
+			margin-bottom: 12px;
+			flex-wrap: wrap;
+		}
+
+		.graph-toolbar label {
+			font-size: 0.85rem;
+			font-weight: 700;
+			color: var(--muted);
+		}
+
+		.graph-toolbar select {
+			border: 1px solid var(--stroke);
+			border-radius: 10px;
+			padding: 9px 11px;
+			font: inherit;
+			background: #fff;
+			min-width: 220px;
+		}
+
+		.graph-wrap {
+			border: 1px solid var(--stroke);
+			border-radius: 12px;
+			background: rgba(255, 255, 255, 0.76);
+			padding: 12px;
+			display: grid;
+			gap: 10px;
+		}
+
+		.pie-layout {
+			display: grid;
+			grid-template-columns: minmax(180px, 280px) 1fr;
+			gap: 16px;
+			align-items: start;
+		}
+
+		.pie-chart {
+			width: min(260px, 100%);
+			aspect-ratio: 1 / 1;
+			margin: 0 auto;
+			border-radius: 50%;
+			border: 1px solid rgba(31, 42, 34, 0.14);
+			box-shadow: 0 6px 16px rgba(20, 55, 36, 0.12);
+		}
+
+		.pie-legend {
+			display: grid;
+			gap: 8px;
+		}
+
+		.pie-legend-row {
+			display: grid;
+			grid-template-columns: auto 1fr auto;
+			gap: 8px;
+			align-items: center;
+		}
+
+		.pie-dot {
+			width: 12px;
+			height: 12px;
+			border-radius: 50%;
+			border: 1px solid rgba(0, 0, 0, 0.08);
+		}
+
+		.pie-label {
+			font-size: 0.84rem;
+			font-weight: 700;
+			color: var(--ink);
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.pie-value {
+			font-size: 0.82rem;
+			font-weight: 800;
+			color: var(--accent);
+			text-align: right;
+		}
+
+		.bar-layout {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+			gap: 10px;
+			align-items: end;
+			min-height: 260px;
+		}
+
+		.grade-layout {
+			display: grid;
+			grid-template-columns: 1.4fr minmax(240px, 0.9fr);
+			gap: 14px;
+			align-items: stretch;
+		}
+
+		.grade-side-table {
+			border: 1px solid var(--stroke);
+			border-radius: 10px;
+			overflow: auto;
+			background: rgba(255, 255, 255, 0.9);
+		}
+
+		.grade-side-table table {
+			min-width: 100%;
+		}
+
+		.bar-col {
+			display: grid;
+			grid-template-rows: auto 1fr auto;
+			gap: 6px;
+			align-items: end;
+		}
+
+		.bar-value {
+			font-size: 0.78rem;
+			font-weight: 800;
+			color: var(--accent);
+			text-align: center;
+		}
+
+		.bar-track {
+			height: 180px;
+			display: flex;
+			align-items: flex-end;
+			justify-content: center;
+		}
+
+		.bar-fill {
+			width: 100%;
+			max-width: 52px;
+			min-height: 6px;
+			border-radius: 8px 8px 0 0;
+			background: linear-gradient(180deg, #9ed0a9, #2d7a4f);
+			box-shadow: 0 5px 12px rgba(23, 88, 55, 0.2);
+		}
+
+		.bar-label {
+			font-size: 0.76rem;
+			font-weight: 700;
+			text-align: center;
+			color: var(--muted);
+		}
+
+		table {
+			width: 100%;
+			border-collapse: collapse;
+			min-width: 380px;
+		}
+
+		th,
+		td {
+			padding: 10px 10px;
+			border-bottom: 1px solid rgba(31, 42, 34, 0.12);
+			text-align: left;
+			font-size: 0.88rem;
+		}
+
+		th {
+			font-size: 0.78rem;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			color: var(--muted);
+		}
+
+		th:last-child,
+		td:last-child {
+			text-align: right;
+		}
+
+		.empty {
+			text-align: center;
+			color: var(--muted);
+			font-style: italic;
+		}
+
+		.message {
+			display: none;
+			padding: 10px 12px;
+			border-radius: 10px;
+			font-size: 0.88rem;
+			font-weight: 700;
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			z-index: 9999;
+			background: #ffffff;
+			border: 1px solid #d1d5db;
+			color: #1f2937;
+			box-shadow: 0 16px 38px rgba(0, 0, 0, 0.18);
+			min-width: min(88vw, 320px);
+			max-width: min(92vw, 460px);
+			text-align: center;
+			opacity: 1;
+			transition: opacity 300ms ease;
+		}
+
+		.message.fade-out {
+			opacity: 0;
+		}
+
+		.message.error {
+			display: block;
+			color: #8a2d0a;
+			border-color: #f7c3b1;
+		}
+
+		.message.success {
+			display: block;
+			color: #14532d;
+			border-color: #b8e7c5;
+		}
+
+		@media (max-width: 900px) {
+			.cards,
+			.tables {
+				grid-template-columns: 1fr;
+			}
+
+			.pie-layout {
+				grid-template-columns: 1fr;
+			}
+
+			.grade-layout {
+				grid-template-columns: 1fr;
+			}
+
+			input {
+				min-width: 220px;
+			}
+		}
+
+		@media (max-width: 1100px) {
+			body {
+				padding-top: 18px;
+			}
+
+			.panel {
+				padding: 18px;
+			}
+		}
+
+		@media (max-width: 760px) {
+			.brand-logo {
+				width: min(100%, 220px);
+			}
+
+			.nav-panel {
+				padding: 4px 0;
+			}
+
+			.nav-menu {
+				display: grid;
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+				gap: 6px;
+				align-items: stretch;
+			}
+
+			.nav-item {
+				width: 100%;
+				justify-content: center;
+				padding: 8px 6px;
+				font-size: 0.78rem;
+				text-align: center;
+				line-height: 1.2;
+				white-space: normal;
+			}
+
+			.nav-greeting {
+				grid-column: 1 / -1;
+				margin-left: 0;
+				justify-content: center;
+			}
+
+			/* Flatten user-management submenu for mobile touch devices */
+			.nav-dropdown {
+				display: contents;
+			}
+
+			.nav-dropdown-toggle {
+				display: none;
+			}
+
+			.nav-submenu {
+				display: contents;
+				position: static;
+				min-width: 0;
+				padding: 0;
+				border: none;
+				background: transparent;
+				box-shadow: none;
+			}
+
+			.nav-submenu-item {
+				justify-content: center;
+			}
+		}
+
+		.nav-panel {
+			padding: 6px 10px;
+		}
+
+		.nav-menu {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 2px;
+			align-items: center;
+		}
+
+		.nav-item {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			padding: 9px 13px;
+			border: none;
+			border-radius: 8px;
+			background: transparent;
+			color: var(--ink);
+			font: inherit;
+			font-size: 0.9rem;
+			font-weight: 600;
+			cursor: pointer;
+			transition: background 180ms ease, color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+			white-space: nowrap;
+		}
+
+		.nav-item:hover {
+			background: linear-gradient(180deg, rgba(23, 88, 55, 0.12), rgba(23, 88, 55, 0.08));
+			color: var(--accent);
+			transform: translateY(-1px);
+			box-shadow: 0 4px 14px rgba(23, 88, 55, 0.16);
+		}
+
+		.nav-item:active {
+			background: rgba(23, 88, 55, 0.15);
+			transform: translateY(0);
+			box-shadow: none;
+		}
+
+		.nav-item-signout {
+			color: #b91c1c;
+		}
+
+		.nav-item-signout:hover {
+			background: rgba(185, 28, 28, 0.08);
+			color: #991b1b;
+		}
+
+		.nav-dropdown {
+			position: relative;
+			display: inline-flex;
+		}
+
+		.nav-dropdown-toggle::after {
+			content: " ▾";
+			font-size: 0.75rem;
+			opacity: 0.75;
+		}
+
+		.nav-submenu {
+			display: none;
+			position: absolute;
+			top: calc(100% + 6px);
+			left: 0;
+			min-width: 220px;
+			padding: 6px;
+			border-radius: 10px;
+			border: 1px solid rgba(23, 88, 55, 0.16);
+			background: #ffffff;
+			box-shadow: 0 10px 26px rgba(0, 0, 0, 0.14);
+			z-index: 20;
+		}
+
+		.nav-dropdown:hover .nav-submenu,
+		.nav-dropdown:focus-within .nav-submenu {
+			display: grid;
+			gap: 4px;
+		}
+
+		.nav-submenu-item {
+			justify-content: flex-start;
+			width: 100%;
+			box-shadow: none;
+			transform: none;
+		}
+
+		.nav-greeting {
+			margin-left: auto;
+			display: inline-flex;
+			align-items: center;
+			padding: 6px 12px;
+			border-radius: 8px;
+			background: rgba(23, 88, 55, 0.07);
+			color: var(--accent);
+			font-size: 0.88rem;
+			font-weight: 700;
+			white-space: nowrap;
+		}
+
+		.welcome-banner {
+			display: none;
+			padding: 12px 18px;
+			border-radius: 12px;
+			background: linear-gradient(90deg, #d1fae5 0%, #ecfdf5 100%);
+			border: 1px solid rgba(23, 88, 55, 0.18);
+			color: #14532d;
+			font-weight: 700;
+			font-size: 0.95rem;
+			margin-bottom: 10px;
+		}
+	</style>
+</head>
+<body>
+	<div class="page">
+		<section class="panel">
+			<div class="brand">
+				<img class="brand-logo" src="assets/itrack-final.png" alt="I-Track Project logo">
+			</div>
+			<div class="nav-panel">
+				<nav class="nav-menu" aria-label="Admin navigation">
+					<button id="navLearner" class="nav-item" type="button" onclick="window.location.href='learner.html'">&#128203; Learner Record</button>
+					<button class="nav-item" type="button" onclick="window.location.href='dashboard.html'">&#128202; Dashboard</button>
+					<button class="nav-item nav-admin-only" type="button" onclick="window.location.href='approval-request.html'">&#128221; ADM Approval</button>
+					<div class="nav-dropdown nav-admin-only">
+						<button class="nav-item nav-dropdown-toggle" type="button" onclick="window.location.href='user.html'">&#128101; User Management</button>
+						<div class="nav-submenu" aria-label="User management sub menu">
+							<button class="nav-item nav-submenu-item" type="button" onclick="window.location.href='approval.html'">&#128273; Approval Portal</button>
+							<button class="nav-item nav-submenu-item" type="button" onclick="window.location.href='admin.html'">&#9203; Pending Approvals</button>
+							<button class="nav-item nav-submenu-item" type="button" onclick="window.location.href='approved.html'">&#9989; Approved Users</button>
+						</div>
+					</div>
+					<button class="nav-item nav-admin-only" type="button" onclick="window.location.href='create.html'">&#127379; Create Account</button>
+					<button id="navLogin" class="nav-item" type="button" onclick="window.location.href='index.html'">&#128274; Login Page</button>
+					<span id="navGreeting" class="nav-greeting"></span>
+					<button class="nav-item nav-item-signout" type="button" onclick="window.location.href='signout.html'">Sign Out</button>
+				</nav>
+			</div>
+			<h1>Dashboard</h1>
+			<div id="welcomeBanner" class="welcome-banner"></div>
+			<p class="subtitle">Overview of registered users and learner records.</p>
+			<div id="message" class="message" role="status" aria-live="polite"></div>
+
+		</section>
+
+		<section class="panel">
+			<div class="cards">
+				<div class="card">
+					<div class="card-label">Users Registered</div>
+					<div id="usersRegistered" class="card-value">0</div>
+				</div>
+				<div class="card">
+					<div class="card-label">Students Saved</div>
+					<div id="studentsSaved" class="card-value">0</div>
+				</div>
+			</div>
+		</section>
+
+		<section class="panel">
+			<div class="section-title">Summary of District (Top 30)</div>
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>District</th>
+							<th>Learners</th>
+						</tr>
+					</thead>
+					<tbody id="districtTableBody">
+						<tr><td class="empty" colspan="2">No data yet.</td></tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+
+		<section class="panel">
+			<div class="section-title">Graph for Percentage of ADM Learner</div>
+			<div class="graph-toolbar">
+				<label for="districtGraphFilter">District</label>
+				<select id="districtGraphFilter" aria-label="Select district for ADM learner percentage graph">
+					<option value="">All Districts</option>
+				</select>
+				<button id="exportAdmGraphBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+			</div>
+			<div id="admPercentGraph" class="graph-wrap">
+				<div class="empty">No data yet.</div>
+			</div>
+		</section>
+
+		<section class="panel">
+			<div class="section-title">Graph for Percentage of Leaner per Modality per district</div>
+			<div class="graph-toolbar">
+				<label for="modalityPercentDistrictFilter">District</label>
+				<select id="modalityPercentDistrictFilter" aria-label="Select district for learner modality percentage graph">
+					<option value="">All Districts</option>
+				</select>
+				<button id="exportModalityPercentGraphBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+			</div>
+			<div id="modalityPercentGraph" class="graph-wrap">
+				<div class="empty">No data yet.</div>
+			</div>
+		</section>
+
+		<section class="panel">
+			<div class="section-title">Graph for Percentage of Learner per Performance refer to verbal description per school</div>
+			<div class="graph-toolbar">
+				<label for="performanceSchoolFilter">School</label>
+				<select id="performanceSchoolFilter" aria-label="Select school for performance pie graph">
+					<option value="">All Schools</option>
+				</select>
+				<button id="exportPerformanceGraphBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+			</div>
+			<div id="performanceGraph" class="graph-wrap">
+				<div class="empty">No data yet.</div>
+			</div>
+		</section>
+
+		<section class="panel">
+			<div class="section-title">Graph for Percentage of Learner per Phil-Iri Result refer to Phil-Iri per school</div>
+			<div class="graph-toolbar">
+				<label for="philIriSchoolFilter">School</label>
+				<select id="philIriSchoolFilter" aria-label="Select school for Phil-Iri pie graph">
+					<option value="">All Schools</option>
+				</select>
+				<button id="exportPhilIriGraphBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+			</div>
+			<div id="philIriGraph" class="graph-wrap">
+				<div class="empty">No data yet.</div>
+			</div>
+		</section>
+
+		<section class="panel">
+			<div class="section-title">Graph for Percentage of Learner per CRLA Result refer to CRLA per school</div>
+			<div class="graph-toolbar">
+				<label for="crlaSchoolFilter">School</label>
+				<select id="crlaSchoolFilter" aria-label="Select school for CRLA pie graph">
+					<option value="">All Schools</option>
+				</select>
+				<button id="exportCrlaGraphBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+			</div>
+			<div id="crlaGraph" class="graph-wrap">
+				<div class="empty">No data yet.</div>
+			</div>
+		</section>
+
+		<section class="panel">
+			<div class="section-title">Graph for Percentage of Learner per RMA Result refer to RMA per school</div>
+			<div class="graph-toolbar">
+				<label for="rmaSchoolFilter">School</label>
+				<select id="rmaSchoolFilter" aria-label="Select school for RMA pie graph">
+					<option value="">All Schools</option>
+				</select>
+				<button id="exportRmaGraphBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+			</div>
+			<div id="rmaGraph" class="graph-wrap">
+				<div class="empty">No data yet.</div>
+			</div>
+		</section>
+
+		<section class="panel">
+			<div class="section-title">Graph per Grade Level of ADM Learner</div>
+			<div class="graph-toolbar">
+				<label for="districtGradeFilter">District</label>
+				<select id="districtGradeFilter" aria-label="Select district for grade-level ADM learner graph">
+					<option value="">All Districts</option>
+				</select>
+				<label for="schoolGradeFilter">School</label>
+				<select id="schoolGradeFilter" aria-label="Select school for grade-level ADM learner graph">
+					<option value="">All Schools</option>
+				</select>
+				<button id="exportGradeGraphBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+			</div>
+			<div id="gradeLevelGraph" class="graph-wrap">
+				<div class="empty">No data yet.</div>
+			</div>
+		</section>
+
+		<section class="panel">
+			<div class="section-title">No. of Learners per Modality</div>
+			<div class="graph-toolbar">
+				<label for="modalityDistrictFilter">District</label>
+				<select id="modalityDistrictFilter" aria-label="Select district for modality graph">
+					<option value="">All Districts</option>
+				</select>
+				<label for="modalitySchoolFilter">School</label>
+				<select id="modalitySchoolFilter" aria-label="Select school for modality graph">
+					<option value="">All Schools</option>
+				</select>
+				<button id="exportModalityGraphBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+			</div>
+			<div id="modalityGraph" class="graph-wrap">
+				<div class="empty">No data yet.</div>
+			</div>
+		</section>
+
+		<section class="panel">
+			<div class="section-title">Summary of Schools (Top 30)</div>
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>School</th>
+							<th>Learners</th>
+						</tr>
+					</thead>
+					<tbody id="schoolTableBody">
+						<tr><td class="empty" colspan="2">No data yet.</td></tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+	</div>
+
+	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+	<script>
+		(function () {
+			const isLocalNodeMode = window.location.port === "3000";
+			const apiRoot = isLocalNodeMode ? "/api" : "api";
+
+			function apiUrl(path) {
+				const normalized = String(path || "").startsWith("/") ? String(path) : ("/" + String(path || ""));
+				if (isLocalNodeMode) {
+					return apiRoot + normalized;
+				}
+
+				if (normalized === "/auth/me") return "api/auth/me.php";
+				if (normalized === "/admin/users") return "api/admin/users.php";
+				if (normalized === "/admin/learner-summary") return "api/admin/learner-summary.php";
+				if (normalized === "/admin/grade-level-summary") return "api/admin/grade-level-summary.php";
+				if (normalized === "/admin/modality-summary") return "api/admin/modality-summary.php";
+				if (normalized === "/admin/assessment-pie-summary") return "api/admin/assessment-pie-summary.php";
+				if (normalized === "/reference/district-schools") return "api/reference/district-schools.php";
+
+				return apiRoot + normalized;
+			}
+
+			const referenceApiUrl = apiUrl("/reference/district-schools");
+
+			const usersRegisteredEl = document.getElementById("usersRegistered");
+			const studentsSavedEl = document.getElementById("studentsSaved");
+			const districtTableBody = document.getElementById("districtTableBody");
+			const schoolTableBody = document.getElementById("schoolTableBody");
+			const districtGraphFilter = document.getElementById("districtGraphFilter");
+			const admPercentGraph = document.getElementById("admPercentGraph");
+			const modalityPercentDistrictFilter = document.getElementById("modalityPercentDistrictFilter");
+			const modalityPercentGraph = document.getElementById("modalityPercentGraph");
+			const performanceSchoolFilter = document.getElementById("performanceSchoolFilter");
+			const performanceGraph = document.getElementById("performanceGraph");
+			const philIriSchoolFilter = document.getElementById("philIriSchoolFilter");
+			const philIriGraph = document.getElementById("philIriGraph");
+			const crlaSchoolFilter = document.getElementById("crlaSchoolFilter");
+			const crlaGraph = document.getElementById("crlaGraph");
+			const rmaSchoolFilter = document.getElementById("rmaSchoolFilter");
+			const rmaGraph = document.getElementById("rmaGraph");
+			const districtGradeFilter = document.getElementById("districtGradeFilter");
+			const schoolGradeFilter = document.getElementById("schoolGradeFilter");
+			const gradeLevelGraph = document.getElementById("gradeLevelGraph");
+			const modalityDistrictFilter = document.getElementById("modalityDistrictFilter");
+			const modalitySchoolFilter = document.getElementById("modalitySchoolFilter");
+			const modalityGraph = document.getElementById("modalityGraph");
+			const exportAdmGraphBtn = document.getElementById("exportAdmGraphBtn");
+			const exportModalityPercentGraphBtn = document.getElementById("exportModalityPercentGraphBtn");
+			const exportPerformanceGraphBtn = document.getElementById("exportPerformanceGraphBtn");
+			const exportPhilIriGraphBtn = document.getElementById("exportPhilIriGraphBtn");
+			const exportCrlaGraphBtn = document.getElementById("exportCrlaGraphBtn");
+			const exportRmaGraphBtn = document.getElementById("exportRmaGraphBtn");
+			const exportGradeGraphBtn = document.getElementById("exportGradeGraphBtn");
+			const exportModalityGraphBtn = document.getElementById("exportModalityGraphBtn");
+			const message = document.getElementById("message");
+			const adminOnlyNavButtons = document.querySelectorAll(".nav-admin-only");
+			const navLearner = document.getElementById("navLearner");
+			const navLogin = document.getElementById("navLogin");
+			let summaryRowsCache = [];
+			let gradeRowsCache = [];
+			let modalityRowsCache = [];
+			let modalityAllRowsCache = [];
+			let performanceRowsCache = [];
+			let philIriRowsCache = [];
+			let crlaRowsCache = [];
+			let rmaRowsCache = [];
+			let districtSchoolsReference = {};
+			let messageTimer = null;
+			let currentRole = "teacher";
+			let currentUserDistrict = "";
+			let isDashboardLoading = false;
+			let dashboardRefreshTimer = null;
+			const DASHBOARD_SUMMARY_DISPLAY_LIMIT = 30;
+
+			function applyRoleNavigation() {
+				const hideAdminOnly = currentRole === "supervisor";
+				adminOnlyNavButtons.forEach(function (button) {
+					button.style.display = hideAdminOnly ? "none" : "inline-flex";
+				});
+
+				if (navLearner) {
+					navLearner.style.display = hideAdminOnly ? "none" : "inline-flex";
+				}
+
+				if (navLogin) {
+					navLogin.style.display = hideAdminOnly ? "none" : "inline-flex";
+				}
+			}
+
+			function setMessage(text, type) {
+				if (messageTimer) {
+					clearTimeout(messageTimer);
+					messageTimer = null;
+				}
+				message.classList.remove("fade-out");
+				message.textContent = text;
+				message.className = "message " + type;
+				messageTimer = setTimeout(function () {
+					message.classList.add("fade-out");
+					setTimeout(function () {
+						clearMessage();
+					}, 320);
+				}, 3000);
+			}
+
+			function clearMessage() {
+				if (messageTimer) {
+					clearTimeout(messageTimer);
+					messageTimer = null;
+				}
+				message.classList.remove("fade-out");
+				message.textContent = "";
+				message.className = "message";
+			}
+
+			async function parseApiPayload(response) {
+				const raw = await response.text();
+				if (!raw) return {};
+				try {
+					return JSON.parse(raw);
+				} catch (e) {
+					return { message: "Server returned an unexpected response.", detail: raw };
+				}
+			}
+
+			async function checkDashboardSession() {
+				try {
+					const response = await fetch(apiUrl("/auth/me"), { credentials: "include" });
+					if (!response.ok) {
+						window.location.href = "index.html";
+						return false;
+					}
+					const payload = await parseApiPayload(response);
+					const role = String((payload.user || {}).role || "teacher").toLowerCase();
+					currentRole = role;
+					currentUserDistrict = String((payload.user || {}).district || "").trim();
+					const fn = String((payload.user || {}).firstname || "").trim();
+					const navGreeting = document.getElementById("navGreeting");
+					const welcomeBanner = document.getElementById("welcomeBanner");
+					if (navGreeting && fn) navGreeting.textContent = "\uD83D\uDC64 " + fn;
+					if (welcomeBanner && fn) {
+						welcomeBanner.textContent = "Welcome to ADM Site, " + fn + "!";
+						welcomeBanner.style.display = "block";
+					}
+					if (role !== "admin" && role !== "supervisor") {
+						window.location.href = "learner.html";
+						return false;
+					}
+					applyRoleNavigation();
+					return true;
+				} catch (error) {
+					window.location.href = "index.html";
+					return false;
+				}
+			}
+
+			function getAdminKey() {
+				return localStorage.getItem("adminAccessKey") || "";
+			}
+
+			function buildRequestOptions() {
+				const adminKey = getAdminKey();
+				return {
+					credentials: "include",
+					headers: adminKey ? { "x-admin-key": adminKey } : {}
+				};
+			}
+
+			async function downloadExcel(url, fallbackFileName) {
+				const response = await fetch(url, buildRequestOptions());
+				if (!response.ok) {
+					if (response.status === 404) {
+						throw new Error("Export API not found. Please restart server and refresh page.");
+					}
+					const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+					if (contentType.includes("application/json")) {
+						const payload = await parseApiPayload(response);
+						throw new Error(payload.message || "Failed to export Excel.");
+					}
+					throw new Error("Failed to export Excel (HTTP " + response.status + ").");
+				}
+
+				const blob = await response.blob();
+				const objectUrl = URL.createObjectURL(blob);
+				const link = document.createElement("a");
+				link.href = objectUrl;
+				link.download = fallbackFileName;
+				document.body.appendChild(link);
+				link.click();
+				link.remove();
+				URL.revokeObjectURL(objectUrl);
+			}
+
+			function isExportRouteMissing(error) {
+				const text = String((error && error.message) || "").toLowerCase();
+				return text.includes("export api not found") || text.includes("http 404") || text.includes("route not found");
+			}
+
+			function escapeCsv(value) {
+				const text = String(value == null ? "" : value);
+				if (/[",\n]/.test(text)) {
+					return '"' + text.replace(/"/g, '""') + '"';
+				}
+				return text;
+			}
+
+			function downloadCsv(fileName, headers, rows) {
+				const csvLines = [headers.map(escapeCsv).join(",")]
+					.concat(rows.map(function (row) { return row.map(escapeCsv).join(","); }));
+				const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
+				const url = URL.createObjectURL(blob);
+				const link = document.createElement("a");
+				link.href = url;
+				link.download = fileName;
+				document.body.appendChild(link);
+				link.click();
+				link.remove();
+				URL.revokeObjectURL(url);
+			}
+
+			function downloadXlsxClient(fileName, headers, rows, sheetName) {
+				if (typeof window.XLSX === "undefined" || !window.XLSX || !window.XLSX.utils) {
+					downloadCsv(fileName.replace(/\.xlsx$/i, ".csv"), headers, rows);
+					return;
+				}
+
+				const records = rows.map(function (row) {
+					const obj = {};
+					headers.forEach(function (header, index) {
+						obj[header] = row[index];
+					});
+					return obj;
+				});
+
+				const workbook = window.XLSX.utils.book_new();
+				const worksheet = window.XLSX.utils.json_to_sheet(records.length ? records : [headers.reduce(function (acc, header) {
+					acc[header] = "";
+					return acc;
+				}, {})]);
+				window.XLSX.utils.book_append_sheet(workbook, worksheet, String(sheetName || "Report"));
+				window.XLSX.writeFile(workbook, fileName);
+			}
+
+			async function loadDistrictSchoolReference() {
+				try {
+					const response = await fetch(referenceApiUrl, buildRequestOptions());
+					if (!response.ok) {
+						districtSchoolsReference = {};
+						return;
+					}
+					const payload = await parseApiPayload(response);
+					districtSchoolsReference = payload && typeof payload.schoolsByDistrict === "object" && payload.schoolsByDistrict
+						? payload.schoolsByDistrict
+						: {};
+				} catch (error) {
+					districtSchoolsReference = {};
+				}
+			}
+
+
+
+
+
+			function renderSimpleSummary(tableBody, map, firstColumnLabel) {
+				const rows = Array.from(map.entries()).map(function (entry) {
+					return { label: entry[0], count: entry[1] };
+				}).sort(function (a, b) {
+					return b.count - a.count || a.label.localeCompare(b.label);
+				});
+				const displayedRows = rows.slice(0, DASHBOARD_SUMMARY_DISPLAY_LIMIT);
+
+				tableBody.innerHTML = "";
+				if (!rows.length) {
+					tableBody.innerHTML = '<tr><td class="empty" colspan="2">No data yet.</td></tr>';
+					return;
+				}
+
+				displayedRows.forEach(function (row) {
+					const tr = document.createElement("tr");
+					const nameTd = document.createElement("td");
+					const countTd = document.createElement("td");
+					nameTd.textContent = row.label || firstColumnLabel;
+					countTd.textContent = String(row.count);
+					tr.appendChild(nameTd);
+					tr.appendChild(countTd);
+					tableBody.appendChild(tr);
+				});
+			}
+
+			function renderAdmPercentageGraph(summaryRows, selectedDistrict) {
+				const district = String(selectedDistrict || "").trim();
+				const palette = ["#b7d8c0", "#c9e4c5", "#f6d8ae", "#f2c6c2", "#d8c7f0", "#bfe3e0", "#c7d7f0", "#d9e7b8", "#f3d2c1", "#dfc6dc"];
+				const fixedDistrictColors = {
+					alcantara: "#f7e28b",
+					"dumanjug i": "#efb0aa",
+					aloguinsan: "#b9dfb8"
+				};
+
+				let dataMap = new Map();
+				if (district) {
+					summaryRows.forEach(function (row) {
+						const rowDistrict = String(row.district || "N/A").trim() || "N/A";
+						if (rowDistrict !== district) return;
+						const school = String(row.school || "N/A").trim() || "N/A";
+						const count = Number(row.learner_count || 0);
+						dataMap.set(school, (dataMap.get(school) || 0) + count);
+					});
+				} else {
+					summaryRows.forEach(function (row) {
+						const rowDistrict = String(row.district || "N/A").trim() || "N/A";
+						const count = Number(row.learner_count || 0);
+						dataMap.set(rowDistrict, (dataMap.get(rowDistrict) || 0) + count);
+					});
+				}
+
+				const rows = Array.from(dataMap.entries()).map(function (entry) {
+					return { label: entry[0], count: entry[1] };
+				}).sort(function (a, b) {
+					return b.count - a.count || a.label.localeCompare(b.label);
+				});
+
+				const total = rows.reduce(function (sum, row) { return sum + row.count; }, 0);
+
+				if (!rows.length || total <= 0) {
+					admPercentGraph.innerHTML = '<div class="empty">No data yet.</div>';
+					return;
+				}
+
+				let start = 0;
+				const slices = rows.map(function (row, index) {
+					const pct = (row.count / total) * 100;
+					const colorKey = String(row.label || "").trim().toLowerCase();
+					const color = fixedDistrictColors[colorKey] || palette[index % palette.length];
+					const end = start + pct;
+					const stop = { label: row.label, count: row.count, pct: pct, color: color, start: start, end: end };
+					start = end;
+					return stop;
+				});
+
+				const gradient = slices.map(function (slice) {
+					return slice.color + ' ' + slice.start.toFixed(2) + '% ' + slice.end.toFixed(2) + '%';
+				}).join(', ');
+
+				const legendHtml = slices.map(function (slice) {
+					return '<div class="pie-legend-row">' +
+						'<span class="pie-dot" style="background:' + slice.color + '"></span>' +
+						'<span class="pie-label" title="' + slice.label + '">' + slice.label + '</span>' +
+						'<span class="pie-value">' + slice.pct.toFixed(1) + '% (' + slice.count + ')</span>' +
+					'</div>';
+				}).join('');
+
+				admPercentGraph.innerHTML = '<div class="pie-layout">' +
+					'<div class="pie-chart" aria-label="ADM learner percentage pie chart" style="background:conic-gradient(' + gradient + ')"></div>' +
+					'<div class="pie-legend">' + legendHtml + '</div>' +
+				'</div>';
+			}
+
+			function renderDistrictFilter(summaryRows) {
+				if (currentRole === "supervisor") {
+					const district = currentUserDistrict || "N/A";
+					districtGraphFilter.innerHTML = '<option value="' + district + '">' + district + '</option>';
+					districtGraphFilter.value = district;
+					districtGraphFilter.disabled = true;
+					return;
+				}
+
+				districtGraphFilter.disabled = false;
+				const districts = Array.from(new Set(summaryRows.map(function (row) {
+					return String(row.district || "N/A").trim() || "N/A";
+				}))).sort(function (a, b) { return a.localeCompare(b); });
+
+				districtGraphFilter.innerHTML = '<option value="">All Districts</option>' + districts.map(function (district) {
+					return '<option value="' + district + '">' + district + '</option>';
+				}).join("");
+			}
+
+			function renderModalityPercentDistrictFilter(rows) {
+				if (currentRole === "supervisor") {
+					const district = currentUserDistrict || "N/A";
+					modalityPercentDistrictFilter.innerHTML = '<option value="' + district + '">' + district + '</option>';
+					modalityPercentDistrictFilter.value = district;
+					modalityPercentDistrictFilter.disabled = true;
+					return;
+				}
+
+				modalityPercentDistrictFilter.disabled = false;
+				const districts = Array.from(new Set(rows.map(function (row) {
+					return String(row.district || "N/A").trim() || "N/A";
+				}))).sort(function (a, b) { return a.localeCompare(b); });
+
+				modalityPercentDistrictFilter.innerHTML = '<option value="">All Districts</option>' + districts.map(function (district) {
+					return '<option value="' + district + '">' + district + '</option>';
+				}).join("");
+			}
+
+			function renderModalityPercentPieGraph(rows, selectedDistrict) {
+				const district = String(selectedDistrict || "").trim();
+				const palette = ["#b7d8c0", "#c9e4c5", "#f6d8ae", "#f2c6c2", "#d8c7f0", "#bfe3e0", "#c7d7f0", "#d9e7b8", "#f3d2c1", "#dfc6dc"];
+
+				const filteredRows = rows.filter(function (row) {
+					const rowDistrict = String(row.district || "N/A").trim() || "N/A";
+					if (district && rowDistrict !== district) return false;
+					return true;
+				});
+
+				const modalityMap = new Map();
+				filteredRows.forEach(function (row) {
+					const modality = String(row.modality || "N/A").trim() || "N/A";
+					const count = Number(row.learner_count || 0);
+					modalityMap.set(modality, (modalityMap.get(modality) || 0) + count);
+				});
+
+				const slices = Array.from(modalityMap.entries()).map(function (entry) {
+					return { label: entry[0], count: entry[1] };
+				}).sort(function (a, b) {
+					return b.count - a.count || a.label.localeCompare(b.label);
+				});
+
+				const total = slices.reduce(function (sum, row) { return sum + row.count; }, 0);
+				if (!slices.length || total <= 0) {
+					modalityPercentGraph.innerHTML = '<div class="empty">No data yet.</div>';
+					return;
+				}
+
+				let start = 0;
+				const pieSlices = slices.map(function (slice, index) {
+					const pct = (slice.count / total) * 100;
+					const color = palette[index % palette.length];
+					const end = start + pct;
+					const result = {
+						label: slice.label,
+						count: slice.count,
+						pct: pct,
+						color: color,
+						start: start,
+						end: end
+					};
+					start = end;
+					return result;
+				});
+
+				const gradient = pieSlices.map(function (slice) {
+					return slice.color + ' ' + slice.start.toFixed(2) + '% ' + slice.end.toFixed(2) + '%';
+				}).join(', ');
+
+				const legendHtml = pieSlices.map(function (slice) {
+					return '<div class="pie-legend-row">' +
+						'<span class="pie-dot" style="background:' + slice.color + '"></span>' +
+						'<span class="pie-label" title="' + slice.label + '">' + slice.label + '</span>' +
+						'<span class="pie-value">' + slice.pct.toFixed(1) + '% (' + slice.count + ')</span>' +
+					'</div>';
+				}).join('');
+
+				modalityPercentGraph.innerHTML = '<div class="pie-layout">' +
+					'<div class="pie-chart" aria-label="Learner modality percentage pie chart" style="background:conic-gradient(' + gradient + ')"></div>' +
+					'<div class="pie-legend">' + legendHtml + '</div>' +
+				'</div>';
+			}
+
+			async function refreshModalityPercentGraphFromDatabase() {
+				try {
+					const requestOptions = buildRequestOptions();
+					const selectedDistrict = String(modalityPercentDistrictFilter.value || "").trim();
+					const params = new URLSearchParams();
+					if (selectedDistrict) params.set("district", selectedDistrict);
+					const query = params.toString() ? ("?" + params.toString()) : "";
+					const response = await fetch(apiUrl("/admin/modality-summary") + query, requestOptions);
+					if (response.ok) {
+						const payload = await parseApiPayload(response);
+						const rows = Array.isArray(payload.summary) ? payload.summary : [];
+						modalityAllRowsCache = currentRole === "supervisor"
+							? rows.filter(function (row) {
+								const district = String(row.district || "N/A").trim() || "N/A";
+								return district === (currentUserDistrict || "N/A");
+							})
+							: rows;
+					}
+				} catch (error) {
+					// Keep existing cache if refresh fails.
+				}
+
+				renderModalityPercentPieGraph(modalityAllRowsCache, modalityPercentDistrictFilter.value);
+			}
+
+			function getReferenceSchoolIdByNameMap() {
+				const idByName = new Map();
+				Object.keys(districtSchoolsReference || {}).forEach(function (district) {
+					const rows = Array.isArray(districtSchoolsReference[district]) ? districtSchoolsReference[district] : [];
+					rows.forEach(function (school) {
+						const schoolName = typeof school === "string" ? String(school || "").trim() : String((school && school.name) || "").trim();
+						const schoolId = typeof school === "string" ? "" : String((school && school.id) || "").trim();
+						if (schoolName && schoolId && !idByName.has(schoolName)) {
+							idByName.set(schoolName, schoolId);
+						}
+					});
+				});
+				return idByName;
+			}
+
+			function renderAssessmentSchoolFilter(selectEl, summaryRows, selectedValue) {
+				const value = String(selectedValue || "").trim();
+				const schoolIdByName = getReferenceSchoolIdByNameMap();
+				const schools = Array.from(new Set(summaryRows.map(function (row) {
+					return String(row.school || "N/A").trim() || "N/A";
+				}))).sort(function (a, b) { return a.localeCompare(b); });
+
+				selectEl.innerHTML = '<option value="">All Schools</option>' + schools.map(function (school) {
+					const schoolId = String(schoolIdByName.get(school) || "").trim();
+					const label = schoolId ? (schoolId + ' - ' + school) : school;
+					return '<option value="' + school + '">' + label + '</option>';
+				}).join("");
+
+				if (value && schools.indexOf(value) >= 0) {
+					selectEl.value = value;
+				}
+			}
+
+			function renderPieGraphFromSummary(targetEl, rows, ariaLabel) {
+				const palette = ["#b7d8c0", "#c9e4c5", "#f6d8ae", "#f2c6c2", "#d8c7f0", "#bfe3e0", "#c7d7f0", "#d9e7b8", "#f3d2c1", "#dfc6dc"];
+				const cleanedRows = (Array.isArray(rows) ? rows : [])
+					.map(function (row) {
+						return {
+							label: String((row && row.label) || "N/A").trim() || "N/A",
+							count: Number((row && row.total) || 0)
+						};
+					})
+					.filter(function (row) { return row.count > 0; })
+					.sort(function (a, b) { return b.count - a.count || a.label.localeCompare(b.label); });
+
+				const total = cleanedRows.reduce(function (sum, row) { return sum + row.count; }, 0);
+				if (!cleanedRows.length || total <= 0) {
+					targetEl.innerHTML = '<div class="empty">No data yet.</div>';
+					return;
+				}
+
+				let start = 0;
+				const pieSlices = cleanedRows.map(function (row, index) {
+					const pct = (row.count / total) * 100;
+					const end = start + pct;
+					const item = {
+						label: row.label,
+						count: row.count,
+						pct: pct,
+						color: palette[index % palette.length],
+						start: start,
+						end: end
+					};
+					start = end;
+					return item;
+				});
+
+				const gradient = pieSlices.map(function (slice) {
+					return slice.color + ' ' + slice.start.toFixed(2) + '% ' + slice.end.toFixed(2) + '%';
+				}).join(', ');
+
+				const legendHtml = pieSlices.map(function (slice) {
+					return '<div class="pie-legend-row">' +
+						'<span class="pie-dot" style="background:' + slice.color + '"></span>' +
+						'<span class="pie-label" title="' + slice.label + '">' + slice.label + '</span>' +
+						'<span class="pie-value">' + slice.pct.toFixed(1) + '% (' + slice.count + ')</span>' +
+					'</div>';
+				}).join('');
+
+				targetEl.innerHTML = '<div class="pie-layout">' +
+					'<div class="pie-chart" aria-label="' + ariaLabel + '" style="background:conic-gradient(' + gradient + ')"></div>' +
+					'<div class="pie-legend">' + legendHtml + '</div>' +
+				'</div>';
+			}
+
+			async function fetchAssessmentPieSummary(metric, school) {
+				const params = new URLSearchParams();
+				params.set("metric", metric);
+				const selectedSchool = String(school || "").trim();
+				if (selectedSchool) params.set("school", selectedSchool);
+				const query = params.toString() ? ("?" + params.toString()) : "";
+				const response = await fetch(apiUrl("/admin/assessment-pie-summary") + query, buildRequestOptions());
+				if (!response.ok) {
+					const payload = await parseApiPayload(response);
+					throw new Error(payload.message || "Failed to fetch assessment graph data.");
+				}
+				const payload = await parseApiPayload(response);
+				return Array.isArray(payload.summary) ? payload.summary : [];
+			}
+
+			async function refreshPerformanceGraphFromDatabase() {
+				try {
+					performanceRowsCache = await fetchAssessmentPieSummary("performance", performanceSchoolFilter.value);
+				} catch (error) {
+					performanceRowsCache = [];
+				}
+				renderPieGraphFromSummary(performanceGraph, performanceRowsCache, "Performance verbal description pie chart");
+			}
+
+			async function refreshPhilIriGraphFromDatabase() {
+				try {
+					philIriRowsCache = await fetchAssessmentPieSummary("phil-iri", philIriSchoolFilter.value);
+				} catch (error) {
+					philIriRowsCache = [];
+				}
+				renderPieGraphFromSummary(philIriGraph, philIriRowsCache, "Phil-Iri result pie chart");
+			}
+
+			async function refreshCrlaGraphFromDatabase() {
+				try {
+					crlaRowsCache = await fetchAssessmentPieSummary("crla", crlaSchoolFilter.value);
+				} catch (error) {
+					crlaRowsCache = [];
+				}
+				renderPieGraphFromSummary(crlaGraph, crlaRowsCache, "CRLA result pie chart");
+			}
+
+			async function refreshRmaGraphFromDatabase() {
+				try {
+					rmaRowsCache = await fetchAssessmentPieSummary("rma", rmaSchoolFilter.value);
+				} catch (error) {
+					rmaRowsCache = [];
+				}
+				renderPieGraphFromSummary(rmaGraph, rmaRowsCache, "RMA result pie chart");
+			}
+
+			function getGradeSortValue(gradeLabel) {
+				const label = String(gradeLabel || "").trim().toLowerCase();
+				if (label === "kindergarten") return 0;
+				const match = label.match(/^grade\s+(\d{1,2})$/);
+				if (match) return Number(match[1]);
+				return 999;
+			}
+
+			function renderDistrictGradeFilter(rows) {
+				if (currentRole === "supervisor") {
+					const district = currentUserDistrict || "N/A";
+					districtGradeFilter.innerHTML = '<option value="' + district + '">' + district + '</option>';
+					districtGradeFilter.value = district;
+					districtGradeFilter.disabled = true;
+					return;
+				}
+
+				districtGradeFilter.disabled = false;
+				const districts = Array.from(new Set(rows.map(function (row) {
+					return String(row.district || "N/A").trim() || "N/A";
+				}))).sort(function (a, b) { return a.localeCompare(b); });
+
+				districtGradeFilter.innerHTML = '<option value="">All Districts</option>' + districts.map(function (district) {
+					return '<option value="' + district + '">' + district + '</option>';
+				}).join("");
+			}
+
+			function renderSchoolGradeFilter(rows, selectedDistrict) {
+				const district = String(selectedDistrict || "").trim();
+				if (district && Array.isArray(districtSchoolsReference[district])) {
+					const schools = districtSchoolsReference[district]
+						.map(function (school) {
+							const schoolName = typeof school === "string" ? school : String((school && school.name) || "").trim();
+							const schoolId = typeof school === "string" ? "" : String((school && school.id) || "").trim();
+							return { name: schoolName, id: schoolId };
+						})
+						.filter(function (school) { return Boolean(school.name); })
+						.sort(function (a, b) { return a.name.localeCompare(b.name); });
+
+					schoolGradeFilter.innerHTML = '<option value="">All Schools</option>' + schools.map(function (school) {
+						const label = school.id ? (school.id + ' - ' + school.name) : school.name;
+						return '<option value="' + school.name + '">' + label + '</option>';
+					}).join("");
+					return;
+				}
+
+				const scopedRows = district
+					? rows.filter(function (row) { return (String(row.district || "N/A").trim() || "N/A") === district; })
+					: rows;
+
+				const schools = Array.from(new Set(scopedRows.map(function (row) {
+					return String(row.school || "N/A").trim() || "N/A";
+				}))).sort(function (a, b) { return a.localeCompare(b); });
+				const schoolIdByName = getReferenceSchoolIdByNameMap();
+
+				schoolGradeFilter.innerHTML = '<option value="">All Schools</option>' + schools.map(function (school) {
+					const schoolId = String(schoolIdByName.get(school) || "").trim();
+					const label = schoolId ? (schoolId + ' - ' + school) : school;
+					return '<option value="' + school + '">' + label + '</option>';
+				}).join("");
+			}
+
+			function renderModalityDistrictFilter(rows) {
+				if (currentRole === "supervisor") {
+					const district = currentUserDistrict || "N/A";
+					modalityDistrictFilter.innerHTML = '<option value="' + district + '">' + district + '</option>';
+					modalityDistrictFilter.value = district;
+					modalityDistrictFilter.disabled = true;
+					return;
+				}
+
+				modalityDistrictFilter.disabled = false;
+				let districts = [];
+				const refDistricts = Object.keys(districtSchoolsReference || {});
+				if (refDistricts.length) {
+					districts = refDistricts.slice().sort(function (a, b) { return a.localeCompare(b); });
+				} else {
+					districts = Array.from(new Set(rows.map(function (row) {
+						return String(row.district || "N/A").trim() || "N/A";
+					}).concat(summaryRowsCache.map(function (row) {
+						return String(row.district || "N/A").trim() || "N/A";
+					})))).sort(function (a, b) { return a.localeCompare(b); });
+				}
+
+				modalityDistrictFilter.innerHTML = '<option value="">All Districts</option>' + districts.map(function (district) {
+					return '<option value="' + district + '">' + district + '</option>';
+				}).join("");
+			}
+
+			function renderModalitySchoolFilter(rows, selectedDistrict) {
+				const district = String(selectedDistrict || "").trim();
+				if (district && Array.isArray(districtSchoolsReference[district])) {
+					const schools = districtSchoolsReference[district]
+						.map(function (school) {
+							const schoolName = typeof school === "string" ? school : String((school && school.name) || "").trim();
+							const schoolId = typeof school === "string" ? "" : String((school && school.id) || "").trim();
+							return { name: schoolName, id: schoolId };
+						})
+						.filter(function (school) { return Boolean(school.name); })
+						.sort(function (a, b) { return a.name.localeCompare(b.name); });
+
+					modalitySchoolFilter.innerHTML = '<option value="">All Schools</option>' + schools.map(function (school) {
+						const label = school.id ? (school.id + ' - ' + school.name) : school.name;
+						return '<option value="' + school.name + '">' + label + '</option>';
+					}).join("");
+					return;
+				}
+
+				const scopedRows = district
+					? rows.filter(function (row) { return (String(row.district || "N/A").trim() || "N/A") === district; })
+					: rows;
+
+				const schoolsFromModality = scopedRows.map(function (row) {
+					return String(row.school || "N/A").trim() || "N/A";
+				});
+				const schoolsFromSummary = summaryRowsCache
+					.filter(function (row) {
+						const rowDistrict = String(row.district || "N/A").trim() || "N/A";
+						if (district && rowDistrict !== district) return false;
+						return true;
+					})
+					.map(function (row) {
+						return String(row.school || "N/A").trim() || "N/A";
+					});
+
+				const schools = Array.from(new Set(schoolsFromModality.concat(schoolsFromSummary)))
+					.sort(function (a, b) { return a.localeCompare(b); });
+				const schoolIdByName = getReferenceSchoolIdByNameMap();
+
+				modalitySchoolFilter.innerHTML = '<option value="">All Schools</option>' + schools.map(function (school) {
+					const schoolId = String(schoolIdByName.get(school) || "").trim();
+					const label = schoolId ? (schoolId + ' - ' + school) : school;
+					return '<option value="' + school + '">' + label + '</option>';
+				}).join("");
+			}
+
+			function renderModalityBarGraph(rows, selectedDistrict, selectedSchool) {
+				const district = String(selectedDistrict || "").trim();
+				const school = String(selectedSchool || "").trim();
+
+				function normalizeSchoolKey(value) {
+					return String(value || "")
+						.toLowerCase()
+						.replace(/[^a-z0-9]+/g, "")
+						.trim();
+				}
+
+				function schoolMatches(rowSchool, selectedSchoolValue) {
+					if (!selectedSchoolValue) return true;
+					const a = normalizeSchoolKey(rowSchool);
+					const b = normalizeSchoolKey(selectedSchoolValue);
+					if (!a || !b) return false;
+					return a === b || a.includes(b) || b.includes(a);
+				}
+
+				let filteredRows = rows.filter(function (row) {
+					const rowDistrict = String(row.district || "N/A").trim() || "N/A";
+					const rowSchool = String(row.school || "N/A").trim() || "N/A";
+					if (district && rowDistrict !== district) return false;
+					if (school && !schoolMatches(rowSchool, school)) return false;
+					return true;
+				});
+
+				// If school label doesn't exactly match DB text, gracefully fallback to district-level view.
+				if (!filteredRows.length && district && school) {
+					filteredRows = rows.filter(function (row) {
+						const rowDistrict = String(row.district || "N/A").trim() || "N/A";
+						return rowDistrict === district;
+					});
+				}
+
+				const modalityMap = new Map();
+				filteredRows.forEach(function (row) {
+					const modality = String(row.modality || "N/A").trim() || "N/A";
+					const count = Number(row.learner_count || 0);
+					modalityMap.set(modality, (modalityMap.get(modality) || 0) + count);
+				});
+
+				const summaryRows = Array.from(modalityMap.entries()).map(function (entry) {
+					return { label: entry[0], total: entry[1] };
+				});
+				renderPieGraphFromSummary(modalityGraph, summaryRows, "Learners per modality pie chart");
+			}
+
+			async function refreshModalityGraphFromDatabase() {
+				try {
+					const requestOptions = buildRequestOptions();
+					const selectedDistrict = String(modalityDistrictFilter.value || "").trim();
+					const selectedSchool = String(modalitySchoolFilter.value || "").trim();
+					const params = new URLSearchParams();
+					if (selectedDistrict) params.set("district", selectedDistrict);
+					if (selectedSchool) params.set("school", selectedSchool);
+					const query = params.toString() ? ("?" + params.toString()) : "";
+					const response = await fetch(apiUrl("/admin/modality-summary") + query, requestOptions);
+					if (response.ok) {
+						const payload = await parseApiPayload(response);
+						const rows = Array.isArray(payload.summary) ? payload.summary : [];
+						modalityRowsCache = currentRole === "supervisor"
+							? rows.filter(function (row) {
+								const district = String(row.district || "N/A").trim() || "N/A";
+								return district === (currentUserDistrict || "N/A");
+							})
+							: rows;
+					}
+				} catch (error) {
+					// Keep existing cache if refresh fails.
+				}
+
+				renderModalityBarGraph(modalityRowsCache, modalityDistrictFilter.value, modalitySchoolFilter.value);
+			}
+
+			function updateModalityGraphFromSelection() {
+				// Render immediately for responsive UI, then refresh from DB for latest counts.
+				renderModalityBarGraph(modalityRowsCache, modalityDistrictFilter.value, modalitySchoolFilter.value);
+				refreshModalityGraphFromDatabase();
+			}
+
+			function renderGradeLevelBarGraph(rows, selectedDistrict, selectedSchool) {
+				const district = String(selectedDistrict || "").trim();
+				const school = String(selectedSchool || "").trim();
+				const filteredRows = rows.filter(function (row) {
+					const rowDistrict = String(row.district || "N/A").trim() || "N/A";
+					const rowSchool = String(row.school || "N/A").trim() || "N/A";
+					if (district && rowDistrict !== district) return false;
+					if (school && rowSchool !== school) return false;
+					return true;
+				});
+
+				const gradeMap = new Map();
+				filteredRows.forEach(function (row) {
+					const grade = String(row.grade || "N/A").trim() || "N/A";
+					const count = Number(row.learner_count || 0);
+					gradeMap.set(grade, (gradeMap.get(grade) || 0) + count);
+				});
+
+				const summaryRows = Array.from(gradeMap.entries()).map(function (entry) {
+					return { label: entry[0], total: entry[1] };
+				});
+				renderPieGraphFromSummary(gradeLevelGraph, summaryRows, "Learners per grade level pie chart");
+			}
+
+			async function loadDashboard() {
+				if (isDashboardLoading) return;
+				isDashboardLoading = true;
+				clearMessage();
+				const adminKey = getAdminKey();
+
+				try {
+					const requestOptions = buildRequestOptions();
+
+					const summaryResponse = await fetch(apiUrl("/admin/learner-summary"), requestOptions);
+					if (!summaryResponse.ok) {
+						setMessage("Unauthorized or failed to load dashboard data.", "error");
+						return;
+					}
+
+					const summaryPayload = await parseApiPayload(summaryResponse);
+					const summary = Array.isArray(summaryPayload.summary) ? summaryPayload.summary : [];
+
+					let gradeSummary = [];
+					try {
+						const gradeResponse = await fetch(apiUrl("/admin/grade-level-summary"), requestOptions);
+						if (gradeResponse.ok) {
+							const gradePayload = await parseApiPayload(gradeResponse);
+							gradeSummary = Array.isArray(gradePayload.summary) ? gradePayload.summary : [];
+						}
+					} catch (error) {
+						gradeSummary = [];
+					}
+
+					let modalitySummary = [];
+					try {
+						const modalityResponse = await fetch(apiUrl("/admin/modality-summary"), requestOptions);
+						if (modalityResponse.ok) {
+							const modalityPayload = await parseApiPayload(modalityResponse);
+							modalitySummary = Array.isArray(modalityPayload.summary) ? modalityPayload.summary : [];
+						}
+					} catch (error) {
+						modalitySummary = [];
+					}
+
+					const filteredSummary = currentRole === "supervisor"
+						? summary.filter(function (row) {
+							const district = String(row.district || "N/A").trim() || "N/A";
+							return district === (currentUserDistrict || "N/A");
+						})
+						: summary;
+
+					summaryRowsCache = filteredSummary;
+					gradeRowsCache = currentRole === "supervisor"
+						? gradeSummary.filter(function (row) {
+							const district = String(row.district || "N/A").trim() || "N/A";
+							return district === (currentUserDistrict || "N/A");
+						})
+						: gradeSummary;
+
+					modalityRowsCache = currentRole === "supervisor"
+						? modalitySummary.filter(function (row) {
+							const district = String(row.district || "N/A").trim() || "N/A";
+							return district === (currentUserDistrict || "N/A");
+						})
+						: modalitySummary;
+					modalityAllRowsCache = modalityRowsCache.slice();
+
+					if (currentRole === "supervisor") {
+						const userCount = new Set(filteredSummary.map(function (row) {
+							return String(row.user_id || "").trim();
+						}).filter(Boolean)).size;
+						const learnerTotal = filteredSummary.reduce(function (sum, row) {
+							return sum + Number(row.learner_count || 0);
+						}, 0);
+						usersRegisteredEl.textContent = String(userCount);
+						studentsSavedEl.textContent = String(learnerTotal);
+					} else {
+						const usersResponse = await fetch(apiUrl("/admin/users"), requestOptions);
+						if (!usersResponse.ok) {
+							setMessage("Failed to load users for dashboard.", "error");
+							return;
+						}
+						const usersPayload = await parseApiPayload(usersResponse);
+						const users = Array.isArray(usersPayload.users) ? usersPayload.users : [];
+						usersRegisteredEl.textContent = String(users.length);
+						studentsSavedEl.textContent = String(Number(summaryPayload.totalLearners || 0));
+					}
+
+					const districtMap = new Map();
+					const schoolMap = new Map();
+
+					filteredSummary.forEach(function (row) {
+						const district = String(row.district || "N/A").trim() || "N/A";
+						const school = String(row.school || "N/A").trim() || "N/A";
+						const count = Number(row.learner_count || 0);
+						districtMap.set(district, (districtMap.get(district) || 0) + count);
+						schoolMap.set(school, (schoolMap.get(school) || 0) + count);
+					});
+
+					renderSimpleSummary(districtTableBody, districtMap, "District");
+					renderSimpleSummary(schoolTableBody, schoolMap, "School");
+					renderDistrictFilter(summaryRowsCache);
+					renderAdmPercentageGraph(summaryRowsCache, districtGraphFilter.value);
+					renderAssessmentSchoolFilter(performanceSchoolFilter, summaryRowsCache, performanceSchoolFilter.value);
+					renderAssessmentSchoolFilter(philIriSchoolFilter, summaryRowsCache, philIriSchoolFilter.value);
+					renderAssessmentSchoolFilter(crlaSchoolFilter, summaryRowsCache, crlaSchoolFilter.value);
+					renderAssessmentSchoolFilter(rmaSchoolFilter, summaryRowsCache, rmaSchoolFilter.value);
+					await Promise.all([
+						refreshPerformanceGraphFromDatabase(),
+						refreshPhilIriGraphFromDatabase(),
+						refreshCrlaGraphFromDatabase(),
+						refreshRmaGraphFromDatabase()
+					]);
+					renderDistrictGradeFilter(gradeRowsCache);
+					renderSchoolGradeFilter(gradeRowsCache, districtGradeFilter.value);
+					renderGradeLevelBarGraph(gradeRowsCache, districtGradeFilter.value, schoolGradeFilter.value);
+					renderModalityPercentDistrictFilter(modalityAllRowsCache);
+					await refreshModalityPercentGraphFromDatabase();
+					renderModalityDistrictFilter(modalityRowsCache);
+					renderModalitySchoolFilter(modalityRowsCache, modalityDistrictFilter.value);
+					if (modalityDistrictFilter.value && !modalitySchoolFilter.value && modalitySchoolFilter.options.length > 1) {
+						modalitySchoolFilter.value = modalitySchoolFilter.options[1].value;
+					}
+					renderModalityBarGraph(modalityRowsCache, modalityDistrictFilter.value, modalitySchoolFilter.value);
+					setMessage(currentRole === "supervisor" ? "Supervisor dashboard updated." : "Dashboard updated.", "success");
+				} catch (error) {
+					const detail = String((error && error.message) || "").trim();
+					setMessage(detail ? ("Failed to load dashboard. " + detail) : "Failed to load dashboard. API endpoint is not reachable on this host.", "error");
+				} finally {
+					isDashboardLoading = false;
+				}
+			}
+
+			districtGraphFilter.addEventListener("change", function () {
+				renderAdmPercentageGraph(summaryRowsCache, districtGraphFilter.value);
+			});
+
+			modalityPercentDistrictFilter.addEventListener("change", function () {
+				refreshModalityPercentGraphFromDatabase();
+			});
+
+			performanceSchoolFilter.addEventListener("change", function () {
+				refreshPerformanceGraphFromDatabase();
+			});
+
+			philIriSchoolFilter.addEventListener("change", function () {
+				refreshPhilIriGraphFromDatabase();
+			});
+
+			crlaSchoolFilter.addEventListener("change", function () {
+				refreshCrlaGraphFromDatabase();
+			});
+
+			rmaSchoolFilter.addEventListener("change", function () {
+				refreshRmaGraphFromDatabase();
+			});
+
+			schoolGradeFilter.addEventListener("change", function () {
+				renderGradeLevelBarGraph(gradeRowsCache, districtGradeFilter.value, schoolGradeFilter.value);
+			});
+
+			districtGradeFilter.addEventListener("change", function () {
+				renderSchoolGradeFilter(gradeRowsCache, districtGradeFilter.value);
+				renderGradeLevelBarGraph(gradeRowsCache, districtGradeFilter.value, schoolGradeFilter.value);
+			});
+
+			modalityDistrictFilter.addEventListener("change", function () {
+				renderModalitySchoolFilter(modalityRowsCache, modalityDistrictFilter.value);
+				if (modalityDistrictFilter.value && !modalitySchoolFilter.value && modalitySchoolFilter.options.length > 1) {
+					modalitySchoolFilter.value = modalitySchoolFilter.options[1].value;
+				}
+				updateModalityGraphFromSelection();
+			});
+
+			modalitySchoolFilter.addEventListener("change", function () {
+				updateModalityGraphFromSelection();
+			});
+
+			modalitySchoolFilter.addEventListener("input", function () {
+				updateModalityGraphFromSelection();
+			});
+
+			exportAdmGraphBtn.addEventListener("click", async function () {
+				try {
+					const district = String(districtGraphFilter.value || "").trim();
+					const query = "?graphType=adm-percentage" + (district ? ("&district=" + encodeURIComponent(district)) : "");
+					await downloadExcel(apiUrl("/admin/export/graph-report") + query, "adm-percentage-graph.xlsx");
+					setMessage("ADM percentage graph exported to Excel.", "success");
+				} catch (error) {
+					if (isExportRouteMissing(error)) {
+						try {
+							const district = String(districtGraphFilter.value || "").trim();
+							const legacyQuery = district ? ("?district=" + encodeURIComponent(district)) : "";
+							await downloadExcel(apiUrl("/admin/export/adm-percentage-graph") + legacyQuery, "adm-percentage-graph.xlsx");
+							setMessage("ADM percentage graph exported via legacy route.", "success");
+							return;
+						} catch (legacyError) {
+							const district = String(districtGraphFilter.value || "").trim();
+							const dataMap = new Map();
+							summaryRowsCache.forEach(function (row) {
+								const rowDistrict = String(row.district || "N/A").trim() || "N/A";
+								const rowSchool = String(row.school || "N/A").trim() || "N/A";
+								const count = Number(row.learner_count || 0);
+								if (district) {
+									if (rowDistrict !== district) return;
+									dataMap.set(rowSchool, (dataMap.get(rowSchool) || 0) + count);
+								} else {
+									dataMap.set(rowDistrict, (dataMap.get(rowDistrict) || 0) + count);
+								}
+							});
+							const rows = Array.from(dataMap.entries()).map(function (entry) {
+								return { label: entry[0], total: entry[1] };
+							});
+							const totalAll = rows.reduce(function (sum, item) { return sum + item.total; }, 0) || 1;
+							const xlsxRows = rows.map(function (item) {
+								return [item.label, item.total, ((item.total / totalAll) * 100).toFixed(2) + "%"];
+							});
+							downloadXlsxClient("adm-percentage-graph.xlsx", [district ? "School" : "District", "Total", "Percentage"], xlsxRows, "ADM Percentage");
+							setMessage("ADM export downloaded as .xlsx fallback.", "success");
+							return;
+						}
+					}
+					setMessage(String(error && error.message ? error.message : "Failed to export graph."), "error");
+				}
+			});
+
+			exportGradeGraphBtn.addEventListener("click", async function () {
+				try {
+					const school = String(schoolGradeFilter.value || "").trim();
+					const district = String(districtGradeFilter.value || "").trim();
+					const query = "?graphType=grade-level"
+						+ (district ? ("&district=" + encodeURIComponent(district)) : "")
+						+ (school ? ("&school=" + encodeURIComponent(school)) : "");
+					await downloadExcel(apiUrl("/admin/export/graph-report") + query, "grade-level-graph.xlsx");
+					setMessage("Grade-level graph exported to Excel.", "success");
+				} catch (error) {
+					if (isExportRouteMissing(error)) {
+						try {
+							const school = String(schoolGradeFilter.value || "").trim();
+							const district = String(districtGradeFilter.value || "").trim();
+							const legacyQuery = school ? ("?school=" + encodeURIComponent(school)) : "";
+							await downloadExcel(apiUrl("/admin/export/grade-level-graph") + legacyQuery, "grade-level-graph.xlsx");
+							setMessage("Grade-level graph exported via legacy route.", "success");
+							return;
+						} catch (legacyError) {
+							const district = String(districtGradeFilter.value || "").trim();
+							const school = String(schoolGradeFilter.value || "").trim();
+							const filtered = gradeRowsCache.filter(function (row) {
+								const rowDistrict = String(row.district || "N/A").trim() || "N/A";
+								const rowSchool = String(row.school || "N/A").trim() || "N/A";
+								if (district && rowDistrict !== district) return false;
+								if (school && rowSchool !== school) return false;
+								return true;
+							});
+							const gradeMap = new Map();
+							filtered.forEach(function (row) {
+								const grade = String(row.grade || "N/A").trim() || "N/A";
+								const count = Number(row.learner_count || 0);
+								gradeMap.set(grade, (gradeMap.get(grade) || 0) + count);
+							});
+							const rows = Array.from(gradeMap.entries()).map(function (entry) {
+								return { label: entry[0], total: entry[1] };
+							});
+							const totalAll = rows.reduce(function (sum, item) { return sum + item.total; }, 0) || 1;
+							const xlsxRows = rows.map(function (item) {
+								return [item.label, item.total, ((item.total / totalAll) * 100).toFixed(2) + "%"];
+							});
+							downloadXlsxClient("grade-level-graph.xlsx", ["GradeLevel", "Total", "Percentage"], xlsxRows, "Grade Level");
+							setMessage("Grade-level export downloaded as .xlsx fallback.", "success");
+							return;
+						}
+					}
+					setMessage(String(error && error.message ? error.message : "Failed to export graph."), "error");
+				}
+			});
+
+			exportModalityGraphBtn.addEventListener("click", async function () {
+				try {
+					const school = String(modalitySchoolFilter.value || "").trim();
+					const district = String(modalityDistrictFilter.value || "").trim();
+					const query = "?graphType=modality"
+						+ (district ? ("&district=" + encodeURIComponent(district)) : "")
+						+ (school ? ("&school=" + encodeURIComponent(school)) : "");
+					await downloadExcel(apiUrl("/admin/export/graph-report") + query, "modality-graph.xlsx");
+					setMessage("Modality graph exported to Excel.", "success");
+				} catch (error) {
+					if (isExportRouteMissing(error)) {
+						const district = String(modalityDistrictFilter.value || "").trim();
+						const school = String(modalitySchoolFilter.value || "").trim();
+						const rows = modalityRowsCache.filter(function (row) {
+							const rowDistrict = String(row.district || "N/A").trim() || "N/A";
+							const rowSchool = String(row.school || "N/A").trim() || "N/A";
+							if (district && rowDistrict !== district) return false;
+							if (school && rowSchool !== school) return false;
+							return true;
+						});
+
+						const modalityMap = new Map();
+						rows.forEach(function (row) {
+							const modality = String(row.modality || "N/A").trim() || "N/A";
+							const count = Number(row.learner_count || 0);
+							modalityMap.set(modality, (modalityMap.get(modality) || 0) + count);
+						});
+						const modalityRows = Array.from(modalityMap.entries()).map(function (entry) {
+							return { label: entry[0], total: entry[1] };
+						});
+						const totalAll = modalityRows.reduce(function (sum, item) { return sum + item.total; }, 0) || 1;
+						const xlsxRows = modalityRows.map(function (item) {
+							return [item.label, item.total, ((item.total / totalAll) * 100).toFixed(2) + "%"];
+						});
+						downloadXlsxClient("modality-graph.xlsx", ["Modality", "Total", "Percentage"], xlsxRows, "Modality");
+						setMessage("Modality export downloaded as .xlsx fallback.", "success");
+						return;
+					}
+					setMessage(String(error && error.message ? error.message : "Failed to export graph."), "error");
+				}
+			});
+
+			exportModalityPercentGraphBtn.addEventListener("click", function () {
+				const district = String(modalityPercentDistrictFilter.value || "").trim();
+				const sourceRows = Array.isArray(modalityAllRowsCache) ? modalityAllRowsCache : [];
+				const filteredRows = sourceRows.filter(function (row) {
+					const rowDistrict = String(row.district || "N/A").trim() || "N/A";
+					if (district && rowDistrict !== district) return false;
+					return true;
+				});
+
+				const map = new Map();
+				filteredRows.forEach(function (row) {
+					const modality = String(row.modality || "N/A").trim() || "N/A";
+					const count = Number(row.learner_count || 0);
+					map.set(modality, (map.get(modality) || 0) + count);
+				});
+
+				const rows = Array.from(map.entries()).map(function (entry) {
+					return { label: entry[0], total: entry[1] };
+				});
+				const totalAll = rows.reduce(function (sum, item) { return sum + Number(item.total || 0); }, 0) || 1;
+				const xlsxRows = rows.map(function (item) {
+					return [district || "All Districts", item.label, Number(item.total || 0), ((Number(item.total || 0) / totalAll) * 100).toFixed(2) + "%"];
+				});
+
+				downloadXlsxClient("modality-percent-by-district.xlsx", ["District", "Modality", "Total", "Percentage"], xlsxRows, "Modality Percentage by District");
+				setMessage("Modality percentage graph exported to Excel.", "success");
+			});
+
+			function exportAssessmentPieRows(rows, selectedSchool, categoryColumn, fileName, sheetName, successMessage) {
+				const sourceRows = Array.isArray(rows) ? rows : [];
+				const totalAll = sourceRows.reduce(function (sum, item) { return sum + Number((item && item.total) || 0); }, 0) || 1;
+				const xlsxRows = sourceRows.map(function (item) {
+					const label = String((item && item.label) || "N/A").trim() || "N/A";
+					const total = Number((item && item.total) || 0);
+					return [selectedSchool || "All Schools", label, total, ((total / totalAll) * 100).toFixed(2) + "%"];
+				});
+
+				downloadXlsxClient(fileName, ["School", categoryColumn, "Total", "Percentage"], xlsxRows, sheetName);
+				setMessage(successMessage, "success");
+			}
+
+			exportPerformanceGraphBtn.addEventListener("click", function () {
+				exportAssessmentPieRows(
+					performanceRowsCache,
+					String(performanceSchoolFilter.value || "").trim(),
+					"Performance",
+					"performance-per-school.xlsx",
+					"Performance",
+					"Performance graph exported to Excel."
+				);
+			});
+
+			exportPhilIriGraphBtn.addEventListener("click", function () {
+				exportAssessmentPieRows(
+					philIriRowsCache,
+					String(philIriSchoolFilter.value || "").trim(),
+					"Phil-Iri Result",
+					"phil-iri-per-school.xlsx",
+					"Phil-Iri",
+					"Phil-Iri graph exported to Excel."
+				);
+			});
+
+			exportCrlaGraphBtn.addEventListener("click", function () {
+				exportAssessmentPieRows(
+					crlaRowsCache,
+					String(crlaSchoolFilter.value || "").trim(),
+					"CRLA Result",
+					"crla-per-school.xlsx",
+					"CRLA",
+					"CRLA graph exported to Excel."
+				);
+			});
+
+			exportRmaGraphBtn.addEventListener("click", function () {
+				exportAssessmentPieRows(
+					rmaRowsCache,
+					String(rmaSchoolFilter.value || "").trim(),
+					"RMA Result",
+					"rma-per-school.xlsx",
+					"RMA",
+					"RMA graph exported to Excel."
+				);
+			});
+
+			checkDashboardSession().then(function (ok) {
+				if (ok) {
+					loadDistrictSchoolReference().finally(function () {
+						loadDashboard();
+					});
+					dashboardRefreshTimer = setInterval(loadDashboard, 60 * 1000);
+					window.addEventListener("beforeunload", function () {
+						if (dashboardRefreshTimer) {
+							clearInterval(dashboardRefreshTimer);
+							dashboardRefreshTimer = null;
+						}
+					});
+				}
+			});
+		})();
+	</script>
+
+<script src="/theme.js"></script>
+</body>
+</html>
+

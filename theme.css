@@ -1,0 +1,278 @@
+/* Theme System - Light and Dark Mode Support */
+
+:root {
+	/* Light Mode (Default) */
+	--bg-1: #f3efe6;
+	--bg-2: #dfecd9;
+	--ink: #1e2a21;
+	--muted: #5d6a61;
+	--panel: rgba(255, 255, 255, 0.8);
+	--stroke: rgba(30, 42, 33, 0.14);
+	--accent: #14532d;
+	--accent-2: #1f7a44;
+	--accent-soft: #d8f0df;
+	--radius: 18px;
+	--shadow: 0 24px 60px rgba(20, 52, 33, 0.16);
+	--warn: #8a2d0a;
+	--input-bg: #ffffff;
+	--input-text: #1e2a21;
+	--button-bg: #14532d;
+	--button-text: #ffffff;
+	--hover-overlay: rgba(20, 52, 33, 0.08);
+}
+
+html[data-theme="dark"] {
+	/* Dark Mode */
+	--bg-1: #1a1f1c;
+	--bg-2: #232c26;
+	--ink: #e8f0ed;
+	--muted: #a0b0a4;
+	--panel: rgba(20, 25, 22, 0.9);
+	--stroke: rgba(232, 240, 237, 0.12);
+	--accent: #2d9b6f;
+	--accent-2: #3db87f;
+	--accent-soft: #1d4a33;
+	--shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+	--warn: #d4743c;
+	--input-bg: #2a3530;
+	--input-text: #e8f0ed;
+	--button-bg: #2d9b6f;
+	--button-text: #e8f0ed;
+	--hover-overlay: rgba(232, 240, 237, 0.08);
+	color-scheme: dark;
+}
+
+/* Theme Toggle Button Styles */
+
+/* Button placed beside user name in nav */
+.theme-toggle-nav {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin-left: 8px;
+	padding: 8px 11px;
+	background: transparent;
+	border: none;
+	border-radius: 8px;
+	width: auto;
+	height: auto;
+	cursor: pointer;
+	font-size: 1.1rem;
+	transition: all 150ms ease;
+	box-shadow: none;
+	color: var(--ink);
+	font-weight: 600;
+}
+
+.theme-toggle-nav:hover {
+	background: linear-gradient(180deg, rgba(20, 83, 45, 0.12), rgba(20, 83, 45, 0.08));
+	color: var(--accent);
+	transform: scale(1.05);
+	box-shadow: 0 2px 8px rgba(20, 83, 45, 0.1);
+}
+
+html[data-theme="dark"] .theme-toggle-nav:hover {
+	background: linear-gradient(180deg, rgba(45, 155, 111, 0.12), rgba(45, 155, 111, 0.08));
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.theme-toggle-nav:active {
+	transform: scale(0.98);
+}
+
+/* Fallback fixed positioning for pages without user nav (e.g., login page) */
+.theme-toggle-fixed {
+	position: fixed;
+	top: 16px;
+	right: 16px;
+	z-index: 9999;
+	background: var(--panel);
+	border: 1px solid var(--stroke);
+	border-radius: 50%;
+	width: 48px;
+	height: 48px;
+	padding: 0;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 1.4rem;
+	transition: all 200ms ease;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+	color: var(--ink);
+}
+
+html[data-theme="dark"] .theme-toggle-fixed {
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.theme-toggle-fixed:hover {
+	transform: scale(1.08);
+	background: var(--accent-soft);
+	box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+html[data-theme="dark"] .theme-toggle-fixed:hover {
+	background: var(--accent-soft);
+	box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.theme-toggle-fixed:active {
+	transform: scale(0.96);
+}
+
+/* Input field theme support */
+input,
+textarea,
+select {
+	background-color: var(--input-bg) !important;
+	color: var(--input-text) !important;
+	border-color: var(--stroke) !important;
+}
+
+input::placeholder {
+	color: var(--muted);
+}
+
+/* Button theme support */
+button {
+	background-color: var(--button-bg);
+	color: var(--button-text);
+	border: 1px solid var(--stroke);
+}
+
+button:hover {
+	background-color: var(--accent);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+html[data-theme="dark"] button:hover {
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Smooth transitions when switching themes */
+html {
+	transition: background-color 300ms ease, color 300ms ease;
+}
+
+* {
+	transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease, box-shadow 200ms ease;
+}
+
+/* Links and text colors */
+a {
+	color: var(--accent);
+}
+
+a:hover {
+	color: var(--accent-2);
+}
+
+/* Table styling for dark mode */
+table {
+	background: var(--panel);
+	color: var(--ink);
+}
+
+table th {
+	background: var(--accent-soft);
+	color: var(--ink);
+}
+
+table tr:hover {
+	background: var(--hover-overlay);
+}
+
+html[data-theme="dark"] table th {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+/* Form elements styling */
+.form-group label {
+	color: var(--ink);
+}
+
+/* Status badges */
+.badge {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+.badge.success {
+	background: rgba(45, 155, 111, 0.15);
+	color: var(--accent-2);
+}
+
+.badge.warning {
+	background: rgba(212, 116, 60, 0.15);
+	color: var(--warn);
+}
+
+.badge.danger {
+	background: rgba(138, 45, 10, 0.15);
+	color: var(--warn);
+}
+
+/* Ensure logo is visible in both themes */
+.brand-logo {
+	filter: brightness(1);
+	transition: filter 200ms ease;
+}
+
+html[data-theme="dark"] .brand-logo {
+	filter: brightness(0.95);
+}
+
+/* Modal/dialog styling */
+.modal,
+.dialog {
+	background: var(--panel);
+	border-color: var(--stroke);
+	color: var(--ink);
+	box-shadow: var(--shadow);
+}
+
+.modal-overlay {
+	background: rgba(0, 0, 0, 0.3);
+}
+
+html[data-theme="dark"] .modal-overlay {
+	background: rgba(0, 0, 0, 0.6);
+}
+
+/* Scrollbar styling for dark mode */
+html[data-theme="dark"] ::-webkit-scrollbar {
+	width: 10px;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-track {
+	background: var(--bg-1);
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+	background: var(--stroke);
+	border-radius: 5px;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+	background: var(--muted);
+}
+
+/* Navigation integration for theme toggle */
+.nav-menu .theme-toggle-nav {
+	margin-left: auto;
+	display: inline-flex;
+	align-items: center;
+	white-space: nowrap;
+	order: 999;
+}
+
+/* Responsive layout for theme toggle on mobile */
+@media (max-width: 760px) {
+	.nav-menu .theme-toggle-nav {
+		margin-left: 6px;
+		padding: 8px 10px;
+		font-size: 1rem;
+	}
+}

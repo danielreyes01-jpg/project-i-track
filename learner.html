@@ -1,0 +1,1762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Learner Record</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/theme.css">
+	<style>
+		:root {
+			--bg-1: #f5efe4;
+			--bg-2: #e6f0e2;
+			--ink: #1f2a22;
+			--muted: #5f6c64;
+			--panel: rgba(255, 255, 255, 0.84);
+			--stroke: rgba(31, 42, 34, 0.14);
+			--accent: #175837;
+			--focus: #2c8b58;
+			--accent-soft: #e1edde;
+			--radius: 18px;
+			--shadow: 0 24px 58px rgba(20, 55, 36, 0.16);
+		}
+
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+
+		body {
+			min-height: 100vh;
+			font-family: "Manrope", sans-serif;
+			color: var(--ink);
+			background:
+				radial-gradient(circle at 88% 8%, rgba(64, 149, 96, 0.22), transparent 32%),
+				radial-gradient(circle at 8% 20%, rgba(28, 114, 63, 0.15), transparent 33%),
+				linear-gradient(145deg, var(--bg-1), var(--bg-2));
+			padding: clamp(14px, 2.2vw, 40px) clamp(12px, 2.2vw, 32px) clamp(20px, 3.8vw, 56px);
+		}
+
+		.page-stack {
+			width: min(100%, 1320px);
+			margin: 0 auto;
+			display: grid;
+			gap: 28px;
+		}
+
+		.shell {
+			width: 100%;
+			background: var(--panel);
+			backdrop-filter: blur(10px);
+			border: 1px solid var(--stroke);
+			border-radius: calc(var(--radius) + 4px);
+			box-shadow: var(--shadow);
+			padding: clamp(18px, 2.4vw, 36px) clamp(16px, 2.2vw, 34px) clamp(18px, 2.2vw, 30px);
+			animation: lift-in 560ms ease-out both;
+		}
+
+		.summary-shell {
+			width: 100%;
+			background: rgba(255, 255, 255, 0.9);
+			backdrop-filter: blur(10px);
+			border: 1px solid var(--stroke);
+			border-radius: calc(var(--radius) + 4px);
+			box-shadow: var(--shadow);
+			padding: clamp(18px, 2.2vw, 30px) clamp(16px, 2.2vw, 34px);
+			display: grid;
+			gap: 14px;
+		}
+
+		.brand {
+			display: flex;
+			justify-content: center;
+			margin-bottom: 14px;
+		}
+
+		.brand-logo {
+			width: min(100%, 320px);
+			height: auto;
+			display: block;
+		}
+
+		.title {
+			font-family: "Playfair Display", serif;
+			font-size: clamp(1.7rem, 3.5vw, 2.2rem);
+			line-height: 1.1;
+			margin-bottom: 6px;
+		}
+
+		.subtitle {
+			font-size: 0.95rem;
+			color: var(--muted);
+			margin-bottom: 22px;
+		}
+
+		.quick-nav {
+			display: flex;
+			gap: 10px;
+			flex-wrap: wrap;
+			margin: 6px 0 16px;
+		}
+
+		.quick-nav-btn {
+			border: 1px solid var(--stroke);
+			background: rgba(255, 255, 255, 0.82);
+			color: var(--accent);
+			padding: 10px 14px;
+			border-radius: 10px;
+			font: inherit;
+			font-weight: 800;
+			cursor: pointer;
+			box-shadow: 0 6px 16px rgba(23, 88, 55, 0.08);
+			transition: transform 140ms ease, box-shadow 140ms ease, background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+		}
+
+		.quick-nav-btn:hover {
+			background: #f0f8f2;
+			border-color: rgba(23, 88, 55, 0.4);
+			transform: translateY(-1px);
+			box-shadow: 0 10px 22px rgba(23, 88, 55, 0.15);
+		}
+
+		.quick-nav-btn:focus-visible {
+			outline: none;
+			box-shadow: 0 0 0 4px rgba(44, 139, 88, 0.18);
+		}
+
+		.quick-nav-btn:active {
+			transform: translateY(1px);
+		}
+
+		.quick-nav-btn.active {
+			background: var(--accent);
+			color: #fff;
+			border-color: var(--accent);
+			box-shadow: 0 10px 22px rgba(23, 88, 55, 0.22);
+		}
+
+		.quick-nav-signout {
+			color: #b91c1c;
+			border-color: rgba(185, 28, 28, 0.3);
+		}
+
+		.quick-nav-signout:hover {
+			background: #fff1f1;
+			border-color: rgba(185, 28, 28, 0.55);
+			color: #991b1b;
+		}
+
+		.nav-greeting {
+			margin-left: auto;
+			display: flex;
+			align-items: center;
+			padding: 6px 12px;
+			border-radius: 10px;
+			background: rgba(23, 88, 55, 0.07);
+			color: var(--accent);
+			font-size: 0.88rem;
+			font-weight: 700;
+			gap: 6px;
+			white-space: nowrap;
+		}
+
+		.welcome-banner {
+			display: none;
+			padding: 12px 18px;
+			border-radius: 12px;
+			background: linear-gradient(90deg, #d1fae5 0%, #ecfdf5 100%);
+			border: 1px solid rgba(23, 88, 55, 0.18);
+			color: #14532d;
+			font-weight: 700;
+			font-size: 0.95rem;
+			margin-bottom: 14px;
+		}
+
+		.summary-head {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			flex-wrap: wrap;
+			gap: 10px;
+			margin-bottom: 10px;
+		}
+
+		.summary-title {
+			font-size: 0.92rem;
+			font-weight: 800;
+			color: var(--accent);
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+		}
+
+		.summary-total {
+			font-size: 0.84rem;
+			font-weight: 700;
+			color: var(--muted);
+			margin-left: auto;
+			text-align: right;
+		}
+
+		.summary-wrap {
+			overflow-x: auto;
+			border: 1px solid rgba(31, 42, 34, 0.08);
+			border-radius: 14px;
+			background: rgba(255, 255, 255, 0.72);
+		}
+
+		.summary-table {
+			width: 100%;
+			border-collapse: collapse;
+			min-width: 520px;
+		}
+
+		.summary-table th,
+		.summary-table td {
+			padding: 10px 9px;
+			border-bottom: 1px solid rgba(31, 42, 34, 0.12);
+			text-align: left;
+			font-size: 0.88rem;
+		}
+
+		.summary-table th {
+			font-size: 0.78rem;
+			letter-spacing: 0.04em;
+			text-transform: uppercase;
+			color: var(--muted);
+		}
+
+		.summary-table td:last-child,
+		.summary-table th:last-child {
+			text-align: right;
+		}
+
+		.summary-empty {
+			text-align: center;
+			color: var(--muted);
+			font-style: italic;
+		}
+
+		.section-label {
+			font-size: 0.78rem;
+			font-weight: 800;
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+			color: var(--accent);
+			margin-bottom: 10px;
+			margin-top: 4px;
+			padding-bottom: 6px;
+			border-bottom: 1px solid rgba(23, 88, 55, 0.14);
+		}
+
+		form {
+			display: grid;
+			gap: 18px;
+		}
+
+		.grid-2 {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 14px;
+		}
+
+		.grid-3 {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 14px;
+		}
+
+		.field {
+			display: grid;
+			gap: 6px;
+		}
+
+		.field.full {
+			grid-column: 1 / -1;
+		}
+
+		label {
+			font-weight: 700;
+			font-size: 0.9rem;
+			letter-spacing: 0.01em;
+		}
+
+		.required-mark {
+			color: #b83c00;
+			margin-left: 2px;
+		}
+
+		input,
+		select,
+		textarea {
+			width: 100%;
+			padding: 12px 13px;
+			border: 1px solid var(--stroke);
+			border-radius: 12px;
+			font: inherit;
+			color: var(--ink);
+			background: rgba(255, 255, 255, 0.96);
+			transition: border-color 180ms ease, box-shadow 180ms ease;
+			appearance: auto;
+		}
+
+		input:focus,
+		select:focus,
+		textarea:focus {
+			outline: none;
+			border-color: var(--focus);
+			box-shadow: 0 0 0 4px rgba(44, 139, 88, 0.14);
+		}
+
+		.message-box {
+			display: none;
+			padding: 11px 14px;
+			border-radius: 10px;
+			font-size: 0.88rem;
+			font-weight: 600;
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			z-index: 9999;
+			background: #ffffff;
+			border: 1px solid #d1d5db;
+			color: #1f2937;
+			box-shadow: 0 16px 38px rgba(0, 0, 0, 0.18);
+			min-width: min(88vw, 320px);
+			max-width: min(92vw, 460px);
+			text-align: center;
+			opacity: 1;
+			transition: opacity 300ms ease;
+		}
+
+		.message-box.fade-out {
+			opacity: 0;
+		}
+
+		.message-box.error {
+			display: block;
+			color: #842600;
+			border-color: #f7c3b1;
+		}
+
+		.message-box.success {
+			display: block;
+			color: #14532d;
+			border-color: #b8e7c5;
+		}
+
+		.actions {
+			display: flex;
+			gap: 10px;
+			margin-top: 4px;
+		}
+
+		.checkbox-group {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px 18px;
+			padding: 6px 0;
+		}
+
+		.checkbox-label {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			font-weight: 500;
+			cursor: pointer;
+			font-size: 0.92rem;
+			white-space: nowrap;
+		}
+
+		.btn {
+			border: none;
+			border-radius: 12px;
+			padding: 12px 20px;
+			font: inherit;
+			font-weight: 800;
+			cursor: pointer;
+			transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease, background-color 150ms ease;
+		}
+
+		.btn:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+		}
+
+		.btn:active {
+			transform: translateY(1px);
+			box-shadow: none;
+		}
+
+		.btn-save {
+			background: var(--accent);
+			color: #fff;
+		}
+
+		.btn-save:hover {
+			filter: brightness(1.06);
+		}
+
+		.btn-clear {
+			background: var(--accent-soft);
+			color: var(--accent);
+		}
+
+		.btn-clear:hover {
+			filter: brightness(0.97);
+		}
+
+		.btn-back {
+			background: #f0f0ee;
+			color: var(--muted);
+			margin-left: auto;
+		}
+
+		.btn-back:hover {
+			filter: brightness(0.96);
+		}
+
+		.readonly-notice {
+			display: none;
+			padding: 12px 16px;
+			border-radius: 10px;
+			background: #fef3c7;
+			color: #78350f;
+			border: 1px solid #fcd34d;
+			font-weight: 700;
+			font-size: 0.9rem;
+			margin-bottom: 14px;
+		}
+
+		.my-learners-shell {
+			width: 100%;
+			background: rgba(255, 255, 255, 0.9);
+			backdrop-filter: blur(10px);
+			border: 1px solid var(--stroke);
+			border-radius: calc(var(--radius) + 4px);
+			box-shadow: var(--shadow);
+			padding: 30px 34px;
+		}
+
+		.my-learners-head {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			flex-wrap: wrap;
+			gap: 10px;
+			margin-bottom: 10px;
+		}
+
+		.my-learners-title {
+			font-size: 0.92rem;
+			font-weight: 800;
+			color: var(--accent);
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+		}
+
+		.export-records-btn {
+			border: none;
+			border-radius: 10px;
+			padding: 8px 12px;
+			font: inherit;
+			font-weight: 800;
+			cursor: pointer;
+			background: #217346;
+			color: #fff;
+			transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+		}
+
+		.export-records-btn:hover {
+			background: #1a5c38;
+			transform: translateY(-1px);
+			box-shadow: 0 6px 16px rgba(33, 115, 70, 0.28);
+		}
+
+		.export-records-btn:active {
+			transform: translateY(1px);
+			box-shadow: none;
+		}
+
+		.my-learners-wrap {
+			overflow-x: auto;
+			border: 1px solid rgba(31, 42, 34, 0.08);
+			border-radius: 14px;
+			background: rgba(255, 255, 255, 0.72);
+		}
+
+		.my-learners-table {
+			width: 100%;
+			border-collapse: collapse;
+			min-width: 640px;
+		}
+
+		.my-learners-table th,
+		.my-learners-table td {
+			padding: 10px 9px;
+			border-bottom: 1px solid rgba(31, 42, 34, 0.12);
+			text-align: left;
+			font-size: 0.88rem;
+		}
+
+		.my-learners-table th {
+			font-size: 0.78rem;
+			letter-spacing: 0.04em;
+			text-transform: uppercase;
+			color: var(--muted);
+		}
+
+		.btn-edit {
+			border: none;
+			border-radius: 8px;
+			padding: 7px 12px;
+			font: inherit;
+			font-size: 0.8rem;
+			font-weight: 800;
+			cursor: pointer;
+			background: #dbeafe;
+			color: #1e40af;
+			transition: filter 120ms ease;
+		}
+
+		.btn-edit:hover {
+			filter: brightness(0.93);
+		}
+
+		.btn-request {
+			border: none;
+			border-radius: 8px;
+			padding: 7px 12px;
+			font: inherit;
+			font-size: 0.8rem;
+			font-weight: 800;
+			cursor: pointer;
+			background: #dcfce7;
+			color: #166534;
+			transition: filter 120ms ease;
+			margin-left: 8px;
+		}
+
+		.btn-request:hover {
+			filter: brightness(0.93);
+		}
+
+		.btn-request[disabled] {
+			cursor: not-allowed;
+			opacity: 0.65;
+		}
+
+		.request-meta {
+			display: grid;
+			gap: 6px;
+			margin-top: 8px;
+		}
+
+		.request-file {
+			font-size: 0.75rem;
+			color: var(--muted);
+			word-break: break-word;
+		}
+
+		.btn-replace-document {
+			border: none;
+			border-radius: 8px;
+			padding: 7px 12px;
+			font: inherit;
+			font-size: 0.78rem;
+			font-weight: 800;
+			cursor: pointer;
+			background: #fef3c7;
+			color: #92400e;
+			transition: filter 120ms ease;
+		}
+
+		.btn-replace-document:hover {
+			filter: brightness(0.94);
+		}
+
+		.btn-replace-document[disabled] {
+			cursor: not-allowed;
+			opacity: 0.65;
+		}
+
+		.edit-indicator {
+			display: none;
+			padding: 8px 14px;
+			background: #dbeafe;
+			color: #1e40af;
+			border-radius: 8px;
+			font-size: 0.85rem;
+			font-weight: 700;
+			margin-bottom: 10px;
+		}
+
+		@keyframes lift-in {
+			from {
+				opacity: 0;
+				transform: translateY(12px) scale(0.98);
+			}
+			to {
+				opacity: 1;
+				transform: translateY(0) scale(1);
+			}
+		}
+
+		@media (max-width: 680px) {
+			.shell {
+				padding: 24px 16px 20px;
+			}
+
+			.summary-shell {
+				padding: 22px 16px;
+			}
+
+			.summary-total {
+				margin-left: 0;
+				text-align: left;
+				width: 100%;
+			}
+
+			.grid-2,
+			.grid-3 {
+				grid-template-columns: 1fr;
+			}
+
+			.actions {
+				flex-direction: column;
+			}
+
+			.btn-back {
+				margin-left: 0;
+			}
+		}
+
+		@media (max-width: 760px) {
+			.brand-logo {
+				width: min(100%, 230px);
+			}
+
+			.quick-nav {
+				display: grid;
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+				gap: 6px;
+			}
+
+			.quick-nav-btn {
+				width: 100%;
+				padding: 8px 6px;
+				font-size: 0.8rem;
+				line-height: 1.2;
+				text-align: center;
+			}
+
+			.nav-greeting {
+				grid-column: 1 / -1;
+				margin-left: 0;
+				justify-content: center;
+			}
+		}
+
+		@media (max-width: 1024px) {
+			.page-stack {
+				gap: 18px;
+			}
+
+			.quick-nav {
+				gap: 8px;
+			}
+		}
+	</style>
+</head>
+<body>
+	<div class="page-stack">
+		<main class="shell" aria-label="Learner record form">
+			<div class="brand">
+				<img class="brand-logo" src="assets/itrack-final.png" alt="I-Track Project logo">
+			</div>
+
+			<div class="quick-nav" aria-label="Page navigation">
+				<button class="quick-nav-btn active" type="button" onclick="window.location.href='learner.html'">Learner</button>
+				<button id="navDashboard" class="quick-nav-btn" type="button" onclick="window.location.href='dashboard.html'">Dashboard</button>
+				<button id="teacherAccountBtn" class="quick-nav-btn" type="button" onclick="window.location.href='account.html'">Teacher Account</button>
+				<button id="navAdmRequest" class="quick-nav-btn" type="button" onclick="window.location.href='adm-request.html'">ADM Request</button>
+				<span id="navGreeting" class="nav-greeting"></span>
+				<button class="quick-nav-btn quick-nav-signout" type="button" onclick="window.location.href='signout.html'">Sign Out</button>
+			</div>
+
+			<div id="welcomeBanner" class="welcome-banner"></div>
+
+			<h1 class="title">Learner Record</h1>
+			<p class="subtitle">Fill out all required fields and save the learner information.</p>
+
+			<div id="readonlyNotice" class="readonly-notice">👁 View Only — Supervisors can view learner data but cannot add or edit records.</div>
+			<div id="editIndicator" class="edit-indicator">✏️ Editing: <span id="editingName">—</span> &nbsp;<button type="button" style="background:none;border:none;color:#1e40af;font-weight:800;cursor:pointer;font-size:0.85rem;padding:0;" id="cancelEditBtn">Cancel Edit</button></div>
+
+			<form id="learnerForm" action="#" method="post" novalidate>
+
+			<!-- Learner Identity -->
+			<div class="section-label">Learner Information</div>
+			<div class="grid-3">
+				<div class="field">
+					<label for="learnerCode">Learner's LRN (12 digits)</label>
+					<input id="learnerCode" name="learnerCode" type="text" inputmode="numeric" pattern="\d{12}" minlength="12" maxlength="12" title="Enter exactly 12 digits for learner LRN." placeholder="e.g. 100001234567">
+				</div>
+				<div class="field">
+					<label for="grade">Grade</label>
+					<select id="grade" name="grade">
+						<option value="" disabled selected>Select Grade</option>
+						<option value="Kindergarten">Kindergarten</option>
+						<option value="Grade 1">Grade 1</option>
+						<option value="Grade 2">Grade 2</option>
+						<option value="Grade 3">Grade 3</option>
+						<option value="Grade 4">Grade 4</option>
+						<option value="Grade 5">Grade 5</option>
+						<option value="Grade 6">Grade 6</option>
+						<option value="Grade 7">Grade 7</option>
+						<option value="Grade 8">Grade 8</option>
+						<option value="Grade 9">Grade 9</option>
+						<option value="Grade 10">Grade 10</option>
+						<option value="Grade 11">Grade 11</option>
+						<option value="Grade 12">Grade 12</option>
+					</select>
+				</div>
+				<div class="field">
+					<label for="dateStarted">Date Started</label>
+					<input id="dateStarted" name="dateStarted" type="date">
+				</div>
+			</div>
+
+			<div class="grid-3">
+				<div class="field">
+					<label for="familyName">Family Name</label>
+					<input id="familyName" name="familyName" type="text" autocomplete="family-name">
+				</div>
+				<div class="field">
+					<label for="firstName">First Name</label>
+					<input id="firstName" name="firstName" type="text" autocomplete="given-name">
+				</div>
+				<div class="field">
+					<label for="middleName">Middle Name</label>
+					<input id="middleName" name="middleName" type="text" autocomplete="additional-name">
+				</div>
+			</div>
+
+			<!-- School Details -->
+			<div class="section-label">School Details</div>
+			<div class="grid-2">
+				<div class="field">
+					<label for="district">District</label>
+					<select id="district" name="district">
+						<option value="" selected>Select District</option>
+					</select>
+				</div>
+				<div class="field">
+					<label for="school">School</label>
+					<select id="school" name="school">
+						<option value="" selected>Select School</option>
+					</select>
+				</div>
+			</div>
+
+			<!-- Program Details -->
+			<div class="section-label">Program Details</div>
+			<div class="grid-2">
+				<div class="field">
+					<label for="modality">Flexible Learning Options</label>
+					<select id="modality" name="modality">
+						<option value="" disabled selected>Select Flexible Learning Option</option>
+						<option value="Homeschooling">Homeschooling</option>
+						<option value="Modified in School Off School Approach (MISOSA)">Modified in School Off School Approach (MISOSA)</option>
+						<option value="e-IMPACT">e-IMPACT</option>
+						<option value="Night High School">Night High School</option>
+						<option value="Open High School">Open High School</option>
+						<option value="School Initiated Intervention (SII)">School Initiated Intervention (SII)</option>
+					</select>
+				</div>
+				<div class="field">
+					<label for="typeOfInstruction">Modality</label>
+					<select id="typeOfInstruction" name="typeOfInstruction">
+						<option value="" disabled selected>Select Modality</option>
+						<option value="Online">Online</option>
+						<option value="Blended">Blended</option>
+						<option value="Modular">Modular</option>
+						<option value="Face to Face">Face to Face</option>
+					</select>
+				</div>
+			</div>
+
+			<!-- Grading -->
+			<div class="section-label">Grading</div>
+			<div class="grid-3">
+				<div class="field">
+					<label for="firstGradingGrade">First Semester Grade</label>
+					<input id="firstGradingGrade" name="firstGradingGrade" type="number" min="0" max="100" step="1" placeholder="e.g. 88">
+				</div>
+				<div class="field">
+					<label for="firstGradingVerbal">First Semester Verbal Description</label>
+					<input id="firstGradingVerbal" name="firstGradingVerbal" type="text" readonly placeholder="Auto-filled based on grade" style="background:rgba(20,83,45,0.06);cursor:default;">
+				</div>
+				<div class="field">
+					<label for="firstGradingInterpretation">First Semester Interpretation</label>
+					<textarea id="firstGradingInterpretation" name="firstGradingInterpretation" rows="3" readonly placeholder="Auto-filled based on grade and verbal description" style="background:rgba(20,83,45,0.06);cursor:default;resize:vertical;"></textarea>
+				</div>
+			</div>
+
+			<div class="grid-3">
+				<div class="field">
+					<label for="secondQuarterGrade">Second Semester Grade</label>
+					<input id="secondQuarterGrade" name="secondQuarterGrade" type="number" min="0" max="100" step="1" placeholder="e.g. 90">
+				</div>
+				<div class="field">
+					<label for="secondQuarterVerbal">Second Semester Verbal Description</label>
+					<input id="secondQuarterVerbal" name="secondQuarterVerbal" type="text" readonly placeholder="Auto-filled based on grade" style="background:rgba(20,83,45,0.06);cursor:default;">
+				</div>
+				<div class="field">
+					<label for="secondQuarterInterpretation">Second Semester Interpretation</label>
+					<textarea id="secondQuarterInterpretation" name="secondQuarterInterpretation" rows="3" readonly placeholder="Auto-filled based on grade and verbal description" style="background:rgba(20,83,45,0.06);cursor:default;resize:vertical;"></textarea>
+				</div>
+			</div>
+
+			<div class="grid-3">
+				<div class="field">
+					<label for="thirdQuarterGrade">Third Semester Grade</label>
+					<input id="thirdQuarterGrade" name="thirdQuarterGrade" type="number" min="0" max="100" step="1" placeholder="e.g. 86">
+				</div>
+				<div class="field">
+					<label for="thirdQuarterVerbal">Third Semester Verbal Description</label>
+					<input id="thirdQuarterVerbal" name="thirdQuarterVerbal" type="text" readonly placeholder="Auto-filled based on grade" style="background:rgba(20,83,45,0.06);cursor:default;">
+				</div>
+				<div class="field">
+					<label for="thirdQuarterInterpretation">Third Semester Interpretation</label>
+					<textarea id="thirdQuarterInterpretation" name="thirdQuarterInterpretation" rows="3" readonly placeholder="Auto-filled based on grade and verbal description" style="background:rgba(20,83,45,0.06);cursor:default;resize:vertical;"></textarea>
+				</div>
+			</div>
+
+			<div class="field">
+				<label for="intervention">Intervention</label>
+				<textarea id="intervention" name="intervention" rows="3" placeholder="Enter intervention details"></textarea>
+			</div>
+
+			<!-- Learning Support, Assessment, and Recovery -->
+			<div class="section-label">Learning Support, Assessment, and Recovery</div>
+			<div class="grid-2">
+				<div class="field">
+					<label for="philIriResult">Phil-Iri Result</label>
+					<select id="philIriResult" name="philIriResult">
+						<option value="" selected>Select Phil-Iri Result</option>
+						<option value="Non-Reader">Non-Reader</option>
+						<option value="Struggling">Struggling</option>
+						<option value="Frustration">Frustration</option>
+						<option value="Instructional">Instructional</option>
+						<option value="Independent">Independent</option>
+					</select>
+				</div>
+				<div class="field">
+					<label for="rmaResult">RMA Result</label>
+					<select id="rmaResult" name="rmaResult">
+						<option value="" selected>Select RMA Result</option>
+						<option value="Emerging">Emerging</option>
+						<option value="Low Proficient">Low Proficient</option>
+						<option value="Developing">Developing</option>
+						<option value="Transitioning">Transitioning</option>
+					</select>
+				</div>
+			</div>
+
+			<div class="grid-2">
+				<div class="field">
+					<label for="ellnaResult">CRLA Result</label>
+					<select id="ellnaResult" name="ellnaResult">
+						<option value="" selected>Select CRLA Result</option>
+						<option value="Beginning">Beginning</option>
+						<option value="Developing">Developing</option>
+						<option value="Approaching Proficiency">Approaching Proficiency</option>
+						<option value="Proficient">Proficient</option>
+						<option value="Advanced">Advanced</option>
+					</select>
+				</div>
+				<div class="field">
+					<label for="utilizationLearningGadgets">Utilization of Learning Gadgets</label>
+					<select id="utilizationLearningGadgets" name="utilizationLearningGadgets">
+						<option value="" selected>Select Gadget Used</option>
+						<option value="Laptop">Laptop</option>
+						<option value="Tablet">Tablet</option>
+						<option value="Cellphone">Cellphone</option>
+						<option value="Others">Others</option>
+					</select>
+				</div>
+			</div>
+
+			<div id="learnerMessage" class="message-box" role="status" aria-live="polite"></div>
+
+				<div class="actions">
+					<button class="btn btn-save" type="submit">Save</button>
+					<button class="btn btn-clear" type="button" id="clearBtn">Clear</button>
+					<button class="btn btn-back" type="button" onclick="window.location.href='account.html'">Back to Account</button>
+				</div>
+			</form>
+		</main>
+
+		<section class="summary-shell" aria-label="Learner summary by district and school with account details">
+					<section id="myLearnersSection" class="my-learners-shell" style="display:none;" aria-label="My saved learner records">
+						<div class="my-learners-head">
+							<div class="my-learners-title">My Saved Learner Records</div>
+							<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+								<div style="font-size:0.84rem;font-weight:700;color:var(--muted);">Showing: <span id="myLearnersShown">0</span> of <span id="myLearnersCount">0</span></div>
+								<button id="exportLearnerRecordsBtn" class="export-records-btn" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+							</div>
+						</div>
+						<div class="my-learners-wrap">
+							<table class="my-learners-table">
+								<thead>
+									<tr>
+										<th>LRN</th>
+										<th>Family Name</th>
+										<th>First Name</th>
+										<th>Grade</th>
+										<th>District</th>
+										<th>School</th>
+										<th>Action</th>
+									</tr>
+								</thead>
+								<tbody id="myLearnersBody">
+									<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">No learner records saved yet.</td></tr>
+								</tbody>
+							</table>
+						</div>
+					</section>
+
+			<div class="summary-head">
+				<div class="summary-title">Saved Learners Summary</div>
+				<div class="summary-total"><span id="summaryScope">All Users</span> | Total Learners: <span id="summaryTotalLearners">0</span></div>
+			</div>
+			<div class="summary-wrap">
+				<table class="summary-table">
+					<thead>
+						<tr>
+							<th>User Name</th>
+							<th>User Email</th>
+							<th>District</th>
+							<th>School</th>
+							<th>Number of Learners</th>
+						</tr>
+					</thead>
+					<tbody id="summaryTableBody">
+						<tr>
+							<td class="summary-empty" colspan="5">No learner records saved yet.</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+	</div>
+
+	<script>
+		(function () {
+			const isLocalNodeMode = window.location.port === "3000";
+
+			function apiUrl(path) {
+				const normalized = String(path || "").startsWith("/") ? String(path) : ("/" + String(path || ""));
+				if (isLocalNodeMode) {
+					return "/api" + normalized;
+				}
+
+				if (normalized === "/auth/me") return "api/auth/me.php";
+				if (normalized === "/admin/learner-summary") return "api/admin/learner-summary.php";
+				if (normalized === "/learners") return "api/learners.php";
+				if (normalized === "/learners/export") return "api/learners-export.php";
+				if (normalized === "/approval-requests") return "api/approval-requests.php";
+				return "api" + normalized;
+			}
+
+			const referenceApiUrl = window.location.port === "3000"
+				? "/api/reference/district-schools"
+				: "api/reference/district-schools.php";
+
+			const form = document.getElementById("learnerForm");
+			const districtSelect = document.getElementById("district");
+			const schoolSelect = document.getElementById("school");
+			const clearBtn = document.getElementById("clearBtn");
+			const messageBox = document.getElementById("learnerMessage");
+			const teacherAccountBtn = document.getElementById("teacherAccountBtn");
+			const navAdmRequest = document.getElementById("navAdmRequest");
+			const summaryTableBody = document.getElementById("summaryTableBody");
+			const summaryTotalLearners = document.getElementById("summaryTotalLearners");
+			const summaryScope = document.getElementById("summaryScope");
+			let currentUser = null;
+			const readonlyNotice = document.getElementById("readonlyNotice");
+			const editIndicator = document.getElementById("editIndicator");
+			const editingNameSpan = document.getElementById("editingName");
+			const cancelEditBtn = document.getElementById("cancelEditBtn");
+			const myLearnersSection = document.getElementById("myLearnersSection");
+			const myLearnersBody = document.getElementById("myLearnersBody");
+			const myLearnersCount = document.getElementById("myLearnersCount");
+			const myLearnersShown = document.getElementById("myLearnersShown");
+			const exportLearnerRecordsBtn = document.getElementById("exportLearnerRecordsBtn");
+			let userRole = "teacher";
+			let messageTimer = null;
+			let editingLearnerId = null;
+			let approvalRequestStatusByLearner = {};
+			const MY_LEARNERS_DISPLAY_LIMIT = 10;
+			let districtSchoolsMap = {};
+
+			function setMessage(text, type) {
+				if (messageTimer) {
+					clearTimeout(messageTimer);
+					messageTimer = null;
+				}
+				messageBox.classList.remove("fade-out");
+				messageBox.textContent = text;
+				messageBox.className = "message-box " + type;
+				messageTimer = setTimeout(function () {
+					messageBox.classList.add("fade-out");
+					setTimeout(function () {
+						clearMessage();
+					}, 320);
+				}, 3000);
+			}
+
+			function clearMessage() {
+				if (messageTimer) {
+					clearTimeout(messageTimer);
+					messageTimer = null;
+				}
+				messageBox.classList.remove("fade-out");
+				messageBox.textContent = "";
+				messageBox.className = "message-box";
+			}
+
+			function escapeCsv(value) {
+				const text = String(value == null ? "" : value);
+				if (/[",\n]/.test(text)) {
+					return '"' + text.replace(/"/g, '""') + '"';
+				}
+				return text;
+			}
+
+			function downloadCsv(fileName, headers, rows) {
+				const csvLines = [headers.map(escapeCsv).join(",")]
+					.concat(rows.map(function (row) { return row.map(escapeCsv).join(","); }));
+				const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
+				const url = URL.createObjectURL(blob);
+				const link = document.createElement("a");
+				link.href = url;
+				link.download = fileName;
+				document.body.appendChild(link);
+				link.click();
+				link.remove();
+				URL.revokeObjectURL(url);
+			}
+
+			async function parseApiPayload(response) {
+				const raw = await response.text();
+				if (!raw) return {};
+				try {
+					return JSON.parse(raw);
+				} catch (e) {
+					return { message: "Server returned an unexpected response." };
+				}
+			}
+
+			function renderDistrictOptions(districts, preferredDistrict) {
+				districtSelect.innerHTML = '<option value="">Select District</option>';
+
+				districts.forEach(function (district) {
+					const option = document.createElement("option");
+					option.value = district;
+					option.textContent = district;
+					districtSelect.appendChild(option);
+				});
+
+				if (preferredDistrict) {
+					let exists = false;
+					Array.from(districtSelect.options).forEach(function (option) {
+						if (option.value === preferredDistrict) {
+							exists = true;
+						}
+					});
+					if (!exists) {
+						const fallbackOption = document.createElement("option");
+						fallbackOption.value = preferredDistrict;
+						fallbackOption.textContent = preferredDistrict;
+						districtSelect.appendChild(fallbackOption);
+					}
+					districtSelect.value = preferredDistrict;
+				}
+			}
+
+			function renderSchoolOptions(district, preferredSchool) {
+				const selectedDistrict = String(district || "").trim();
+				const schools = selectedDistrict ? (districtSchoolsMap[selectedDistrict] || []) : [];
+
+				schoolSelect.innerHTML = selectedDistrict
+					? '<option value="">Select School</option>'
+					: '<option value="">Select School</option>';
+
+				schools.forEach(function (school) {
+					const schoolName = typeof school === "string" ? school : String((school && school.name) || "").trim();
+					const schoolId = typeof school === "string" ? "" : String((school && school.id) || "").trim();
+					if (!schoolName) {
+						return;
+					}
+					const option = document.createElement("option");
+					option.value = schoolName;
+					option.textContent = schoolId ? schoolId + " - " + schoolName : schoolName;
+					if (schoolId) {
+						option.dataset.schoolId = schoolId;
+					}
+					schoolSelect.appendChild(option);
+				});
+
+				if (preferredSchool) {
+					let exists = false;
+					Array.from(schoolSelect.options).forEach(function (option) {
+						if (option.value === preferredSchool) {
+							exists = true;
+						}
+					});
+					if (!exists) {
+						const fallbackOption = document.createElement("option");
+						fallbackOption.value = preferredSchool;
+						fallbackOption.textContent = preferredSchool;
+						schoolSelect.appendChild(fallbackOption);
+					}
+					schoolSelect.value = preferredSchool;
+				} else {
+					schoolSelect.value = "";
+				}
+			}
+
+			function setDistrictSchool(district, school) {
+				const selectedDistrict = String(district || "").trim();
+				const selectedSchool = String(school || "").trim();
+				if (selectedDistrict) {
+					let districtExists = false;
+					Array.from(districtSelect.options).forEach(function (option) {
+						if (option.value === selectedDistrict) {
+							districtExists = true;
+						}
+					});
+					if (!districtExists) {
+						const fallbackOption = document.createElement("option");
+						fallbackOption.value = selectedDistrict;
+						fallbackOption.textContent = selectedDistrict;
+						districtSelect.appendChild(fallbackOption);
+					}
+				}
+				districtSelect.value = selectedDistrict;
+				renderSchoolOptions(selectedDistrict, selectedSchool);
+			}
+
+			districtSelect.addEventListener("change", function () {
+				renderSchoolOptions(districtSelect.value, "");
+			});
+
+			async function loadDistrictSchoolReference() {
+				try {
+					const response = await fetch(referenceApiUrl);
+					if (!response.ok) {
+						const payload = await parseApiPayload(response);
+						throw new Error(payload.message || "Failed to load district-school options.");
+					}
+
+					const payload = await parseApiPayload(response);
+					const districts = Array.isArray(payload.districts) ? payload.districts : [];
+					districtSchoolsMap = payload && typeof payload.schoolsByDistrict === "object" && payload.schoolsByDistrict
+						? payload.schoolsByDistrict
+						: {};
+
+					renderDistrictOptions(districts, districtSelect.value);
+					renderSchoolOptions(districtSelect.value, schoolSelect.value);
+				} catch (error) {
+					setMessage(String(error && error.message ? error.message : "Failed to load district-school options."), "error");
+				}
+			}
+
+			async function loadLearnerSummary() {
+				const isSupervisorOrAdmin = userRole === "supervisor" || userRole === "admin";
+				function renderSummaryRows(rows) {
+					summaryTableBody.innerHTML = "";
+					if (!rows.length) {
+						summaryTableBody.innerHTML = '<tr><td class="summary-empty" colspan="5">No learner records saved yet.</td></tr>';
+						return;
+					}
+
+					rows.forEach(function (row) {
+						const tr = document.createElement("tr");
+						const nameTd = document.createElement("td");
+						const emailTd = document.createElement("td");
+						const districtTd = document.createElement("td");
+						const schoolTd = document.createElement("td");
+						const countTd = document.createElement("td");
+						nameTd.textContent = row.user_name;
+						emailTd.textContent = row.user_email;
+						districtTd.textContent = row.district;
+						schoolTd.textContent = row.school;
+						countTd.textContent = String(row.count);
+						tr.appendChild(nameTd);
+						tr.appendChild(emailTd);
+						tr.appendChild(districtTd);
+						tr.appendChild(schoolTd);
+						tr.appendChild(countTd);
+						summaryTableBody.appendChild(tr);
+					});
+				}
+
+				try {
+					const adminKey = String(localStorage.getItem("adminAccessKey") || "").trim();
+					if (adminKey || isSupervisorOrAdmin) {
+						const fetchOptions = adminKey
+							? { headers: { "x-admin-key": adminKey } }
+							: { credentials: "include" };
+						const adminResponse = await fetch(apiUrl("/admin/learner-summary"), fetchOptions);
+						if (adminResponse.ok) {
+							const adminPayload = await parseApiPayload(adminResponse);
+							const rows = Array.isArray(adminPayload.summary)
+								? adminPayload.summary.map(function (row) {
+									const fullName = [String(row.lastname || "").trim(), String(row.firstname || "").trim(), String(row.middlename || "").trim()].filter(Boolean).join(", ");
+									return {
+										user_name: fullName || "N/A",
+										user_email: String(row.email || "").trim() || "N/A",
+										district: String(row.district || "N/A").trim() || "N/A",
+										school: String(row.school || "N/A").trim() || "N/A",
+										count: Number(row.learner_count || 0)
+									};
+								})
+								: [];
+							summaryScope.textContent = "All Users";
+							summaryTotalLearners.textContent = String(Number(adminPayload.totalLearners || 0));
+							renderSummaryRows(rows);
+							return;
+						}
+					}
+
+					const response = await fetch(apiUrl("/learners"), { credentials: "include" });
+					if (!response.ok) {
+						throw new Error("Failed to load learner summary.");
+					}
+
+					const payload = await parseApiPayload(response);
+					const learners = Array.isArray(payload.learners) ? payload.learners : [];
+					summaryScope.textContent = "Current User";
+					summaryTotalLearners.textContent = String(learners.length);
+					const currentName = currentUser
+						? [String(currentUser.lastname || "").trim(), String(currentUser.firstname || "").trim(), String(currentUser.middlename || "").trim()].filter(Boolean).join(", ")
+						: "Current User";
+					const currentEmail = currentUser ? String(currentUser.email || "").trim() || "N/A" : "N/A";
+
+					const grouped = new Map();
+					learners.forEach(function (item) {
+						const district = String(item.district || "N/A").trim() || "N/A";
+						const school = String(item.school || "N/A").trim() || "N/A";
+						const key = district + "||" + school;
+						grouped.set(key, (grouped.get(key) || 0) + 1);
+					});
+
+					const rows = Array.from(grouped.entries())
+						.map(function (entry) {
+							const parts = entry[0].split("||");
+							return {
+								user_name: currentName || "N/A",
+								user_email: currentEmail,
+								district: parts[0],
+								school: parts[1],
+								count: entry[1]
+							};
+						})
+						.sort(function (a, b) {
+							return a.district.localeCompare(b.district) || a.school.localeCompare(b.school);
+						});
+
+					renderSummaryRows(rows);
+				} catch (error) {
+					summaryTableBody.innerHTML = '<tr><td class="summary-empty" colspan="5">Unable to load learner summary right now.</td></tr>';
+					summaryScope.textContent = "Unavailable";
+					summaryTotalLearners.textContent = "0";
+				}
+			}
+
+			// Guard: redirect to login if not authenticated.
+			async function checkSession() {
+				try {
+					const res = await fetch(apiUrl("/auth/me"), { credentials: "include" });
+					if (!res.ok) {
+						window.location.href = "index.html";
+						return;
+					}
+					const payload = await parseApiPayload(res);
+					currentUser = payload.user || null;
+					userRole = String((currentUser || {}).role || "teacher").toLowerCase();
+					const fn = String((currentUser || {}).firstname || "").trim();
+					const navGreeting = document.getElementById("navGreeting");
+					const welcomeBanner = document.getElementById("welcomeBanner");
+					if (navGreeting && fn) navGreeting.textContent = "\uD83D\uDC64 " + fn;
+					if (welcomeBanner && fn) {
+						welcomeBanner.textContent = "Welcome to ADM Site, " + fn + "!";
+						welcomeBanner.style.display = "block";
+					}
+					const validRoles = ["teacher", "admin", "supervisor"];
+					if (!validRoles.includes(userRole)) {
+						window.location.href = "index.html";
+						return;
+					}
+					if (teacherAccountBtn && userRole === "teacher") {
+						teacherAccountBtn.style.display = "none";
+					}
+					if (navAdmRequest) {
+						navAdmRequest.style.display = userRole === "teacher" ? "inline-flex" : "none";
+					}
+					const navDashboard = document.getElementById("navDashboard");
+					if (navDashboard && userRole === "teacher") {
+						navDashboard.style.display = "none";
+					}
+					if (userRole === "supervisor") {
+						window.location.href = "dashboard.html";
+						return;
+					} else {
+						// Show My Learner Records section for teacher/admin
+						myLearnersSection.style.display = "block";
+					}
+				} catch (e) {
+					window.location.href = "index.html";
+				}
+			}
+
+			async function loadMyLearners() {
+				if (userRole === "supervisor") return;
+				try {
+					const [response, requestResponse] = await Promise.all([
+						fetch(apiUrl("/learners"), { credentials: "include" }),
+						fetch(apiUrl("/approval-requests"), { credentials: "include" })
+					]);
+					if (!response.ok) {
+						myLearnersCount.textContent = "0";
+						if (myLearnersShown) myLearnersShown.textContent = "0";
+						myLearnersBody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Unable to load learner records right now.</td></tr>';
+						return;
+					}
+					const payload = await parseApiPayload(response);
+					const requestPayload = requestResponse.ok ? await parseApiPayload(requestResponse) : { requests: [] };
+					approvalRequestStatusByLearner = Array.isArray(requestPayload.requests)
+						? requestPayload.requests.reduce(function (acc, item) {
+							const learnerId = String((item && item.learner_id) || "").trim();
+							if (learnerId && !acc[learnerId]) acc[learnerId] = item;
+							return acc;
+						}, {})
+						: {};
+					const learners = Array.isArray(payload.learners) ? payload.learners : [];
+					const displayedLearners = learners.slice(0, MY_LEARNERS_DISPLAY_LIMIT);
+					myLearnersCount.textContent = String(learners.length);
+					if (myLearnersShown) myLearnersShown.textContent = String(displayedLearners.length);
+					if (!learners.length) {
+						myLearnersBody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">No learner records saved yet.</td></tr>';
+						return;
+					}
+					myLearnersBody.innerHTML = displayedLearners.map(function (lr) {
+						const requestInfo = approvalRequestStatusByLearner[String(lr.id || "").trim()] || null;
+						const requestStatus = String((requestInfo && requestInfo.status) || "").trim().toLowerCase();
+						const requestDisabled = requestStatus === "pending" || requestStatus === "approved";
+						const replaceDisabled = !requestInfo || requestStatus === "approved";
+						const fileName = getFileNameFromPath(requestInfo && requestInfo.document_path);
+						const requestLabel = requestStatus === "pending"
+							? "Request Pending"
+							: requestStatus === "approved"
+								? "APPROVED"
+							: requestStatus === "revise"
+							? "Request Again"
+							: requestStatus === "rejected"
+							? "Request Again"
+							: "Request for ADM Approval Letter";
+						return '<tr>' +
+							'<td>' + (lr.learner_code || '-') + '</td>' +
+							'<td>' + (lr.family_name || '-') + '</td>' +
+							'<td>' + (lr.firstname || '-') + '</td>' +
+							'<td>' + (lr.grade || '-') + '</td>' +
+							'<td>' + (lr.district || '-') + '</td>' +
+							'<td>' + (lr.school || '-') + '</td>' +
+							'<td><button class="btn-edit" type="button" data-learner-id="' + lr.id + '">Edit</button><button class="btn-request" type="button" data-request-learner-id="' + lr.id + '"' + (requestDisabled ? ' disabled' : '') + '>' + requestLabel + '</button><div class="request-meta">' +
+								(fileName ? ('<div class="request-file">Uploaded: ' + fileName + '</div>') : '<div class="request-file">Uploaded: None</div>') +
+								'<button class="btn-replace-document" type="button" data-replace-request-id="' + (requestInfo ? requestInfo.id : '') + '"' + (replaceDisabled ? ' disabled' : '') + '>Replace Document</button>' +
+							'</div></td>' +
+							'</tr>';
+					}).join('');
+				} catch (e) {
+					myLearnersCount.textContent = "0";
+					if (myLearnersShown) myLearnersShown.textContent = "0";
+					myLearnersBody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Unable to load learner records right now.</td></tr>';
+				}
+			}
+
+			async function exportLearnerRecords() {
+				clearMessage();
+				try {
+					const response = await fetch(apiUrl("/learners/export"), { credentials: "include" });
+					if (!response.ok) {
+						const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+						if (contentType.includes("application/json")) {
+							const payload = await parseApiPayload(response);
+							throw new Error(payload.message || "Failed to export learner records.");
+						}
+						if (response.status === 404) {
+							const learnersResponse = await fetch(apiUrl("/learners"), { credentials: "include" });
+							if (learnersResponse.ok) {
+								const learnersPayload = await parseApiPayload(learnersResponse);
+								const learners = Array.isArray(learnersPayload.learners) ? learnersPayload.learners : [];
+								const csvRows = learners.map(function (item) {
+									return [
+										String(item.learner_code || "").trim(),
+										String(item.family_name || "").trim(),
+										String(item.firstname || "").trim(),
+										String(item.middlename || "").trim(),
+										String(item.grade || "").trim(),
+										String(item.district || "").trim(),
+										String(item.school || "").trim(),
+										String(item.modality || "").trim(),
+										String(item.created_at || "").trim()
+									];
+								});
+								downloadCsv("learner-records.csv", ["LRN", "FamilyName", "FirstName", "MiddleName", "Grade", "District", "School", "Modality", "CreatedAt"], csvRows);
+								setMessage("Learner records exported as CSV fallback.", "success");
+								return;
+							}
+						}
+						throw new Error("Failed to export learner records (HTTP " + response.status + ").");
+					}
+
+					const blob = await response.blob();
+					const objectUrl = URL.createObjectURL(blob);
+					const link = document.createElement("a");
+					link.href = objectUrl;
+					link.download = "learner-records.xlsx";
+					document.body.appendChild(link);
+					link.click();
+					link.remove();
+					URL.revokeObjectURL(objectUrl);
+					setMessage("Learner records exported to Excel.", "success");
+				} catch (error) {
+					setMessage(String(error && error.message ? error.message : "Failed to export learner records."), "error");
+				}
+			}
+
+			function chooseApprovalDocument() {
+				return new Promise(function (resolve) {
+					const input = document.createElement('input');
+					input.type = 'file';
+					input.accept = '.pdf,.png,.jpg,.jpeg,.doc,.docx';
+					input.style.display = 'none';
+					document.body.appendChild(input);
+
+					input.addEventListener('change', function () {
+						const file = input.files && input.files[0] ? input.files[0] : null;
+						input.remove();
+						resolve(file);
+					}, { once: true });
+
+					input.click();
+				});
+			}
+
+			function getFileNameFromPath(filePath) {
+				const raw = String(filePath || '').trim();
+				if (!raw) return '';
+				const parts = raw.split(/[\\/]/);
+				return parts.length ? parts[parts.length - 1] : raw;
+			}
+
+			function fillFormForEdit(lr) {
+				const setVal = function(id, val) {
+					const el = document.getElementById(id);
+					if (el) el.value = val || '';
+				};
+				setVal('learnerCode', lr.learner_code);
+				setVal('familyName', lr.family_name);
+				setVal('firstName', lr.firstname);
+				setVal('middleName', lr.middlename);
+				setVal('grade', lr.grade);
+				setDistrictSchool(lr.district, lr.school);
+				setVal('modality', lr.modality);
+				setVal('typeOfInstruction', lr.type_of_instruction);
+				setVal('dateStarted', lr.date_started);
+				setVal('firstGradingGrade', lr.first_grading_grade);
+				setVal('firstGradingVerbal', lr.first_grading_verbal);
+				setVal('firstGradingInterpretation', lr.first_grading_interpretation);
+				setVal('secondQuarterGrade', lr.second_quarter_grade);
+				setVal('secondQuarterVerbal', lr.second_quarter_verbal);
+				setVal('secondQuarterInterpretation', lr.second_quarter_interpretation);
+				setVal('thirdQuarterGrade', lr.third_quarter_grade);
+				setVal('thirdQuarterVerbal', lr.third_quarter_verbal);
+				setVal('thirdQuarterInterpretation', lr.third_quarter_interpretation);
+				setVal('intervention', lr.intervention);
+				setVal('philIriResult', lr.phil_iri_result);
+				setVal('rmaResult', lr.rma_result);
+				setVal('ellnaResult', lr.ellna_result);
+				setVal('utilizationLearningGadgets', lr.utilization_learning_gadgets);
+			}
+
+			function cancelEdit() {
+				editingLearnerId = null;
+				editIndicator.style.display = 'none';
+				form.reset();
+				renderSchoolOptions("", "");
+				clearMessage();
+			}
+
+			cancelEditBtn.addEventListener('click', cancelEdit);
+
+			myLearnersBody.addEventListener('click', async function (event) {
+				const editBtn = event.target.closest('button.btn-edit');
+				const requestBtn = event.target.closest('button.btn-request');
+				const replaceBtn = event.target.closest('button.btn-replace-document');
+
+				if (editBtn) {
+					const learnerId = editBtn.getAttribute('data-learner-id');
+					try {
+						const response = await fetch(apiUrl('/learners'), { credentials: 'include' });
+						if (!response.ok) return;
+						const payload = await parseApiPayload(response);
+						const learners = Array.isArray(payload.learners) ? payload.learners : [];
+						const lr = learners.find(function(l) { return l.id === learnerId; });
+						if (!lr) return;
+						editingLearnerId = learnerId;
+						fillFormForEdit(lr);
+						editingNameSpan.textContent = [lr.family_name, lr.firstname].filter(Boolean).join(', ');
+						editIndicator.style.display = 'block';
+						form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+						clearMessage();
+					} catch (e) {
+						// silently fail
+					}
+					return;
+				}
+
+				if (requestBtn) {
+					const learnerId = String(requestBtn.getAttribute('data-request-learner-id') || '').trim();
+					if (!learnerId || requestBtn.disabled) return;
+					const selectedFile = await chooseApprovalDocument();
+					if (!selectedFile) {
+						setMessage('Approval request cancelled. No document selected.', 'error');
+						return;
+					}
+
+					requestBtn.disabled = true;
+					try {
+						const formData = new FormData();
+						formData.append('learnerId', learnerId);
+						formData.append('document', selectedFile);
+						const response = await fetch(apiUrl('/approval-requests'), {
+							method: 'POST',
+							credentials: 'include',
+							body: formData
+						});
+						const payload = await parseApiPayload(response);
+						if (!response.ok) {
+							throw new Error(payload.message || 'Failed to submit approval request.');
+						}
+						setMessage(payload.message || 'ADM approval request submitted.', 'success');
+						loadMyLearners();
+					} catch (e) {
+						requestBtn.disabled = false;
+						setMessage(String(e && e.message ? e.message : 'Failed to submit approval request.'), 'error');
+					}
+					return;
+				}
+
+				if (replaceBtn) {
+					const requestId = String(replaceBtn.getAttribute('data-replace-request-id') || '').trim();
+					if (!requestId || replaceBtn.disabled) return;
+					const selectedFile = await chooseApprovalDocument();
+					if (!selectedFile) {
+						setMessage('Document replacement cancelled. No file selected.', 'error');
+						return;
+					}
+
+					replaceBtn.disabled = true;
+					try {
+						const formData = new FormData();
+						formData.append('document', selectedFile);
+						const response = await fetch(
+							isLocalNodeMode
+								? ('/api/approval-requests/' + encodeURIComponent(requestId) + '/document')
+								: ('api/approval-request-document.php?id=' + encodeURIComponent(requestId)), {
+							method: 'POST',
+							credentials: 'include',
+							body: formData
+						});
+						const payload = await parseApiPayload(response);
+						if (!response.ok) {
+							throw new Error(payload.message || 'Failed to replace document.');
+						}
+						setMessage(payload.message || 'Approval request document replaced.', 'success');
+						loadMyLearners();
+					} catch (e) {
+						replaceBtn.disabled = false;
+						setMessage(String(e && e.message ? e.message : 'Failed to replace document.'), 'error');
+					}
+				}
+			});
+
+			checkSession().then(function() {
+				loadDistrictSchoolReference();
+				loadLearnerSummary();
+				loadMyLearners();
+			});
+
+			exportLearnerRecordsBtn.addEventListener("click", exportLearnerRecords);
+
+
+
+			clearBtn.addEventListener("click", function () {
+				editingLearnerId = null;
+				editIndicator.style.display = 'none';
+				form.reset();
+				renderSchoolOptions("", "");
+				clearMessage();
+			});
+
+			function getVerbalDescription(val) {
+				const g = parseInt(val, 10);
+				if (isNaN(g) || val === "") return "";
+				if (g >= 90) return "Outstanding";
+				if (g >= 85) return "Very Satisfactory";
+				if (g >= 80) return "Satisfactory (Passing)";
+				if (g >= 75) return "Fair (Needs Improvement)";
+				if (g >= 65) return "Did Not Meet Expectations";
+				return "";
+			}
+
+			function getInterpretation(verbalDescription) {
+				switch (verbalDescription) {
+					case "Outstanding":
+						return "The learner demonstrates excellent performance and mastery of competencies.";
+					case "Very Satisfactory":
+						return "The learner shows strong performance, meeting competencies above expectations.";
+					case "Satisfactory (Passing)":
+						return "The learner meets the minimum passing standard with acceptable performance.";
+					case "Fair (Needs Improvement)":
+						return "The learner shows partial mastery, requiring support to meet competencies.";
+					case "Did Not Meet Expectations":
+						return "The learner shows very minimal progress, competencies are not achieved.";
+					default:
+						return "";
+				}
+			}
+
+			function bindQuarterGrade(gradeId, verbalId, interpretationId) {
+				const gradeInput = document.getElementById(gradeId);
+				const verbalInput = document.getElementById(verbalId);
+				const interpretationInput = document.getElementById(interpretationId);
+
+				if (!gradeInput || !verbalInput || !interpretationInput) {
+					return;
+				}
+
+				gradeInput.addEventListener("input", function () {
+					const verbal = getVerbalDescription(this.value.trim());
+					verbalInput.value = verbal;
+					interpretationInput.value = getInterpretation(verbal);
+				});
+			}
+
+			bindQuarterGrade("firstGradingGrade", "firstGradingVerbal", "firstGradingInterpretation");
+			bindQuarterGrade("secondQuarterGrade", "secondQuarterVerbal", "secondQuarterInterpretation");
+			bindQuarterGrade("thirdQuarterGrade", "thirdQuarterVerbal", "thirdQuarterInterpretation");
+
+			form.addEventListener("submit", async function (event) {
+				event.preventDefault();
+				clearMessage();
+
+				const learnerCode = document.getElementById("learnerCode").value.trim();
+				const familyName = document.getElementById("familyName").value.trim();
+				const firstName = document.getElementById("firstName").value.trim();
+				const middleName = document.getElementById("middleName").value.trim();
+				const grade = document.getElementById("grade").value;
+				const district = document.getElementById("district").value;
+				const school = document.getElementById("school").value;
+				const modality = document.getElementById("modality").value;
+				const typeOfInstruction = document.getElementById("typeOfInstruction").value;
+				const dateStarted = document.getElementById("dateStarted").value;
+				const firstGradingGrade = document.getElementById("firstGradingGrade").value.trim();
+				const firstGradingVerbal = document.getElementById("firstGradingVerbal").value.trim();
+				const firstGradingInterpretation = document.getElementById("firstGradingInterpretation").value.trim();
+				const secondQuarterGrade = document.getElementById("secondQuarterGrade").value.trim();
+				const secondQuarterVerbal = document.getElementById("secondQuarterVerbal").value.trim();
+				const secondQuarterInterpretation = document.getElementById("secondQuarterInterpretation").value.trim();
+				const thirdQuarterGrade = document.getElementById("thirdQuarterGrade").value.trim();
+				const thirdQuarterVerbal = document.getElementById("thirdQuarterVerbal").value.trim();
+				const thirdQuarterInterpretation = document.getElementById("thirdQuarterInterpretation").value.trim();
+				const intervention = document.getElementById("intervention").value.trim();
+				const philIriResult = document.getElementById("philIriResult").value;
+				const rmaResult = document.getElementById("rmaResult").value;
+				const ellnaResult = document.getElementById("ellnaResult").value;
+				const utilizationLearningGadgets = document.getElementById("utilizationLearningGadgets").value;
+
+				try {
+					const url = editingLearnerId
+						? (isLocalNodeMode ? ("/api/learners/" + editingLearnerId) : ("api/learners-update.php?id=" + encodeURIComponent(editingLearnerId)))
+						: apiUrl("/learners");
+					const method = editingLearnerId ? (isLocalNodeMode ? "PUT" : "POST") : "POST";
+					const response = await fetch(url, {
+						method: method,
+						credentials: "include",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							learner_code: learnerCode,
+							family_name: familyName,
+							firstname: firstName,
+							middlename: middleName,
+							grade: grade,
+							district: district,
+							school: school,
+							modality: modality,
+							type_of_instruction: typeOfInstruction,
+							date_started: dateStarted,
+							first_grading_grade: firstGradingGrade === "" ? null : Number(firstGradingGrade),
+							first_grading_verbal: firstGradingVerbal,
+							first_grading_interpretation: firstGradingInterpretation,
+							second_quarter_grade: secondQuarterGrade === "" ? null : Number(secondQuarterGrade),
+							second_quarter_verbal: secondQuarterVerbal,
+							second_quarter_interpretation: secondQuarterInterpretation,
+							third_quarter_grade: thirdQuarterGrade === "" ? null : Number(thirdQuarterGrade),
+							third_quarter_verbal: thirdQuarterVerbal,
+							third_quarter_interpretation: thirdQuarterInterpretation,
+							intervention: intervention,
+							phil_iri_result: philIriResult,
+							rma_result: rmaResult,
+							ellna_result: ellnaResult,
+							utilization_learning_gadgets: utilizationLearningGadgets
+						})
+					});
+
+					const payload = await parseApiPayload(response);
+
+					if (!response.ok) {
+						throw new Error(payload.message || "Failed to save learner record.");
+					}
+
+					const wasSaved = editingLearnerId ? "Learner record updated successfully." : "Learner record saved successfully.";
+					editingLearnerId = null;
+					editIndicator.style.display = 'none';
+					setMessage(wasSaved, "success");
+					form.reset();
+					renderSchoolOptions("", "");
+					loadLearnerSummary();
+					loadMyLearners();
+				} catch (error) {
+					const msg = String(error && error.message ? error.message : "");
+					if (msg.toLowerCase().includes("failed to fetch")) {
+						setMessage("Cannot reach API endpoint on this host. Verify API routes and server configuration.", "error");
+						return;
+					}
+					setMessage(msg || "Failed to save learner record.", "error");
+				}
+			});
+		})();
+	</script>
+
+<script src="/theme.js"></script>
+</body>
+</html>
+

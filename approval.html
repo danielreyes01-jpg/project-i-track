@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Approval Portal</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/theme.css">
+	<style>
+		:root {
+			--bg-1: #f3efe6;
+			--bg-2: #dfecd9;
+			--ink: #1e2a21;
+			--muted: #5d6a61;
+			--panel: rgba(255, 255, 255, 0.86);
+			--stroke: rgba(30, 42, 33, 0.14);
+			--accent: #14532d;
+			--accent-soft: #d7e9dd;
+			--radius: 16px;
+			--shadow: 0 22px 52px rgba(20, 52, 33, 0.14);
+		}
+
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+
+		body {
+			min-height: 100vh;
+			font-family: "Manrope", sans-serif;
+			color: var(--ink);
+			background:
+				radial-gradient(circle at 15% 20%, rgba(31, 122, 68, 0.18), transparent 38%),
+				radial-gradient(circle at 80% 5%, rgba(95, 142, 104, 0.22), transparent 36%),
+				linear-gradient(145deg, var(--bg-1), var(--bg-2));
+			display: grid;
+			place-items: center;
+			padding: clamp(12px, 2.2vw, 24px);
+		}
+
+		.shell {
+			width: min(100%, 680px);
+			max-height: calc(100vh - clamp(24px, 4.4vh, 48px));
+			overflow: auto;
+			background: var(--panel);
+			border: 1px solid var(--stroke);
+			border-radius: calc(var(--radius) + 4px);
+			box-shadow: var(--shadow);
+			padding: clamp(16px, 2.5vw, 24px);
+		}
+
+		.brand {
+			display: flex;
+			justify-content: center;
+			margin-bottom: 12px;
+		}
+
+		.brand-logo {
+			width: min(100%, 280px);
+			height: auto;
+			display: block;
+		}
+
+		h1 {
+			font-family: "Playfair Display", serif;
+			font-size: clamp(1.35rem, 2.8vw, 1.9rem);
+			margin-bottom: 6px;
+			line-height: 1.2;
+		}
+
+		.subtitle {
+			color: var(--muted);
+			font-size: 0.92rem;
+			line-height: 1.45;
+			margin-bottom: 14px;
+		}
+
+		.field {
+			display: grid;
+			gap: 6px;
+			margin-bottom: 12px;
+		}
+
+		label {
+			font-size: 0.86rem;
+			font-weight: 700;
+		}
+
+		input {
+			width: 100%;
+			border: 1px solid var(--stroke);
+			border-radius: 10px;
+			padding: 10px 11px;
+			font-size: 0.94rem;
+			font: inherit;
+			background: #fff;
+		}
+
+		.actions {
+			display: grid;
+			grid-template-columns: 1fr;
+			gap: 8px;
+			margin-top: 6px;
+		}
+
+		button {
+			border: none;
+			border-radius: 10px;
+			padding: 10px 12px;
+			font-size: 0.9rem;
+			font: inherit;
+			font-weight: 800;
+			cursor: pointer;
+			transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+		}
+
+		button:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 6px 20px rgba(0, 0, 0, 0.10);
+			filter: brightness(1.04);
+		}
+
+		button:active {
+			transform: translateY(1px);
+			box-shadow: none;
+		}
+
+		.btn-primary {
+			background: var(--accent);
+			color: #fff;
+		}
+
+		.btn-secondary {
+			background: var(--accent-soft);
+			color: var(--accent);
+		}
+
+		.message {
+			display: none;
+			padding: 10px 12px;
+			border-radius: 10px;
+			font-size: 0.88rem;
+			font-weight: 700;
+			margin-bottom: 10px;
+		}
+
+		.message.error {
+			display: block;
+			background: #fde9e2;
+			color: #8a2d0a;
+			border: 1px solid #f7c3b1;
+		}
+
+		.message.success {
+			display: block;
+			background: #e5f7ea;
+			color: #14532d;
+			border: 1px solid #b8e7c5;
+		}
+
+		@media (min-width: 620px) {
+			.actions {
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+			}
+
+			.actions .btn-primary {
+				grid-column: 1 / -1;
+			}
+		}
+
+		@media (min-width: 980px) {
+			.shell {
+				width: min(100%, 760px);
+			}
+
+			.actions {
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+			}
+
+			.actions .btn-primary {
+				grid-column: 1 / -1;
+			}
+		}
+
+		@media (min-width: 1280px) {
+			.shell {
+				width: min(100%, 860px);
+			}
+
+			button {
+				font-size: 0.92rem;
+				padding: 11px 13px;
+			}
+		}
+	</style>
+</head>
+<body>
+	<main class="shell">
+		<div class="brand">
+			<img class="brand-logo" src="assets/itrack-final.png" alt="I-Track Project I-Track logo">
+		</div>
+		<h1>Approval Portal</h1>
+		<p class="subtitle">Use one admin key to manage all registration approvals in the same database.</p>
+
+		<div id="message" class="message" role="status" aria-live="polite"></div>
+
+		<div class="field">
+			<label for="adminKey">Admin Access Key</label>
+			<input id="adminKey" type="password" placeholder="Enter ADMIN_ACCESS_KEY">
+		</div>
+
+		<div class="actions">
+			<button id="saveKeyBtn" class="btn-primary" type="button">Save Key</button>
+			<button id="dashboardBtn" class="btn-secondary" type="button">Open Dashboard</button>
+			<button id="requestDashboardBtn" class="btn-secondary" type="button">Open Approval Requests</button>
+			<button id="pendingBtn" class="btn-secondary" type="button">Open Pending Approvals</button>
+			<button id="approvedBtn" class="btn-secondary" type="button">Open Approved Users</button>
+			<button id="usersBtn" class="btn-secondary" type="button">Open All Users Page</button>
+			<button class="btn-secondary" type="button" onclick="window.location.href='signout.html'">Sign Out</button>
+			<button class="btn-secondary" type="button" onclick="window.location.href='index.html'">Back to Login</button>
+		</div>
+	</main>
+
+	<script>
+		(function () {
+			const adminKeyInput = document.getElementById("adminKey");
+			const saveKeyBtn = document.getElementById("saveKeyBtn");
+			const dashboardBtn = document.getElementById("dashboardBtn");
+			const requestDashboardBtn = document.getElementById("requestDashboardBtn");
+			const pendingBtn = document.getElementById("pendingBtn");
+			const approvedBtn = document.getElementById("approvedBtn");
+			const usersBtn = document.getElementById("usersBtn");
+			const message = document.getElementById("message");
+
+			adminKeyInput.value = localStorage.getItem("adminAccessKey") || "";
+
+			function setMessage(text, type) {
+				message.textContent = text;
+				message.className = "message " + type;
+			}
+
+			function getKey() {
+				return adminKeyInput.value.trim();
+			}
+
+			async function checkAdminSession() {
+				try {
+					const res = await fetch("/api/auth/me");
+					if (!res.ok) {
+						window.location.href = "index.html";
+						return;
+					}
+					const payload = await res.json();
+					const role = String((payload.user || {}).role || "teacher").toLowerCase();
+					if (role !== "admin") {
+						window.location.href = "learner.html";
+					}
+				} catch (error) {
+					window.location.href = "index.html";
+				}
+			}
+
+			checkAdminSession();
+
+			saveKeyBtn.addEventListener("click", function () {
+				const key = getKey();
+				if (!key) {
+					setMessage("Enter admin access key first.", "error");
+					return;
+				}
+
+				localStorage.setItem("adminAccessKey", key);
+				setMessage("Admin key saved.", "success");
+			});
+
+			dashboardBtn.addEventListener("click", function () {
+				const key = getKey();
+				if (!key) {
+					setMessage("Enter and save admin key before opening dashboard.", "error");
+					return;
+				}
+
+				localStorage.setItem("adminAccessKey", key);
+				window.location.href = "dashboard.html";
+			});
+
+			requestDashboardBtn.addEventListener("click", function () {
+				const key = getKey();
+				if (!key) {
+					setMessage("Enter and save admin key before opening dashboard.", "error");
+					return;
+				}
+
+				localStorage.setItem("adminAccessKey", key);
+				window.location.href = "approval-request.html";
+			});
+
+			pendingBtn.addEventListener("click", function () {
+				const key = getKey();
+				if (!key) {
+					setMessage("Enter and save admin key before opening approval pages.", "error");
+					return;
+				}
+
+				localStorage.setItem("adminAccessKey", key);
+				window.location.href = "admin.html";
+			});
+
+			approvedBtn.addEventListener("click", function () {
+				const key = getKey();
+				if (!key) {
+					setMessage("Enter and save admin key before opening approval pages.", "error");
+					return;
+				}
+
+				localStorage.setItem("adminAccessKey", key);
+				window.location.href = "approved.html";
+			});
+
+			usersBtn.addEventListener("click", function () {
+				const key = getKey();
+				if (!key) {
+					setMessage("Enter and save admin key before opening approval pages.", "error");
+					return;
+				}
+
+				localStorage.setItem("adminAccessKey", key);
+				window.location.href = "user.html";
+			});
+		})();
+	</script>
+
+<script src="/theme.js"></script>
+</body>
+</html>
+

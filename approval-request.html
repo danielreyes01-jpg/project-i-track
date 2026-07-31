@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Approval Request Dashboard</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/theme.css">
+	<style>
+		:root {
+			--bg-1: #f3efe6;
+			--bg-2: #dfecd9;
+			--ink: #1e2a21;
+			--muted: #5d6a61;
+			--panel: rgba(255, 255, 255, 0.9);
+			--stroke: rgba(30, 42, 33, 0.12);
+			--accent: #14532d;
+			--accent-soft: #d7e9dd;
+			--warn-soft: #fef3c7;
+			--warn-ink: #92400e;
+			--danger-soft: #fee2e2;
+			--danger-ink: #991b1b;
+		}
+
+		* { box-sizing: border-box; }
+
+		body {
+			margin: 0;
+			min-height: 100vh;
+			font-family: "Manrope", sans-serif;
+			color: var(--ink);
+			background:
+				radial-gradient(circle at 12% 18%, rgba(31, 122, 68, 0.16), transparent 34%),
+				radial-gradient(circle at 84% 12%, rgba(95, 142, 104, 0.2), transparent 28%),
+				linear-gradient(145deg, var(--bg-1), var(--bg-2));
+			padding: 24px;
+		}
+
+		.page {
+			max-width: 1360px;
+			margin: 0 auto;
+			display: grid;
+			gap: 18px;
+		}
+
+		.panel {
+			background: var(--panel);
+			border: 1px solid var(--stroke);
+			border-radius: 18px;
+			box-shadow: 0 24px 48px rgba(20, 52, 33, 0.12);
+			padding: 20px;
+		}
+
+		.head {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 12px;
+			flex-wrap: wrap;
+			margin-bottom: 12px;
+		}
+
+		h1 {
+			margin: 0;
+			font-family: "Playfair Display", serif;
+			font-size: clamp(1.45rem, 2.4vw, 2rem);
+		}
+
+		.subtitle {
+			margin: 4px 0 0;
+			color: var(--muted);
+			font-size: 0.92rem;
+		}
+
+		.actions {
+			display: flex;
+			gap: 10px;
+			flex-wrap: wrap;
+		}
+
+		button {
+			border: none;
+			border-radius: 10px;
+			padding: 10px 14px;
+			font: inherit;
+			font-weight: 800;
+			cursor: pointer;
+		}
+
+		.btn-primary { background: var(--accent); color: #fff; }
+		.btn-secondary { background: var(--accent-soft); color: var(--accent); }
+		.btn-excel { background: #217346; color: #fff; transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease; }
+		.btn-excel:hover { background: #1a5c38; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(33, 115, 70, 0.28); }
+		.btn-excel:active { transform: translateY(1px); box-shadow: none; }
+		.btn-revise { background: var(--warn-soft); color: var(--warn-ink); }
+
+		.message {
+			display: none;
+			padding: 10px 12px;
+			border-radius: 10px;
+			font-size: 0.88rem;
+			font-weight: 700;
+			margin-bottom: 12px;
+		}
+
+		.message.success { display: block; background: #e5f7ea; color: #14532d; border: 1px solid #b8e7c5; }
+		.message.error { display: block; background: #fde9e2; color: #8a2d0a; border: 1px solid #f7c3b1; }
+
+		.table-wrap {
+			overflow: auto;
+			border: 1px solid var(--stroke);
+			border-radius: 14px;
+			background: rgba(255,255,255,0.88);
+		}
+
+		table {
+			width: 100%;
+			border-collapse: collapse;
+			min-width: 1100px;
+		}
+
+		th, td {
+			padding: 12px 10px;
+			border-bottom: 1px solid rgba(31, 42, 34, 0.1);
+			text-align: left;
+			vertical-align: top;
+			font-size: 0.88rem;
+		}
+
+		th {
+			background: rgba(20, 83, 45, 0.06);
+			color: var(--muted);
+			font-size: 0.78rem;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+		}
+
+		.status-pill {
+			display: inline-flex;
+			padding: 5px 10px;
+			border-radius: 999px;
+			font-size: 0.76rem;
+			font-weight: 800;
+			text-transform: capitalize;
+			background: rgba(20, 83, 45, 0.08);
+			color: var(--accent);
+		}
+
+		a.doc-link {
+			color: var(--accent);
+			font-weight: 700;
+			text-decoration: none;
+		}
+
+		a.doc-link:hover { text-decoration: underline; }
+		.doc-no-file { font-size: 0.8rem; color: var(--muted); font-style: italic; }
+
+		.row-actions {
+			display: flex;
+			gap: 6px;
+			flex-wrap: wrap;
+			margin-bottom: 8px;
+		}
+
+		.row-actions button {
+			padding: 4px 10px;
+			font-size: 0.76rem;
+			font-weight: 700;
+			border-radius: 8px;
+		}
+
+		.result-meta {
+			display: grid;
+			gap: 4px;
+			color: var(--muted);
+			font-size: 0.82rem;
+		}
+
+		.result-note {
+			color: var(--ink);
+			font-weight: 700;
+		}
+
+		.empty {
+			text-align: center;
+			font-style: italic;
+			color: var(--muted);
+		}
+
+	</style>
+</head>
+<body>
+	<div class="page">
+		<section class="panel">
+			<div class="head">
+				<div>
+					<h1>ADM Request for Approval</h1>
+					<p class="subtitle">Manage all ADM requests from the teacher form and learner approval requests in one dashboard.</p>
+				</div>
+				<div class="actions">
+					<button id="exportExcelBtn" class="btn-excel" type="button">&#11015; &#128202; Download Excel</button>
+					<button class="btn-secondary" type="button" onclick="window.location.href='dashboard.html'">Back to Dashboard</button>
+				</div>
+			</div>
+			<div id="message" class="message" role="status" aria-live="polite"></div>
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>Date Requested</th>
+							<th>District</th>
+							<th>School</th>
+							<th>Requestor</th>
+							<th>Details</th>
+							<th>Documents Submitted</th>
+							<th>Result</th>
+							<th>Status</th>
+						</tr>
+					</thead>
+					<tbody id="requestTableBody">
+					<tr><td class="empty" colspan="8">No approval requests yet.</td></tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+	</div>
+
+	<script>
+		(function () {
+			const isLocalNodeMode = window.location.port === "3000";
+			const apiRoot = isLocalNodeMode ? "/api" : "api";
+
+			function apiUrl(path) {
+				const normalized = String(path || "").startsWith("/") ? String(path) : ("/" + String(path || ""));
+				return apiRoot + normalized;
+			}
+
+			const message = document.getElementById("message");
+			const requestTableBody = document.getElementById("requestTableBody");
+			const exportExcelBtn = document.getElementById("exportExcelBtn");
+			let refreshTimer = null;
+			let admRequestEventSource = null;
+
+			function getAdminKey() {
+				return String(localStorage.getItem("adminAccessKey") || "").trim();
+			}
+
+			function getAdminAuthHeaders() {
+				const adminKey = getAdminKey();
+				return adminKey ? { "x-admin-key": adminKey } : {};
+			}
+
+			function setMessage(text, type) {
+				message.textContent = text;
+				message.className = text ? ("message " + type) : "message";
+			}
+
+			function setTableMessage(text) {
+				requestTableBody.innerHTML = '<tr><td class="empty" colspan="8">' + escapeHtml(text) + '</td></tr>';
+			}
+
+			function getResponseErrorMessage(response, payload, defaultMessage) {
+				if (response.status === 401) {
+					return "";
+				}
+
+				if (response.status === 403) {
+					return "Not admin. Only admin accounts can access the ADM Approval Dashboard.";
+				}
+
+				if (response.status === 404) {
+					return "Route/server unavailable. The ADM Approval API route is not available on the current server.";
+				}
+
+				if (response.status >= 500) {
+					return "Route/server unavailable. The server returned an internal error while processing the request.";
+				}
+
+				return String((payload && payload.message) || defaultMessage || "Request failed.");
+			}
+
+			async function parseApiPayload(response) {
+				const raw = await response.text();
+				if (!raw) return {};
+				try {
+					return JSON.parse(raw);
+				} catch (e) {
+					return { message: "Server returned an unexpected response.", detail: raw };
+				}
+			}
+
+			function getDownloadFileName(response, fallbackName) {
+				const header = String(response.headers.get("content-disposition") || "");
+				const match = header.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+				const name = decodeURIComponent((match && (match[1] || match[2])) || "").trim();
+				return name || fallbackName;
+			}
+
+			async function checkAdminSession() {
+				try {
+					const adminKey = getAdminKey();
+					const response = await fetch(apiUrl("/auth/me"), { credentials: "include" });
+
+					if (response.ok) {
+						const payload = await parseApiPayload(response);
+						const role = String((payload.user || {}).role || "teacher").toLowerCase();
+						if (role === "admin") {
+							return true;
+						}
+						if (adminKey) {
+							const verifyByKey = await fetch(apiUrl("/admin/adm-requests"), {
+								credentials: "include",
+								headers: getAdminAuthHeaders()
+							});
+							if (verifyByKey.ok) {
+								return true;
+							}
+						}
+						window.location.href = "learner.html";
+						return false;
+					}
+
+					if (adminKey) {
+						const verifyByKey = await fetch(apiUrl("/admin/adm-requests"), {
+							credentials: "include",
+							headers: getAdminAuthHeaders()
+						});
+						if (verifyByKey.ok) {
+							return true;
+						}
+					}
+
+					window.location.href = "index.html";
+					return false;
+				} catch (error) {
+					const adminKey = getAdminKey();
+					if (adminKey) {
+						try {
+							const verifyByKey = await fetch(apiUrl("/admin/adm-requests"), {
+								credentials: "include",
+								headers: getAdminAuthHeaders()
+							});
+							if (verifyByKey.ok) {
+								return true;
+							}
+						} catch (e) {}
+					}
+					window.location.href = "index.html";
+					return false;
+				}
+			}
+
+			function escapeHtml(value) {
+				return String(value == null ? "" : value)
+					.replace(/&/g, "&amp;")
+					.replace(/</g, "&lt;")
+					.replace(/>/g, "&gt;")
+					.replace(/\"/g, "&quot;")
+					.replace(/'/g, "&#39;");
+			}
+
+			function formatDateTime(value) {
+				if (!value) return "N/A";
+				const date = new Date(value);
+				if (Number.isNaN(date.getTime())) return String(value);
+				return date.toLocaleString([], {
+					year: "numeric",
+					month: "short",
+					day: "numeric",
+					hour: "numeric",
+					minute: "2-digit"
+				});
+			}
+
+			function formatDateOnly(value) {
+				if (!value) return "N/A";
+				const date = new Date(value);
+				if (Number.isNaN(date.getTime())) return String(value);
+				return date.toLocaleDateString([], {
+					year: "numeric",
+					month: "short",
+					day: "numeric"
+				});
+			}
+
+			function formatStatusLabel(status) {
+				const normalized = String(status || "pending").trim().toLowerCase() || "pending";
+				if (normalized === "approved") return "APPROVED";
+				if (normalized === "revise") return "REVISED";
+				return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+			}
+
+				function makeDocLink(storedPath, label) {
+					const p = String(storedPath || "").trim();
+					if (!p) return '<span class="doc-no-file">No document</span>';
+					const href = "/" + p.replace(/^\//, "");
+					const ext = p.split(".").pop().toLowerCase();
+					const extBadge = ext ? ' <span style="font-size:0.72rem;opacity:0.7;">(' + escapeHtml(ext.toUpperCase()) + ')</span>' : '';
+					return '<a class="doc-link" href="' + encodeURI(href) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + extBadge + '</a>';
+				}
+			function renderRows(requests) {
+				requestTableBody.innerHTML = "";
+				if (!Array.isArray(requests) || !requests.length) {
+					requestTableBody.innerHTML = '<tr><td class="empty" colspan="8">No approval requests yet.</td></tr>';
+					return;
+				}
+
+				requestTableBody.innerHTML = requests.map(function (item) {
+					const requestKind = String(item.request_kind || "learner").trim().toLowerCase();
+					const status = String(item.status || "pending").trim().toLowerCase() || "pending";
+					const requestedDate = requestKind === "teacher"
+						? formatDateOnly(item.request_date || item.created_at)
+						: formatDateTime(item.created_at || item.request_date);
+					const detailMarkup = requestKind === "teacher"
+						? '<div class="result-meta"><div><strong>Focal:</strong> ' + escapeHtml(item.adm_focal || "N/A") + '</div></div>'
+						: '<div class="result-meta"><div><strong>Name:</strong> ' + escapeHtml(item.learner_name || "N/A") + '</div></div>';
+					const documentLinks = requestKind === "teacher"
+						? '<div style="display:grid;gap:4px;">' +
+							makeDocLink(item.psds_endorsement_path, "PSDS Endorsement") +
+							makeDocLink(item.secondary_document_path, "Secondary Supporting Document") +
+						  '</div>'
+						: makeDocLink(item.document_path, "Open Document");
+					const resultParts = [];
+					if (item.review_note) {
+						resultParts.push('<div class="result-note">' + escapeHtml(item.review_note) + '</div>');
+					}
+					if (item.reviewed_by) {
+						resultParts.push('<div>Reviewed by: ' + escapeHtml(item.reviewed_by) + '</div>');
+					}
+					if (item.reviewed_at) {
+						resultParts.push('<div>Reviewed on: ' + escapeHtml(formatDateTime(item.reviewed_at)) + '</div>');
+					}
+					const resultMarkup = resultParts.length
+						? '<div class="result-meta">' + resultParts.join("") + '</div>'
+						: '';
+					const actionsMarkup = status === "approved"
+						? '<div class="row-actions"><span class="doc-no-file">No actions available</span></div>'
+						: '<div class="row-actions"><button class="btn-primary" type="button" data-action="approved" data-request-id="' + escapeHtml(item.id) + '" data-request-kind="' + escapeHtml(requestKind) + '">Approve</button><button class="btn-revise" type="button" data-action="revise" data-request-id="' + escapeHtml(item.id) + '" data-request-kind="' + escapeHtml(requestKind) + '">Revise</button></div>';
+					return '<tr>' +
+						'<td>' + escapeHtml(requestedDate) + '</td>' +
+						'<td>' + escapeHtml(item.district || "N/A") + '</td>' +
+						'<td>' + escapeHtml(item.school || "N/A") + '</td>' +
+						'<td>' + escapeHtml(item.requestor_name || "N/A") + '</td>' +
+						'<td>' + detailMarkup + '</td>' +
+						'<td>' + documentLinks + '</td>' +
+						'<td>' + resultMarkup + '</td>' +
+						'<td>' + actionsMarkup + '<span class="status-pill">' + escapeHtml(formatStatusLabel(status)) + '</span></td>' +
+					'</tr>';
+				}).join("");
+			}
+
+			async function loadRequests() {
+				try {
+					const headers = getAdminAuthHeaders();
+					const response = await fetch(apiUrl("/admin/approval-dashboard-requests"), { credentials: "include", headers: headers });
+					if (!response.ok) {
+						const payload = await parseApiPayload(response);
+						throw new Error(getResponseErrorMessage(response, payload, "Failed to load approval requests."));
+					}
+					const payload = await parseApiPayload(response);
+					renderRows(Array.isArray(payload.requests) ? payload.requests : []);
+				} catch (error) {
+					const msg = String(error && error.message ? error.message : "");
+					const safeMessage = msg.toLowerCase().includes("failed to fetch")
+						? "Unable to reach approval API on this host. Verify route support for /admin/approval-dashboard-requests."
+						: (msg || "Unable to load approval requests right now.");
+					setTableMessage(safeMessage);
+					setMessage(safeMessage, "error");
+				}
+			}
+
+			async function exportRequestsToExcel() {
+				setMessage("", "");
+				exportExcelBtn.disabled = true;
+				try {
+					const response = await fetch(apiUrl("/admin/approval-requests/export"), { credentials: "include", headers: getAdminAuthHeaders() });
+					if (!response.ok) {
+						const payload = await parseApiPayload(response);
+						throw new Error(getResponseErrorMessage(response, payload, "Failed to export approval requests."));
+					}
+
+					const blob = await response.blob();
+					const objectUrl = URL.createObjectURL(blob);
+					const link = document.createElement("a");
+					link.href = objectUrl;
+					link.download = getDownloadFileName(response, "adm-approval-dashboard.csv");
+					document.body.appendChild(link);
+					link.click();
+					link.remove();
+					URL.revokeObjectURL(objectUrl);
+					setMessage("ADM approval dashboard exported.", "success");
+				} catch (error) {
+					setMessage(String(error && error.message ? error.message : "Failed to export approval requests."), "error");
+				} finally {
+					exportExcelBtn.disabled = false;
+				}
+			}
+
+			requestTableBody.addEventListener("click", async function (event) {
+				const btn = event.target.closest("button[data-request-id][data-action][data-request-kind]");
+				if (!btn) return;
+
+				const requestId = String(btn.getAttribute("data-request-id") || "").trim();
+				const status = String(btn.getAttribute("data-action") || "").trim();
+				const requestKind = String(btn.getAttribute("data-request-kind") || "learner").trim().toLowerCase();
+				if (!requestId || !status) return;
+
+				let reviewNote = "";
+				if (status === "revise") {
+					reviewNote = window.prompt("Enter a short note for this request:", "") || "";
+				}
+
+				let pinCode = "";
+				if (status === "approved") {
+					pinCode = window.prompt("Enter approval PIN code:", "") || "";
+					if (!pinCode) {
+						return;
+					}
+				}
+
+				btn.disabled = true;
+				try {
+					const routeBase = requestKind === "teacher" ? apiUrl("/admin/adm-requests/") : apiUrl("/admin/approval-requests/");
+					const response = await fetch(routeBase + encodeURIComponent(requestId) + "/status", {
+						method: "POST",
+						headers: Object.assign({ "Content-Type": "application/json" }, getAdminAuthHeaders()),
+						credentials: "include",
+						body: JSON.stringify({ status: status, reviewNote: reviewNote, pinCode: pinCode })
+					});
+					const payload = await parseApiPayload(response);
+					if (!response.ok) {
+						throw new Error(getResponseErrorMessage(response, payload, "Failed to update approval request."));
+					}
+					setMessage(payload.message || "Approval request updated.", "success");
+					localStorage.setItem("admRequestStatusUpdatedAt", String(Date.now()));
+					loadRequests();
+				} catch (error) {
+					btn.disabled = false;
+					setMessage(String(error && error.message ? error.message : "Failed to update approval request."), "error");
+				}
+			});
+
+			exportExcelBtn.addEventListener("click", exportRequestsToExcel);
+
+			function connectAdmRequestStream() {
+				if (typeof window.EventSource !== "function") return;
+				if (admRequestEventSource) {
+					admRequestEventSource.close();
+					admRequestEventSource = null;
+				}
+				const adminKey = getAdminKey();
+				const streamUrl = adminKey
+					? apiUrl("/admin/adm-requests/stream") + "?adminKey=" + encodeURIComponent(adminKey)
+					: apiUrl("/admin/adm-requests/stream");
+
+				admRequestEventSource = new EventSource(streamUrl, { withCredentials: true });
+				admRequestEventSource.addEventListener("adm-request-created", function () {
+					loadRequests();
+				});
+				admRequestEventSource.onerror = function () {
+					if (admRequestEventSource) {
+						admRequestEventSource.close();
+						admRequestEventSource = null;
+					}
+					setTimeout(connectAdmRequestStream, 3000);
+				};
+			}
+
+			window.addEventListener("storage", function (event) {
+				if (event.key === "admRequestSubmittedAt") {
+					loadRequests();
+				}
+			});
+
+			window.addEventListener("focus", function () {
+				loadRequests();
+			});
+
+			document.addEventListener("visibilitychange", function () {
+				if (document.visibilityState === "visible") {
+					loadRequests();
+				}
+			});
+
+			checkAdminSession().then(function (ok) {
+				if (ok) {
+					loadRequests();
+					connectAdmRequestStream();
+					refreshTimer = setInterval(loadRequests, 5 * 1000);
+					window.addEventListener("beforeunload", function () {
+						if (refreshTimer) {
+							clearInterval(refreshTimer);
+							refreshTimer = null;
+						}
+						if (admRequestEventSource) {
+							admRequestEventSource.close();
+							admRequestEventSource = null;
+						}
+					});
+				}
+			});
+		})();
+	</script>
+
+<script src="/theme.js"></script>
+</body>
+</html>
