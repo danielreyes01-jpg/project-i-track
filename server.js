@@ -1735,11 +1735,11 @@ async function requireTeacher(req, res, next) {
 	const sessionUser = await hasActiveAccountSession(req);
 	if (!sessionUser) return res.status(401).json({ message: "Session expired or this account was signed in on another device." });
 	const role = String(sessionUser.role || "").trim().toLowerCase();
-	if (role !== "teacher") return res.status(403).json({ message: "Teacher account access only." });
+	if (role !== "teacher" && role !== "admin") return res.status(403).json({ message: "Teacher or administrator account access only." });
 	req.session.role = role;
 	return next();
   } catch (error) {
-	return res.status(500).json({ message: "Unable to validate teacher session.", detail: error.message });
+	return res.status(500).json({ message: "Unable to validate teacher or administrator session.", detail: error.message });
   }
 }
 

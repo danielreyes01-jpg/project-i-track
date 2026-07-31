@@ -484,7 +484,7 @@
 					const payload = await parseApiPayload(response);
 					const user = payload.user || {};
 					const role = String((user || {}).role || "teacher").toLowerCase();
-					if (role !== "teacher") {
+					if (role !== "teacher" && role !== "admin") {
 						window.location.href = "dashboard.html";
 						return false;
 					}

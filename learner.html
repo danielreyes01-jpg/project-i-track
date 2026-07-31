@@ -1318,7 +1318,7 @@
 						teacherAccountBtn.style.display = "none";
 					}
 					if (navAdmRequest) {
-						navAdmRequest.style.display = userRole === "teacher" ? "inline-flex" : "none";
+						navAdmRequest.style.display = (userRole === "teacher" || userRole === "admin") ? "inline-flex" : "none";
 					}
 					const navDashboard = document.getElementById("navDashboard");
 					if (navDashboard && userRole === "teacher") {

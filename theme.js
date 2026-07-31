@@ -160,7 +160,7 @@ function simplifyNavigation(navMenu) {
 	const hasAdministratorNavigation = navItems.some((item) => /user management|adm approval|approval portal/i.test(String(item.textContent || '')));
 	if (hasAdministratorNavigation) {
 		const requiredAdministratorItems = [
-			['Learner Record', 'learner.html'], ['Dashboard', 'dashboard.html'], ['Student Dashboard', 'admin-students.html'],
+			['Learner Record', 'learner.html'], ['ADM Request Form', 'adm-request.html'], ['Dashboard', 'dashboard.html'], ['Student Dashboard', 'admin-students.html'],
 			['ADM Approval', 'approval-request.html'], ['User Management', 'user.html'], ['Approval Portal', 'approval.html'],
 			['Pending Approvals', 'admin.html'], ['Approved Users', 'approved.html'], ['Create Account', 'create.html'], ['Login Page', 'index.html']
 		];
@@ -203,7 +203,8 @@ function simplifyNavigation(navMenu) {
 	}
 
 	navItems.forEach((item) => {
-		const cleanLabel = String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+		let cleanLabel = String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+		if (/^adm request$/i.test(cleanLabel)) cleanLabel = 'ADM Request Form';
 		if (cleanLabel) {
 			const icon = (iconByLabel.find(([pattern]) => pattern.test(cleanLabel)) || [null, '•'])[1];
 			const iconSpan = document.createElement('span');
@@ -217,6 +218,39 @@ function simplifyNavigation(navMenu) {
 		const action = String(item.getAttribute('onclick') || item.getAttribute('href') || '').toLowerCase();
 		item.classList.toggle('nav-current', action.includes(currentPage));
 	});
+
+	const learnerItem = navItems.find((item) => /^learner record$/i.test(String(item.dataset.navLabel || '')));
+	const admRequestItem = navItems.find((item) => /^adm request form$/i.test(String(item.dataset.navLabel || '')));
+	if (learnerItem && admRequestItem) {
+		const learnerMenu = document.createElement('div');
+		learnerMenu.className = 'itrack-management-menu itrack-learner-menu';
+		const learnerToggle = document.createElement('button');
+		learnerToggle.type = 'button';
+		learnerToggle.className = 'nav-item itrack-management-toggle itrack-learner-toggle';
+		learnerToggle.setAttribute('aria-expanded', 'false');
+		learnerToggle.setAttribute('aria-haspopup', 'true');
+		learnerToggle.innerHTML = '<span class="nav-item-icon" aria-hidden="true">📋</span>Learner Record<span class="management-caret" aria-hidden="true">▾</span>';
+		const learnerSubmenu = document.createElement('div');
+		learnerSubmenu.className = 'itrack-management-submenu itrack-learner-submenu';
+		learnerSubmenu.setAttribute('aria-label', 'Learner Record submenu');
+		if (learnerItem.classList.contains('nav-current') || admRequestItem.classList.contains('nav-current')) learnerToggle.classList.add('nav-current');
+		learnerItem.parentNode.insertBefore(learnerMenu, learnerItem);
+		learnerSubmenu.appendChild(learnerItem);
+		learnerSubmenu.appendChild(admRequestItem);
+		learnerMenu.appendChild(learnerToggle);
+		learnerMenu.appendChild(learnerSubmenu);
+		learnerToggle.addEventListener('click', (event) => {
+			event.stopPropagation();
+			const isOpen = learnerMenu.classList.toggle('is-open');
+			learnerToggle.setAttribute('aria-expanded', String(isOpen));
+		});
+		document.addEventListener('click', (event) => {
+			if (!learnerMenu.contains(event.target)) {
+				learnerMenu.classList.remove('is-open');
+				learnerToggle.setAttribute('aria-expanded', 'false');
+			}
+		});
+	}
 
 	const managementPattern = /adm approval|approval request|approval portal|pending approval|approved user|user management|create account|login page/i;
 	const managementItems = navItems.filter((item) => managementPattern.test(String(item.dataset.navLabel || '')));
