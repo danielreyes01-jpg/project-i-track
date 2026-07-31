@@ -278,8 +278,10 @@ function initializeCreateAccountPopover() {
 	window.addEventListener('message', (event) => { if (event.data === 'itrack-account-created') closeOverlay(); });
 	function positionPopover(trigger) {
 		const rect = trigger.getBoundingClientRect();
-		popover.style.setProperty('--popover-left', Math.max(12, Math.min(rect.left + rect.width / 2, window.innerWidth - 12)) + 'px');
-		popover.style.setProperty('--popover-top', Math.min(rect.bottom + 10, window.innerHeight - 190) + 'px');
+		const halfWidth = Math.min(340, Math.max(140, (window.innerWidth - 24) / 2));
+		const center = Math.max(halfWidth + 12, Math.min(rect.left + rect.width / 2, window.innerWidth - halfWidth - 12));
+		popover.style.setProperty('--popover-left', center + 'px');
+		popover.style.setProperty('--popover-top', Math.min(rect.bottom + 10, window.innerHeight - 245) + 'px');
 	}
 	document.addEventListener('click', (event) => {
 		const trigger = event.target.closest('a,button');
