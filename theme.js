@@ -1,6 +1,13 @@
 // Theme System - Manage dark/light mode per user
 
 function createDepEdFixedHeader() {
+	const pathname = String(window.location.pathname || '/').toLowerCase();
+	const isLoginPage = pathname === '/' || pathname.endsWith('/index.html');
+	if (isLoginPage) {
+		document.documentElement.classList.add('login-page-without-deped-header');
+		return;
+	}
+
 	if (document.getElementById('deped-fixed-header')) {
 		return;
 	}
