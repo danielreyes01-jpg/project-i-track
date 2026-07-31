@@ -2474,6 +2474,7 @@ async function startServer() {
 
     await ensureSchema();
     await ensureAdminAccount();
+    await removePlaceholderLearners();
 
     app.listen(PORT, () => {
       console.log(`Server running at ${APP_BASE_URL}`);
@@ -2483,6 +2484,35 @@ async function startServer() {
   } catch (error) {
     console.error("Failed to initialize server:", error.message);
     process.exit(1);
+  }
+}
+
+async function removePlaceholderLearners() {
+  const normalize = (value) => String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const placeholderCodes = new Set(["na", "n/a", "not applicable"]);
+  const placeholderNames = new Set(["na", "n/a", "na learner", "n/a learner", "not applicable", "not applicable learner"]);
+
+  try {
+    const learners = await db("learners").select("id", "learner_code", "family_name", "firstname", "middlename");
+    const placeholderIds = learners
+      .filter((learner) => {
+        const learnerCode = normalize(learner.learner_code);
+        const fullName = normalize([learner.family_name, learner.firstname, learner.middlename].filter(Boolean).join(" "));
+        return placeholderCodes.has(learnerCode) || placeholderNames.has(fullName);
+      })
+      .map((learner) => learner.id);
+
+    if (!placeholderIds.length) {
+      return;
+    }
+
+    await db.transaction(async (trx) => {
+      await trx("approval_requests").whereIn("learner_id", placeholderIds).del();
+      await trx("learners").whereIn("id", placeholderIds).del();
+    });
+    console.log(`Removed ${placeholderIds.length} placeholder learner record(s).`);
+  } catch (error) {
+    console.error("Placeholder learner cleanup failed:", error.message);
   }
 }
 
