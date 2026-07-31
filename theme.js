@@ -33,29 +33,86 @@ function createDepEdFixedHeader() {
 	compactBrand.appendChild(compactLogo);
 
 	const menuDock = document.createElement('div');
+	menuDock.id = 'deped-mobile-navigation';
 	menuDock.className = 'deped-compact-menu-dock';
 	menuDock.setAttribute('aria-label', 'Site navigation');
 
+	const menuToggle = document.createElement('button');
+	menuToggle.className = 'deped-mobile-menu-toggle';
+	menuToggle.type = 'button';
+	menuToggle.setAttribute('aria-label', 'Open navigation menu');
+	menuToggle.setAttribute('aria-controls', menuDock.id);
+	menuToggle.setAttribute('aria-expanded', 'false');
+	for (let line = 0; line < 3; line += 1) {
+		const menuLine = document.createElement('span');
+		menuLine.setAttribute('aria-hidden', 'true');
+		menuToggle.appendChild(menuLine);
+	}
+
 	compactBar.appendChild(compactBrand);
+	compactBar.appendChild(menuToggle);
 	compactBar.appendChild(menuDock);
 	header.appendChild(compactBar);
 
 	document.body.insertBefore(header, document.body.firstChild);
 	document.documentElement.classList.add('has-deped-fixed-header', 'compact-header-only');
-	dockNavigationInHeader(menuDock);
+	const hasNavigation = dockNavigationInHeader(menuDock);
+	if (hasNavigation) {
+		initializeMobileNavigation(header, menuToggle, menuDock);
+	} else {
+		menuToggle.hidden = true;
+	}
 }
 
 function dockNavigationInHeader(menuDock) {
 	const navMenu = document.querySelector('.nav-menu');
 	const navPanel = navMenu ? navMenu.closest('.nav-panel') : null;
 	if (!navMenu || navMenu.parentNode === menuDock) {
-		return;
+		return Boolean(navMenu);
 	}
 
 	menuDock.appendChild(navMenu);
 	if (navPanel) {
 		navPanel.classList.add('nav-menu-is-docked');
 	}
+	return true;
+}
+
+function initializeMobileNavigation(header, menuToggle, menuDock) {
+	function setOpen(open) {
+		header.classList.toggle('mobile-menu-open', open);
+		menuToggle.setAttribute('aria-expanded', String(open));
+		menuToggle.setAttribute('aria-label', open ? 'Close navigation menu' : 'Open navigation menu');
+	}
+
+	menuToggle.addEventListener('click', () => {
+		setOpen(!header.classList.contains('mobile-menu-open'));
+	});
+
+	menuDock.addEventListener('click', (event) => {
+		if (event.target.closest('a, button')) {
+			setOpen(false);
+		}
+	});
+
+	document.addEventListener('click', (event) => {
+		if (!header.contains(event.target)) {
+			setOpen(false);
+		}
+	});
+
+	document.addEventListener('keydown', (event) => {
+		if (event.key === 'Escape') {
+			setOpen(false);
+			menuToggle.focus();
+		}
+	});
+
+	window.addEventListener('resize', () => {
+		if (window.innerWidth > 1024) {
+			setOpen(false);
+		}
+	}, { passive: true });
 }
 
 function enforceRequiredFields(root = document) {
