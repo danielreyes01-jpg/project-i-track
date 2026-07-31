@@ -166,8 +166,6 @@
 		}
 
 		.card-note { margin-top:3px; color:#2b8a65; font-size:.72rem; }
-		.student-attention { display:none; margin-top:14px; padding:14px 16px; border:1px solid #e8c46e; border-radius:13px; background:#fff7dc; color:#745100; }
-		.student-attention.show { display:block; }.student-attention strong{display:block;margin-bottom:5px}.student-attention-list{font-size:.82rem;line-height:1.55}
 
 		.section-title {
 			font-size: 0.95rem;
@@ -595,14 +593,26 @@
 
 		.welcome-banner {
 			display: none;
-			padding: 12px 18px;
-			border-radius: 12px;
-			background: linear-gradient(90deg, #d1fae5 0%, #ecfdf5 100%);
+			position: fixed;
+			inset: 50% auto auto 50%;
+			z-index: 12000;
+			width: 2in;
+			height: 2in;
+			padding: 18px;
+			transform: translate(-50%, -50%);
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			border-radius: 16px;
+			background: rgba(236, 253, 245, 0.76);
+			backdrop-filter: blur(8px);
 			border: 1px solid rgba(23, 88, 55, 0.18);
 			color: #14532d;
 			font-weight: 700;
 			font-size: 0.95rem;
-			margin-bottom: 10px;
+			opacity: 0;
+			box-shadow: 0 18px 45px rgba(16, 75, 57, 0.16);
+			transition: opacity 250ms ease;
 		}
 	</style>
 </head>
@@ -648,7 +658,6 @@
 					<div class="card-icon" aria-hidden="true">♙</div><div class="card-copy"><div class="card-label">Students</div><div id="studentUserCount" class="card-value">0</div><div class="card-note">Updated from registered users</div></div>
 				</div>
 			</div>
-			<div id="studentAttention" class="student-attention" role="alert"><strong>⚠ Students requiring attention</strong><div id="studentAttentionList" class="student-attention-list"></div></div>
 		</section>
 
 		<section class="panel">
@@ -835,8 +844,6 @@
 			const divisionPersonnelCountEl = document.getElementById("divisionPersonnelCount");
 			const teacherUserCountEl = document.getElementById("teacherUserCount");
 			const studentUserCountEl = document.getElementById("studentUserCount");
-			const studentAttentionEl = document.getElementById("studentAttention");
-			const studentAttentionListEl = document.getElementById("studentAttentionList");
 			const districtTableBody = document.getElementById("districtTableBody");
 			const schoolTableBody = document.getElementById("schoolTableBody");
 			const districtGraphFilter = document.getElementById("districtGraphFilter");
@@ -953,7 +960,12 @@
 					if (navGreeting && fn) navGreeting.textContent = "\uD83D\uDC64 " + fn;
 					if (welcomeBanner && fn) {
 						welcomeBanner.textContent = "Welcome to ADM Site, " + fn + "!";
-						welcomeBanner.style.display = "block";
+						welcomeBanner.style.display = "flex";
+						requestAnimationFrame(function () { welcomeBanner.style.opacity = "1"; });
+						setTimeout(function () {
+							welcomeBanner.style.opacity = "0";
+							setTimeout(function () { welcomeBanner.style.display = "none"; }, 250);
+						}, 1750);
 					}
 					if (role !== "admin" && role !== "supervisor") {
 						window.location.href = "learner.html";
@@ -1755,8 +1767,7 @@
 							divisionPersonnelCountEl.textContent = String(counts.divisionPersonnel);
 							teacherUserCountEl.textContent = String(counts.teacherUsers);
 							studentUserCountEl.textContent = String(counts.students);
-							const attentionResponse = await fetch(apiUrl("/admin/student-attention"), requestOptions);
-							if (attentionResponse.ok) {
+							if (false) {
 								const attention = await parseApiPayload(attentionResponse);
 								const attentionStudents = Array.isArray(attention.students) ? attention.students : [];
 								studentAttentionEl.classList.toggle("show", attentionStudents.length > 0);
