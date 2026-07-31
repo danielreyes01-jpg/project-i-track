@@ -521,6 +521,7 @@ if (document.readyState === 'loading') {
 		initializeRequiredFields();
 		initializeCreateAccountPopover();
 		window.themeManager = new ThemeManager();
+		document.documentElement.classList.remove('itrack-dashboard-boot');
 	});
 } else {
 	initializeITrackPageLoader();
@@ -528,6 +529,7 @@ if (document.readyState === 'loading') {
 	initializeRequiredFields();
 	initializeCreateAccountPopover();
 	window.themeManager = new ThemeManager();
+	document.documentElement.classList.remove('itrack-dashboard-boot');
 }
 
 // Expose toggle function globally for inline onclick handlers if needed

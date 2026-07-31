@@ -652,6 +652,15 @@ function excelColumnName(columnNumber) {
   return name;
 }
 
+async function hasActiveAccountSession(req) {
+  const userId = String((req.session && req.session.userId) || "").trim();
+  const loginToken = String((req.session && req.session.loginToken) || "").trim();
+  if (!userId || !loginToken) return null;
+  const user = await db("users").where({ id: userId }).first();
+  if (!user || String(user.active_session_id || "") !== loginToken) return null;
+  return user;
+}
+
 async function createTemplatedExcelBuffer({ title, sheetName, rows, emptyRow }) {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(GENERATED_EXCEL_TEMPLATE_PATH);
@@ -910,16 +919,19 @@ app.post("/api/auth/login", async (req, res) => {
     return res.status(403).json({ message: "Account is pending admin approval." });
   }
 
+	const loginToken = crypto.randomBytes(32).toString("hex");
   await db("users")
     .where({ id: user.id })
     .update({
       failed_login_count: 0,
       lockout_until: null,
+	  active_session_id: loginToken,
       updated_at: new Date(now).toISOString()
     });
 
   req.session.userId = user.id;
   req.session.role = role;
+  req.session.loginToken = loginToken;
   return res.json({ message: "Logged in.", user: sanitizeUser(user) });
 });
 
@@ -928,16 +940,21 @@ app.get("/api/auth/me", async (req, res) => {
     return res.status(401).json({ message: "Not logged in." });
   }
 
-  const user = await db("users").where({ id: req.session.userId }).first();
+  const user = await hasActiveAccountSession(req);
   if (!user) {
     req.session.destroy(() => {});
-    return res.status(401).json({ message: "Session expired." });
+    return res.status(401).json({ message: "Session expired or this account was signed in on another device." });
   }
 
   return res.json({ user: sanitizeUser(user) });
 });
 
-app.post("/api/auth/logout", (req, res) => {
+app.post("/api/auth/logout", async (req, res) => {
+  const userId = String((req.session && req.session.userId) || "").trim();
+  const loginToken = String((req.session && req.session.loginToken) || "").trim();
+  if (userId && loginToken) {
+    await db("users").where({ id: userId, active_session_id: loginToken }).update({ active_session_id: null, updated_at: new Date().toISOString() });
+  }
   req.session.destroy(() => {
     res.clearCookie("adm.sid");
     res.json({ message: "Logged out." });
@@ -976,7 +993,7 @@ app.post("/api/user/theme", async (req, res) => {
 async function requireAdmin(req, res, next) {
   if (req.session && req.session.userId) {
     try {
-      const sessionUser = await db("users").where({ id: req.session.userId }).first("role");
+	  const sessionUser = await hasActiveAccountSession(req);
       const currentRole = String((sessionUser || {}).role || "").trim().toLowerCase();
       if (currentRole === "admin") {
         req.session.role = currentRole;
@@ -1025,10 +1042,12 @@ async function resolveAdminReviewerContext(req) {
   };
 }
 
-function requireSupervisorOrAdmin(req, res, next) {
+async function requireSupervisorOrAdmin(req, res, next) {
   if (req.session && req.session.userId) {
-    const sessionRole = String(req.session.role || "").trim().toLowerCase();
+	const sessionUser = await hasActiveAccountSession(req);
+	const sessionRole = String((sessionUser || {}).role || "").trim().toLowerCase();
     if (sessionRole === "admin" || sessionRole === "supervisor") {
+	  req.session.role = sessionRole;
       return next();
     }
   }
@@ -1700,24 +1719,28 @@ app.put("/api/admin/set-user-role", requireAdmin, async (req, res) => {
   return res.json({ message: "Role updated successfully." });
 });
 
-function requireLogin(req, res, next) {
-  if (!req.session.userId) {
-    return res.status(401).json({ message: "Not logged in." });
+async function requireLogin(req, res, next) {
+  try {
+	const sessionUser = await hasActiveAccountSession(req);
+	if (!sessionUser) return res.status(401).json({ message: "Session expired or this account was signed in on another device." });
+	req.session.role = String(sessionUser.role || "").trim().toLowerCase();
+	return next();
+  } catch (error) {
+	return res.status(500).json({ message: "Unable to validate account session.", detail: error.message });
   }
-  return next();
 }
 
-function requireTeacher(req, res, next) {
-  if (!req.session.userId) {
-    return res.status(401).json({ message: "Not logged in." });
+async function requireTeacher(req, res, next) {
+  try {
+	const sessionUser = await hasActiveAccountSession(req);
+	if (!sessionUser) return res.status(401).json({ message: "Session expired or this account was signed in on another device." });
+	const role = String(sessionUser.role || "").trim().toLowerCase();
+	if (role !== "teacher") return res.status(403).json({ message: "Teacher account access only." });
+	req.session.role = role;
+	return next();
+  } catch (error) {
+	return res.status(500).json({ message: "Unable to validate teacher session.", detail: error.message });
   }
-
-  const role = String(req.session.role || "").trim().toLowerCase();
-  if (role !== "teacher") {
-    return res.status(403).json({ message: "Teacher account access only." });
-  }
-
-  return next();
 }
 
 function getStatusLabel(status) {
