@@ -130,16 +130,26 @@
 
 		.cards {
 			display: grid;
-			grid-template-columns: repeat(2, minmax(0, 1fr));
+			grid-template-columns: repeat(3, minmax(0, 1fr));
 			gap: 14px;
 		}
 
 		.card {
 			border: 1px solid var(--stroke);
-			border-radius: 14px;
-			padding: 16px;
-			background: rgba(255, 255, 255, 0.78);
+			border-radius: 18px;
+			padding: 18px;
+			background: #fff;
+			display:flex;
+			align-items:center;
+			gap:16px;
+			box-shadow:0 10px 25px rgba(16,47,73,.06);
 		}
+
+		.card-icon { width:58px; height:58px; flex:0 0 58px; display:grid; place-items:center; border-radius:15px; font-size:1.4rem; }
+		.card-copy { min-width:0; }
+		.card-division { border-color:#c9dff0; background:#f8fcff; }.card-division .card-icon { color:#176fa4; background:#dceefa; }
+		.card-teacher { border-color:#c9e3d6; background:#f9fdfb; }.card-teacher .card-icon { color:#237a50; background:#ddf2e5; }
+		.card-student { border-color:#eadfba; background:#fffdf8; }.card-student .card-icon { color:#a66c00; background:#fff0c8; }
 
 		.card-label {
 			font-size: 0.82rem;
@@ -154,6 +164,8 @@
 			font-weight: 800;
 			margin-top: 8px;
 		}
+
+		.card-note { margin-top:3px; color:#2b8a65; font-size:.72rem; }
 
 		.section-title {
 			font-size: 0.95rem;
@@ -625,10 +637,16 @@
 		</section>
 
 		<section class="panel">
+			<div class="section-title">Live Database Users</div>
 			<div class="cards">
-				<div class="card">
-					<div class="card-label">Users Registered</div>
-					<div id="usersRegistered" class="card-value">0</div>
+				<div class="card card-division">
+					<div class="card-icon" aria-hidden="true">◆</div><div class="card-copy"><div class="card-label">Division Personnel</div><div id="divisionPersonnelCount" class="card-value">0</div><div class="card-note">Updated from registered users</div></div>
+				</div>
+				<div class="card card-teacher">
+					<div class="card-icon" aria-hidden="true">♟</div><div class="card-copy"><div class="card-label">Teacher Users</div><div id="teacherUserCount" class="card-value">0</div><div class="card-note">Updated from registered users</div></div>
+				</div>
+				<div class="card card-student">
+					<div class="card-icon" aria-hidden="true">♙</div><div class="card-copy"><div class="card-label">Students</div><div id="studentUserCount" class="card-value">0</div><div class="card-note">Updated from registered users</div></div>
 				</div>
 			</div>
 		</section>
@@ -813,7 +831,9 @@
 
 			const referenceApiUrl = apiUrl("/reference/district-schools");
 
-			const usersRegisteredEl = document.getElementById("usersRegistered");
+			const divisionPersonnelCountEl = document.getElementById("divisionPersonnelCount");
+			const teacherUserCountEl = document.getElementById("teacherUserCount");
+			const studentUserCountEl = document.getElementById("studentUserCount");
 			const districtTableBody = document.getElementById("districtTableBody");
 			const schoolTableBody = document.getElementById("schoolTableBody");
 			const districtGraphFilter = document.getElementById("districtGraphFilter");
@@ -1712,20 +1732,12 @@
 						: modalitySummary;
 					modalityAllRowsCache = modalityRowsCache.slice();
 
-					if (currentRole === "supervisor") {
-						const userCount = new Set(filteredSummary.map(function (row) {
-							return String(row.user_id || "").trim();
-						}).filter(Boolean)).size;
-						usersRegisteredEl.textContent = String(userCount);
-					} else {
-						const usersResponse = await fetch(apiUrl("/admin/users"), requestOptions);
-						if (!usersResponse.ok) {
-							setMessage("Failed to load users for dashboard.", "error");
-							return;
-						}
-						const usersPayload = await parseApiPayload(usersResponse);
-						const users = Array.isArray(usersPayload.users) ? usersPayload.users : [];
-						usersRegisteredEl.textContent = String(users.length);
+					const userCountsResponse = await fetch(apiUrl("/dashboard/user-counts"), requestOptions);
+					if (userCountsResponse.ok) {
+						const userCounts = await parseApiPayload(userCountsResponse);
+						divisionPersonnelCountEl.textContent = String(Number(userCounts.divisionPersonnel) || 0);
+						teacherUserCountEl.textContent = String(Number(userCounts.teacherUsers) || 0);
+						studentUserCountEl.textContent = String(Number(userCounts.students) || 0);
 					}
 
 					const districtMap = new Map();
