@@ -1063,6 +1063,63 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
 	.itrack-account-popover { max-height:calc(100vh - 90px); overflow:auto; }
 }
 
+/* Final plain-text navigation treatment: icons + labels only. */
+html body .deped-fixed-header .deped-compact-menu-dock .nav-menu .nav-item,
+html body .deped-fixed-header .deped-compact-menu-dock .nav-menu .quick-nav-btn,
+html body .deped-fixed-header .deped-compact-menu-dock .itrack-management-toggle {
+	min-height:36px !important;
+	padding:8px 11px !important;
+	background:transparent !important;
+	background-image:none !important;
+	border:0 !important;
+	border-radius:0 !important;
+	box-shadow:none !important;
+	color:var(--navy) !important;
+	filter:none !important;
+}
+
+html body .deped-fixed-header .deped-compact-menu-dock .nav-menu .nav-item:hover,
+html body .deped-fixed-header .deped-compact-menu-dock .nav-menu .nav-item:focus-visible,
+html body .deped-fixed-header .deped-compact-menu-dock .nav-menu .nav-item.nav-current,
+html body .deped-fixed-header .deped-compact-menu-dock .itrack-management-toggle:hover {
+	background:transparent !important;
+	background-image:none !important;
+	color:var(--project-green) !important;
+	border:0 !important;
+	box-shadow:none !important;
+}
+
+html body .deped-fixed-header .itrack-management-submenu .nav-item {
+	width:100% !important;
+	justify-content:flex-start !important;
+	padding:10px 12px !important;
+	background:transparent !important;
+	background-image:none !important;
+	border:0 !important;
+	border-radius:0 !important;
+	box-shadow:none !important;
+	color:var(--navy) !important;
+}
+
+html body .deped-fixed-header .itrack-management-submenu .nav-item:hover,
+html body .deped-fixed-header .itrack-management-submenu .nav-item:focus-visible {
+	background:#f4faf7 !important;
+	background-image:none !important;
+	color:var(--project-green) !important;
+	box-shadow:none !important;
+}
+
+html body .deped-fixed-header .nav-greeting {
+	background:transparent !important;
+	border:0 !important;
+	box-shadow:none !important;
+}
+
+.deped-mobile-menu-toggle { display:none !important; }
+@media (max-width:1024px) and (hover:none) and (pointer:coarse) {
+	.deped-mobile-menu-toggle:not([hidden]) { display:inline-flex !important; }
+}
+
 /* Navigation integration for theme toggle */
 .nav-menu .theme-toggle-nav {
 	margin-left: auto;
