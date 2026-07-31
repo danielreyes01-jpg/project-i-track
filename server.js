@@ -2573,6 +2573,19 @@ app.get("/api/student/profile", requireLogin, async (req, res) => {
   }
 });
 
+const profileImageUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, PROFILE_IMAGE_UPLOAD_DIR),
+    filename: (req, file, cb) => cb(null, `${Date.now()}-${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`)
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const accepted = new Set(["image/jpeg", "image/png", "image/webp"]);
+    const valid = accepted.has(file.mimetype);
+    cb(valid ? null : new Error("Upload a JPG, PNG, or WEBP image."), valid);
+  }
+});
+
 app.put("/api/student/profile", requireLogin, async (req, res) => {
   try {
     const user = await db("users").where({ id: req.session.userId }).first();
@@ -2621,19 +2634,6 @@ app.post("/api/student/reset-password", requireLogin, async (req, res) => {
 // to the website instead of displaying the JSON 404 fallback.
 app.get(["/api", "/api/"], (req, res) => {
   return res.redirect(302, "/");
-});
-
-const profileImageUpload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, PROFILE_IMAGE_UPLOAD_DIR),
-    filename: (req, file, cb) => cb(null, `${Date.now()}-${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`)
-  }),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const accepted = new Set(["image/jpeg", "image/png", "image/webp"]);
-    const valid = accepted.has(file.mimetype);
-    cb(valid ? null : new Error("Upload a JPG, PNG, or WEBP image."), valid);
-  }
 });
 
 app.use("/api", (req, res) => {
