@@ -135,7 +135,12 @@ async function ensureSchema() {
 	};
 	for (const [columnName, length] of Object.entries(studentProfileColumns)) {
 	  if (!columns[columnName]) {
-		await db.schema.alterTable("users", (table) => table.string(columnName, length).nullable());
+		try {
+		  await db.schema.alterTable("users", (table) => table.string(columnName, length).nullable());
+		} catch (error) {
+		  const message = String((error && error.message) || "").toLowerCase();
+		  if (!message.includes("duplicate column") && !message.includes("already exists")) throw error;
+		}
 	  }
 	}
 
