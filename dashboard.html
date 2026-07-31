@@ -630,10 +630,6 @@
 					<div class="card-label">Users Registered</div>
 					<div id="usersRegistered" class="card-value">0</div>
 				</div>
-				<div class="card">
-					<div class="card-label">Students Saved</div>
-					<div id="studentsSaved" class="card-value">0</div>
-				</div>
 			</div>
 		</section>
 
@@ -818,7 +814,6 @@
 			const referenceApiUrl = apiUrl("/reference/district-schools");
 
 			const usersRegisteredEl = document.getElementById("usersRegistered");
-			const studentsSavedEl = document.getElementById("studentsSaved");
 			const districtTableBody = document.getElementById("districtTableBody");
 			const schoolTableBody = document.getElementById("schoolTableBody");
 			const districtGraphFilter = document.getElementById("districtGraphFilter");
@@ -1721,11 +1716,7 @@
 						const userCount = new Set(filteredSummary.map(function (row) {
 							return String(row.user_id || "").trim();
 						}).filter(Boolean)).size;
-						const learnerTotal = filteredSummary.reduce(function (sum, row) {
-							return sum + Number(row.learner_count || 0);
-						}, 0);
 						usersRegisteredEl.textContent = String(userCount);
-						studentsSavedEl.textContent = String(learnerTotal);
 					} else {
 						const usersResponse = await fetch(apiUrl("/admin/users"), requestOptions);
 						if (!usersResponse.ok) {
@@ -1735,7 +1726,6 @@
 						const usersPayload = await parseApiPayload(usersResponse);
 						const users = Array.isArray(usersPayload.users) ? usersPayload.users : [];
 						usersRegisteredEl.textContent = String(users.length);
-						studentsSavedEl.textContent = String(Number(summaryPayload.totalLearners || 0));
 					}
 
 					const districtMap = new Map();
