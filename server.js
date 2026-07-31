@@ -40,6 +40,7 @@ const DISTRICT_SCHOOL_XLSX_PATH = String(
 const APPROVAL_REQUEST_UPLOAD_DIR = path.join(__dirname, "uploads", "approval-requests");
 const ADM_APPROVAL_TEMPLATE_PATH = path.join(__dirname, "assets", "documents", "ADM-Approval.pdf");
 const ADM_APPROVAL_OUTPUT_DIR = path.join(__dirname, "uploads", "adm-approvals");
+const PROFILE_IMAGE_UPLOAD_DIR = path.join(__dirname, "uploads", "profile-images");
 const DATABASE_RESET_EVENT = "reset-retain-configured-admin-2026-07-31-v1";
 
 const districtSchoolReferenceCache = {
@@ -51,6 +52,7 @@ const districtSchoolReferenceCache = {
 
 fs.mkdirSync(APPROVAL_REQUEST_UPLOAD_DIR, { recursive: true });
 fs.mkdirSync(ADM_APPROVAL_OUTPUT_DIR, { recursive: true });
+fs.mkdirSync(PROFILE_IMAGE_UPLOAD_DIR, { recursive: true });
 
 const approvalRequestUpload = multer({
   storage: multer.diskStorage({
@@ -192,6 +194,21 @@ function sanitizeUser(user) {
 	username: user.username || "",
 	lrn: user.lrn || "",
 	account_type: user.account_type || "school",
+	school_id: user.school_id || "",
+	profile_image: user.profile_image || "",
+	extension_name: user.extension_name || "",
+	gender: user.gender || "",
+	birth_date: user.birth_date || "",
+	current_residence: user.current_residence || "",
+	religion: user.religion || "",
+	mother_tongue: user.mother_tongue || "",
+	ethnicity: user.ethnicity || "",
+	mothers_maiden_name: user.mothers_maiden_name || "",
+	fathers_name: user.fathers_name || "",
+	guardian_name: user.guardian_name || "",
+	guardian_contact: user.guardian_contact || "",
+	created_at: user.created_at || "",
+	updated_at: user.updated_at || "",
     verified: Boolean(user.verified),
     approved: Boolean(user.approved),
     theme_preference: String(user.theme_preference || "light").trim().toLowerCase()
@@ -2542,11 +2559,81 @@ app.post("/api/admin/approval-requests/:id/status", requireAdmin, async (req, re
   }
 });
 
+app.get("/api/student/profile", requireLogin, async (req, res) => {
+  try {
+    const user = await db("users").where({ id: req.session.userId }).first();
+    if (!user || String(user.role || "").toLowerCase() !== "student") return res.status(403).json({ message: "Student account access only." });
+    const savedModules = await db("student_module_progress").where({ student_user_id: user.id }).orderBy("module_no", "asc");
+    const savedByNumber = new Map(savedModules.map((row) => [Number(row.module_no), row]));
+    const modules = Array.from({ length: 10 }, (_, index) => savedByNumber.get(index + 1) || { module_no: index + 1, module_title: `Learning Module ${index + 1}`, status: "not_answered", answered_at: null });
+    const attendance = await db("student_attendance").where({ student_user_id: user.id }).orderBy("school_year", "desc");
+    return res.json({ user: sanitizeUser(user), modules, attendance });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load student profile.", detail: error.message });
+  }
+});
+
+app.put("/api/student/profile", requireLogin, async (req, res) => {
+  try {
+    const user = await db("users").where({ id: req.session.userId }).first();
+    if (!user || String(user.role || "").toLowerCase() !== "student") return res.status(403).json({ message: "Student account access only." });
+    const allowed = ["firstname", "lastname", "middlename", "extension_name", "gender", "birth_date", "current_residence", "religion", "mother_tongue", "ethnicity", "mothers_maiden_name", "fathers_name", "guardian_name", "guardian_contact"];
+    const changes = { updated_at: new Date().toISOString() };
+    allowed.forEach((key) => { if (Object.prototype.hasOwnProperty.call(req.body || {}, key)) changes[key] = String(req.body[key] || "").trim(); });
+    if (!changes.firstname || !changes.lastname) return res.status(400).json({ message: "First name and last name are required." });
+    await db("users").where({ id: user.id }).update(changes);
+    return res.json({ message: "Profile updated.", user: sanitizeUser(await db("users").where({ id: user.id }).first()) });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to update profile.", detail: error.message });
+  }
+});
+
+app.post("/api/student/profile-image", requireLogin, profileImageUpload.single("profileImage"), async (req, res) => {
+  try {
+    const user = await db("users").where({ id: req.session.userId }).first();
+    if (!user || String(user.role || "").toLowerCase() !== "student") return res.status(403).json({ message: "Student account access only." });
+    if (!req.file) return res.status(400).json({ message: "Select an image to upload." });
+    const profileImage = `/uploads/profile-images/${req.file.filename}`;
+    await db("users").where({ id: user.id }).update({ profile_image: profileImage, updated_at: new Date().toISOString() });
+    return res.json({ message: "Profile image updated.", profile_image: profileImage });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to upload profile image.", detail: error.message });
+  }
+});
+
+app.post("/api/student/reset-password", requireLogin, async (req, res) => {
+  try {
+    const user = await db("users").where({ id: req.session.userId }).first();
+    if (!user || String(user.role || "").toLowerCase() !== "student") return res.status(403).json({ message: "Student account access only." });
+    const currentPassword = String((req.body || {}).currentPassword || "");
+    const newPassword = String((req.body || {}).newPassword || "");
+    if (!(await bcrypt.compare(currentPassword, user.password_hash))) return res.status(400).json({ message: "Current password is incorrect." });
+    if (!isStrongPassword(newPassword)) return res.status(400).json({ message: "New password must have 8+ characters with uppercase, lowercase, number, and special character." });
+    await db("users").where({ id: user.id }).update({ password_hash: await bcrypt.hash(newPassword, 12), updated_at: new Date().toISOString() });
+    return res.json({ message: "Password reset successfully." });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to reset password.", detail: error.message });
+  }
+});
+
 // Treat the API base URL as a friendly entry point. Hostinger preview links or
 // saved browser bookmarks may open /api directly, which should lead users back
 // to the website instead of displaying the JSON 404 fallback.
 app.get(["/api", "/api/"], (req, res) => {
   return res.redirect(302, "/");
+});
+
+const profileImageUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, PROFILE_IMAGE_UPLOAD_DIR),
+    filename: (req, file, cb) => cb(null, `${Date.now()}-${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`)
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const accepted = new Set(["image/jpeg", "image/png", "image/webp"]);
+    const valid = accepted.has(file.mimetype);
+    cb(valid ? null : new Error("Upload a JPG, PNG, or WEBP image."), valid);
+  }
 });
 
 app.use("/api", (req, res) => {
