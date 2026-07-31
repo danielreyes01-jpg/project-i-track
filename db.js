@@ -358,6 +358,35 @@ async function ensureSchema() {
       });
     }
   }
+
+  if (!(await db.schema.hasTable("student_module_progress"))) {
+    await db.schema.createTable("student_module_progress", (table) => {
+      table.string("id", 64).primary();
+      table.string("student_user_id", 64).notNullable();
+      table.integer("module_no").notNullable();
+      table.string("module_title", 180).notNullable();
+      table.string("status", 30).notNullable().defaultTo("not_answered");
+      table.string("answered_at", 40).nullable();
+      table.string("updated_at", 40).notNullable();
+      table.unique(["student_user_id", "module_no"], "uq_student_module_progress");
+      table.index(["student_user_id"], "idx_student_module_student");
+    });
+  }
+
+  if (!(await db.schema.hasTable("student_attendance"))) {
+    await db.schema.createTable("student_attendance", (table) => {
+      table.string("id", 64).primary();
+      table.string("student_user_id", 64).notNullable();
+      table.string("school_year", 20).notNullable();
+      table.string("first_day", 20).nullable();
+      ["jun", "jul", "aug", "sep", "oct", "nov", "dec", "jan", "feb", "mar", "apr", "may"].forEach((month) => table.integer(month).notNullable().defaultTo(0));
+      table.integer("total").notNullable().defaultTo(0);
+      table.float("percentage").notNullable().defaultTo(0);
+      table.string("updated_at", 40).notNullable();
+      table.unique(["student_user_id", "school_year"], "uq_student_attendance_year");
+      table.index(["student_user_id"], "idx_student_attendance_student");
+    });
+  }
 }
 
 module.exports = {

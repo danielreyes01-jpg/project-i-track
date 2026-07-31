@@ -189,6 +189,9 @@ function sanitizeUser(user) {
     middlename: user.middlename,
     district: user.district,
     school: user.school,
+	username: user.username || "",
+	lrn: user.lrn || "",
+	account_type: user.account_type || "school",
     verified: Boolean(user.verified),
     approved: Boolean(user.approved),
     theme_preference: String(user.theme_preference || "light").trim().toLowerCase()
@@ -1135,7 +1138,7 @@ app.post("/api/admin/preview-pending-users-from-excel", requireAdmin, async (req
 
 app.get("/api/admin/users", requireAdmin, async (req, res) => {
   const users = await db("users")
-    .select("id", "email", "firstname", "lastname", "middlename", "district", "school", "approved", "role", "created_at", "updated_at")
+    .select("id", "email", "firstname", "lastname", "middlename", "district", "school", "lrn", "account_type", "approved", "role", "created_at", "updated_at")
     .orderBy("created_at", "asc");
 
   return res.json({ users });
@@ -1663,7 +1666,7 @@ app.delete("/api/admin/delete-user", requireAdmin, async (req, res) => {
 app.put("/api/admin/set-user-role", requireAdmin, async (req, res) => {
   const userId = String((req.body || {}).userId || "").trim();
   const role = String((req.body || {}).role || "").trim().toLowerCase();
-  const validRoles = ["admin", "supervisor", "teacher"];
+  const validRoles = ["admin", "supervisor", "teacher", "student"];
 
   if (!userId || !validRoles.includes(role)) {
     return res.status(400).json({ message: "Invalid userId or role." });
@@ -2596,6 +2599,36 @@ async function startServer() {
     process.exit(1);
   }
 }
+
+app.get("/api/student/profile", requireLogin, async (req, res) => {
+  try {
+    const user = await db("users").where({ id: req.session.userId }).first();
+    if (!user || String(user.role || "").toLowerCase() !== "student") return res.status(403).json({ message: "Student account access only." });
+    const savedModules = await db("student_module_progress").where({ student_user_id: user.id }).orderBy("module_no", "asc");
+    const savedByNumber = new Map(savedModules.map((row) => [Number(row.module_no), row]));
+    const modules = Array.from({ length: 10 }, (_, index) => {
+      const number = index + 1;
+      const saved = savedByNumber.get(number);
+      return saved || { module_no: number, module_title: `Learning Module ${number}`, status: "not_answered", answered_at: null };
+    });
+    const attendance = await db("student_attendance").where({ student_user_id: user.id }).orderBy("school_year", "desc");
+    return res.json({ user: sanitizeUser(user), modules, attendance });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load student profile.", detail: error.message });
+  }
+});
+
+app.get("/api/admin/student-attention", requireAdmin, async (req, res) => {
+  try {
+    const students = await db("users").where({ role: "student" }).andWhere({ approved: true }).select("id", "firstname", "lastname", "lrn", "school");
+    const answeredRows = await db("student_module_progress").where({ status: "answered" }).select("student_user_id").count({ answered_count: "id" }).groupBy("student_user_id");
+    const answeredMap = new Map(answeredRows.map((row) => [String(row.student_user_id), Number(row.answered_count) || 0]));
+    const needsAttention = students.filter((student) => !answeredMap.get(String(student.id))).map((student) => ({ id: student.id, name: `${student.firstname || ""} ${student.lastname || ""}`.trim(), lrn: student.lrn || "", school: student.school || "" }));
+    return res.json({ count: needsAttention.length, students: needsAttention });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load student attention alerts.", detail: error.message });
+  }
+});
 
 async function resetDatabaseRetainingAdministratorOnce() {
   const resetTableExists = await db.schema.hasTable("maintenance_events");

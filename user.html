@@ -319,6 +319,8 @@
 			color: #14532d;
 		}
 
+		.role-student { background:#dbeafe; color:#1d4ed8; }
+
 		.role-select {
 			padding: 6px 8px;
 			border: 1px solid var(--stroke);
@@ -523,6 +525,7 @@
 					const roleSelect =
 						'<select class="role-select" data-action="setRole" data-id="' + user.id + '">' +
 							'<option value="teacher"' + (role === 'teacher' ? ' selected' : '') + '>Teacher</option>' +
+							'<option value="student"' + (role === 'student' ? ' selected' : '') + '>Student</option>' +
 							'<option value="supervisor"' + (role === 'supervisor' ? ' selected' : '') + '>Supervisor</option>' +
 							'<option value="admin"' + (role === 'admin' ? ' selected' : '') + '>Admin</option>' +
 						'</select>';
