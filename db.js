@@ -128,6 +128,16 @@ async function ensureSchema() {
 	if (!columns.school_id) {
 	  await db.schema.alterTable("users", (table) => table.string("school_id", 30).nullable());
 	}
+	const studentProfileColumns = {
+	  profile_image: 500, extension_name: 40, gender: 30, birth_date: 40,
+	  current_residence: 500, religion: 120, mother_tongue: 120, ethnicity: 120,
+	  mothers_maiden_name: 240, fathers_name: 240, guardian_name: 240, guardian_contact: 80
+	};
+	for (const [columnName, length] of Object.entries(studentProfileColumns)) {
+	  if (!columns[columnName]) {
+		await db.schema.alterTable("users", (table) => table.string(columnName, length).nullable());
+	  }
+	}
 
   const learnersExists = await db.schema.hasTable("learners");
   if (!learnersExists) {
