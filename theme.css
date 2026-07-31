@@ -299,6 +299,7 @@ html.has-deped-fixed-header body {
 	transform: translateY(0);
 	pointer-events: auto;
 	transition: background-color 220ms ease !important;
+	white-space: nowrap;
 }
 
 .deped-compact-brand {
@@ -324,6 +325,7 @@ html.has-deped-fixed-header body {
 .deped-compact-menu-dock {
 	min-width: 0;
 	flex: 1 1 auto;
+	overflow-x: auto;
 }
 
 .nav-panel.nav-menu-is-docked {
@@ -332,6 +334,7 @@ html.has-deped-fixed-header body {
 
 .deped-compact-menu-dock .nav-menu {
 	display: flex;
+	flex-wrap: nowrap !important;
 	align-items: center;
 	justify-content: flex-end;
 	gap: 4px;
@@ -388,7 +391,7 @@ html.has-deped-fixed-header .theme-toggle-fixed {
 }
 
 .nav-menu .nav-item:hover {
-	background: linear-gradient(180deg, #eefaf5, #e2f4ec) !important;
+	background: transparent !important;
 	color: var(--project-green) !important;
 	border-color: rgba(33, 139, 105, 0.18) !important;
 	box-shadow: inset 0 -2px 0 var(--project-green) !important;
@@ -407,7 +410,7 @@ html.has-deped-fixed-header .theme-toggle-fixed {
 }
 
 .nav-menu .nav-item-signout:hover {
-	background: #fff1ef !important;
+	background: transparent !important;
 	color: #b42318 !important;
 	border-color: rgba(180, 35, 24, 0.24) !important;
 	box-shadow: inset 0 -2px 0 #b42318 !important;
