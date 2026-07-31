@@ -185,11 +185,11 @@ function simplifyNavigation(navMenu) {
 	managementToggle.className = 'nav-item itrack-management-toggle';
 	managementToggle.setAttribute('aria-expanded', 'false');
 	managementToggle.setAttribute('aria-haspopup', 'true');
-	managementToggle.innerHTML = '<span class="nav-item-icon" aria-hidden="true">⚙️</span>Management<span class="management-caret" aria-hidden="true">▾</span>';
+	managementToggle.innerHTML = '<span class="nav-item-icon" aria-hidden="true">⚙️</span>User Management<span class="management-caret" aria-hidden="true">▾</span>';
 
 	const managementSubmenu = document.createElement('div');
 	managementSubmenu.className = 'itrack-management-submenu';
-	managementSubmenu.setAttribute('aria-label', 'Management submenu');
+	managementSubmenu.setAttribute('aria-label', 'User Management submenu');
 	managementItems.forEach((item) => managementSubmenu.appendChild(item));
 
 	if (managementItems.some((item) => item.classList.contains('nav-current'))) {
