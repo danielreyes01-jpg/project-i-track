@@ -672,14 +672,14 @@ small,
 	box-shadow: 0 10px 28px rgba(16, 47, 73, 0.075) !important;
 }
 
-button:not(.theme-toggle-nav):not(.theme-toggle-fixed):not(.nav-item):not(.deped-mobile-menu-toggle),
+button:not(.theme-toggle-nav):not(.theme-toggle-fixed):not(.nav-item):not(.deped-mobile-menu-toggle):not(.tool):not(.tab),
 .btn:not(.nav-item),
 a.btn {
 	background: linear-gradient(120deg, var(--project-green), #198f86 52%, var(--project-blue)) !important;
 	box-shadow: 0 9px 20px rgba(25, 119, 125, 0.20) !important;
 }
 
-button:not(.theme-toggle-nav):not(.theme-toggle-fixed):not(.nav-item):not(.deped-mobile-menu-toggle):hover,
+button:not(.theme-toggle-nav):not(.theme-toggle-fixed):not(.nav-item):not(.deped-mobile-menu-toggle):not(.tool):not(.tab):hover,
 .btn:not(.nav-item):hover,
 a.btn:hover {
 	filter: brightness(1.06) saturate(1.08);
