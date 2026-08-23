@@ -2713,6 +2713,50 @@ app.get("/api/learning-resources", requireLogin, async (req, res) => {
   }
 });
 
+app.get("/api/admin/learning-resources-overview", requireAdmin, async (req, res) => {
+  try {
+    const [resources, teachers, students, learners] = await Promise.all([
+      db("learning_resources").orderBy("created_at", "desc"),
+      db("users").whereIn("role", ["teacher", "admin"]).orderBy("lastname", "asc"),
+      db("users").where({ role: "student" }).orderBy("lastname", "asc"),
+      db("learners").select("id", "learner_code", "firstname", "middlename", "family_name", "grade", "school")
+    ]);
+    const teacherAccounts = teachers.filter((user) => String(user.role || "").toLowerCase() === "teacher");
+    const teacherById = new Map(teachers.map((user) => [String(user.id), user]));
+    const studentById = new Map(students.map((user) => [String(user.id), user]));
+    const learnerById = new Map(learners.map((learner) => [String(learner.id), learner]));
+    const fullName = (user) => [user && user.firstname, user && user.middlename, user && user.lastname].filter(Boolean).join(" ").trim() || "—";
+    const activity = resources.map((resource) => {
+      const learner = learnerById.get(String(resource.learner_id));
+      const teacher = teacherById.get(String(resource.teacher_user_id)) || {};
+      const student = studentById.get(String(resource.student_user_id)) || {};
+      return {
+        ...serializeLearningResource(resource, learner),
+        teacher_name: fullName(teacher),
+        teacher_school: teacher.school || "",
+        student_name: fullName(student),
+        student_lrn: student.lrn || (learner && learner.learner_code) || ""
+      };
+    });
+    const teacherSummary = teacherAccounts.map((teacher) => {
+      const uploaded = resources.filter((resource) => String(resource.teacher_user_id) === String(teacher.id));
+      return { id: teacher.id, name: fullName(teacher), school: teacher.school || "", district: teacher.district || "", uploads: uploaded.length, students: new Set(uploaded.map((item) => String(item.student_user_id))).size, completed: uploaded.filter((item) => item.status === "done").length };
+    });
+    const studentSummary = students.map((student) => {
+      const assigned = resources.filter((resource) => String(resource.student_user_id) === String(student.id));
+      return { id: student.id, name: fullName(student), lrn: student.lrn || "", school: student.school || "", assigned: assigned.length, ongoing: assigned.filter((item) => item.status === "ongoing").length, completed: assigned.filter((item) => item.status === "done").length };
+    });
+    return res.json({
+      totals: { uploads: resources.length, teachers: teacherAccounts.length, students: students.length, assigned: resources.filter((item) => item.status === "assigned").length, ongoing: resources.filter((item) => item.status === "ongoing").length, completed: resources.filter((item) => item.status === "done").length },
+      activity,
+      teachers: teacherSummary,
+      students: studentSummary
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to load the administrator learning resources overview.", detail: error.message });
+  }
+});
+
 app.post("/api/learning-resources", requireTeacher, learningResourceUpload.single("resource_file"), async (req, res) => {
   try {
     const learnerId = String((req.body || {}).learner_id || "").trim();

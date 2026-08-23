@@ -1266,29 +1266,39 @@ h2,h3 { font-weight:700 !important; }
 }
 
 .deped-compact-bar {
-	gap:24px;
+	gap:12px;
 	background:transparent !important;
-	padding-inline:clamp(20px,4vw,64px) !important;
+	padding-inline:clamp(12px,2.5vw,38px) !important;
 }
 
 .deped-compact-brand {
-	height:52px;
-	padding:3px 8px;
+	height:46px;
+	padding:2px 5px;
 	border:0;
 	border-radius:10px;
 	box-shadow:none;
 }
 
-.deped-compact-menu-dock .nav-menu { gap:4px !important; }
+.deped-compact-menu-dock .nav-menu { gap:0 !important; }
 html body .deped-fixed-header button.nav-item,
 html body .deped-fixed-header button.quick-nav-btn,
 html body .deped-fixed-header button.itrack-management-toggle,
 html body .deped-fixed-header button.theme-toggle-nav {
-	min-height:38px !important;
-	padding:8px 10px !important;
-	font-size:.78rem !important;
+	min-height:34px !important;
+	padding:6px 7px !important;
+	font-size:.72rem !important;
 	font-weight:650 !important;
 	letter-spacing:0 !important;
+}
+
+html body .deped-fixed-header .nav-greeting {
+	padding:5px 7px !important;
+	font-size:.72rem !important;
+}
+
+html body .deped-fixed-header .nav-item-icon {
+	margin-right:4px !important;
+	font-size:.78rem !important;
 }
 
 .deped-compact-menu-dock .nav-item::after {
