@@ -160,6 +160,23 @@ function createDepEdFixedHeader() {
 	}
 }
 
+function createITrackFooter() {
+	if (!document.documentElement.classList.contains('has-deped-fixed-header') || document.getElementById('itrack-site-footer')) return;
+	const footer = document.createElement('footer');
+	footer.id = 'itrack-site-footer';
+	footer.className = 'itrack-site-footer';
+	footer.innerHTML = `
+		<div class="itrack-site-footer-inner">
+			<div class="itrack-footer-brand">
+				<img src="${ITRACK_BRAND_LOGO}" alt="Project i-Track logo" class="itrack-footer-logo">
+				<div><strong>PROJECT I-TRACK</strong><span>SDO CEBU PROVINCE</span></div>
+			</div>
+			<p class="itrack-footer-rights">ALL RIGHTS RESERVED © 2026<br><span>Department of Education • Division of Cebu Province</span></p>
+			<p class="itrack-footer-credit">Project HELPS Website developed by:<br><a href="https://www.facebook.com/dan.rey0888" target="_blank" rel="noopener noreferrer">DANIEL P. REYES</a></p>
+		</div>`;
+	document.body.appendChild(footer);
+}
+
 function dockNavigationInHeader(menuDock) {
 	const navMenu = document.querySelector('.nav-menu');
 	const navPanel = navMenu ? navMenu.closest('.nav-panel') : null;
@@ -651,6 +668,7 @@ if (document.readyState === 'loading') {
 	document.addEventListener('DOMContentLoaded', () => {
 		initializeITrackPageLoader();
 		createDepEdFixedHeader();
+		createITrackFooter();
 		initializeRequiredFields();
 		initializeCreateAccountPopover();
 		window.themeManager = new ThemeManager();
@@ -659,6 +677,7 @@ if (document.readyState === 'loading') {
 } else {
 	initializeITrackPageLoader();
 	createDepEdFixedHeader();
+	createITrackFooter();
 	initializeRequiredFields();
 	initializeCreateAccountPopover();
 	window.themeManager = new ThemeManager();

@@ -1592,3 +1592,52 @@ html body .deped-fixed-header .nav-greeting { color:#d9efff !important; border-c
 	html body .deped-fixed-header button.itrack-management-toggle,
 	html body .deped-fixed-header button.theme-toggle-nav { animation:none !important; transform:none !important; }
 }
+
+/* Shared footer for every signed-in menu page */
+.itrack-site-footer {
+	position:relative;
+	width:100%;
+	margin-top:clamp(30px,5vw,64px);
+	padding:26px clamp(18px,4vw,48px);
+	background:#fff;
+	border-top:1px solid #d9e5e8;
+	box-shadow:0 -8px 24px rgba(18,48,71,.04);
+	color:#31566d;
+}
+
+.itrack-site-footer-inner {
+	width:min(1180px,100%);
+	margin:0 auto;
+	display:grid;
+	grid-template-columns:minmax(220px,1fr) minmax(280px,1.35fr) minmax(250px,1fr);
+	align-items:center;
+	gap:26px;
+}
+
+.itrack-footer-brand { display:flex; align-items:center; gap:13px; }
+.itrack-footer-logo { display:block; width:58px; height:58px; object-fit:contain; flex:0 0 58px; }
+.itrack-footer-brand strong { display:block; color:#123047; font-size:1.02rem; letter-spacing:.025em; }
+.itrack-footer-brand span { display:block; margin-top:2px; color:#6b8190; font-size:.69rem; letter-spacing:.12em; }
+.itrack-footer-rights,.itrack-footer-credit { margin:0; color:#4f6f82 !important; font-size:.78rem; line-height:1.65; }
+.itrack-footer-rights { text-align:center; font-weight:750; letter-spacing:.025em; }
+.itrack-footer-rights span { font-weight:500; letter-spacing:0; }
+.itrack-footer-credit { text-align:right; }
+.itrack-footer-credit a { color:#087b62; font-weight:850; text-decoration:none; border-bottom:2px solid rgba(245,197,43,.8); transition:color .2s ease,border-color .2s ease; }
+.itrack-footer-credit a:hover,.itrack-footer-credit a:focus-visible { color:#0b4f87; border-color:#0b4f87; }
+
+html[data-theme="dark"] .itrack-site-footer { background:#18242b; border-color:#2a3c45; color:#d8e7ee; }
+html[data-theme="dark"] .itrack-footer-brand strong { color:#f0f7fa; }
+html[data-theme="dark"] .itrack-footer-brand span,
+html[data-theme="dark"] .itrack-footer-rights,
+html[data-theme="dark"] .itrack-footer-credit { color:#b8cbd4 !important; }
+
+@media (max-width:860px) {
+	.itrack-site-footer-inner { grid-template-columns:1fr; gap:16px; justify-items:center; }
+	.itrack-footer-rights,.itrack-footer-credit { text-align:center; }
+}
+
+@media (max-width:480px) {
+	.itrack-site-footer { padding:22px 14px; }
+	.itrack-footer-brand { flex-direction:column; text-align:center; gap:7px; }
+	.itrack-footer-logo { width:52px; height:52px; flex-basis:52px; }
+}
