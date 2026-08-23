@@ -725,6 +725,7 @@
 				<button id="navDashboard" class="quick-nav-btn nav-item" type="button" onclick="window.location.href='dashboard.html'">Dashboard</button>
 				<button id="teacherAccountBtn" class="quick-nav-btn nav-item" type="button" onclick="window.location.href='account.html'">My Account</button>
 				<button id="navAdmRequest" class="quick-nav-btn nav-item" type="button" onclick="window.location.href='adm-request.html'">ADM Request</button>
+				<button class="quick-nav-btn nav-item" type="button" onclick="window.location.href='learning-resources.html'">Learning Resources</button>
 				<span id="navGreeting" class="nav-greeting"></span>
 				<button class="quick-nav-btn quick-nav-signout nav-item nav-item-signout" type="button" onclick="window.location.href='signout.html'">Sign Out</button>
 			</nav>
@@ -810,7 +811,7 @@
 
 			<!-- School Details -->
 			<div class="section-label">School Details</div>
-			<div class="grid-2">
+			<div class="grid-3">
 				<div class="field">
 					<label for="district">District</label>
 					<select id="district" name="district">
@@ -822,6 +823,11 @@
 					<select id="school" name="school">
 						<option value="" selected>Select School</option>
 					</select>
+				</div>
+				<div class="field">
+					<label for="teacherAdviser">Teacher Adviser</label>
+					<input id="teacherAdviser" name="teacherAdviser" type="text" readonly placeholder="Automatically assigned from the teacher account">
+					<small>Automatically linked to the teacher creating the student account.</small>
 				</div>
 			</div>
 
@@ -983,11 +989,12 @@
 										<th>Grade</th>
 										<th>District</th>
 										<th>School</th>
+										<th>Teacher Adviser</th>
 										<th>Action</th>
 									</tr>
 								</thead>
 								<tbody id="myLearnersBody">
-									<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">No learner records saved yet.</td></tr>
+									<tr><td colspan="8" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">No learner records saved yet.</td></tr>
 								</tbody>
 							</table>
 						</div>
@@ -1063,6 +1070,7 @@
 			const studentUsernameInput = document.getElementById("studentUsername");
 			const studentPasswordInput = document.getElementById("studentPassword");
 			const studentConfirmPasswordInput = document.getElementById("studentConfirmPassword");
+			const teacherAdviserInput = document.getElementById("teacherAdviser");
 			let userRole = "teacher";
 			let messageTimer = null;
 			let editingLearnerId = null;
@@ -1387,6 +1395,8 @@
 					currentUser = payload.user || null;
 					userRole = String((currentUser || {}).role || "teacher").toLowerCase();
 					const fn = String((currentUser || {}).firstname || "").trim();
+					const adviserName = [currentUser.firstname, currentUser.middlename, currentUser.lastname].filter(Boolean).join(" ").trim();
+					if (teacherAdviserInput) teacherAdviserInput.value = adviserName;
 					const navGreeting = document.getElementById("navGreeting");
 					const welcomeBanner = document.getElementById("welcomeBanner");
 					if (navGreeting && fn) navGreeting.textContent = "\uD83D\uDC64 " + fn;
@@ -1436,7 +1446,7 @@
 					if (!response.ok) {
 						myLearnersCount.textContent = "0";
 						if (myLearnersShown) myLearnersShown.textContent = "0";
-						myLearnersBody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Unable to load learner records right now.</td></tr>';
+						myLearnersBody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Unable to load learner records right now.</td></tr>';
 						return;
 					}
 					const payload = await parseApiPayload(response);
@@ -1453,7 +1463,7 @@
 					myLearnersCount.textContent = String(learners.length);
 					if (myLearnersShown) myLearnersShown.textContent = String(displayedLearners.length);
 					if (!learners.length) {
-						myLearnersBody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">No learner records saved yet.</td></tr>';
+						myLearnersBody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">No learner records saved yet.</td></tr>';
 						return;
 					}
 					myLearnersBody.innerHTML = displayedLearners.map(function (lr) {
@@ -1478,6 +1488,7 @@
 							'<td>' + (lr.grade || '-') + '</td>' +
 							'<td>' + (lr.district || '-') + '</td>' +
 							'<td>' + (lr.school || '-') + '</td>' +
+							'<td>' + (lr.teacher_adviser || '-') + '</td>' +
 							'<td><button class="btn-edit" type="button" data-learner-id="' + lr.id + '">Edit</button><button class="btn-request" type="button" data-request-learner-id="' + lr.id + '"' + (requestDisabled ? ' disabled' : '') + '>' + requestLabel + '</button><div class="request-meta">' +
 								(fileName ? ('<div class="request-file">Uploaded: ' + fileName + '</div>') : '<div class="request-file">Uploaded: None</div>') +
 								'<button class="btn-replace-document" type="button" data-replace-request-id="' + (requestInfo ? requestInfo.id : '') + '"' + (replaceDisabled ? ' disabled' : '') + '>Replace Document</button>' +
@@ -1487,7 +1498,7 @@
 				} catch (e) {
 					myLearnersCount.textContent = "0";
 					if (myLearnersShown) myLearnersShown.textContent = "0";
-					myLearnersBody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Unable to load learner records right now.</td></tr>';
+					myLearnersBody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Unable to load learner records right now.</td></tr>';
 				}
 			}
 
@@ -1595,6 +1606,7 @@
 				setVal('rmaResult', lr.rma_result);
 				setVal('ellnaResult', lr.ellna_result);
 				setVal('utilizationLearningGadgets', lr.utilization_learning_gadgets);
+				setVal('teacherAdviser', lr.teacher_adviser);
 				setCredentialMode(false);
 			}
 
@@ -1603,6 +1615,7 @@
 				editIndicator.style.display = 'none';
 				form.reset();
 				setCredentialMode(true);
+				if (teacherAdviserInput && currentUser) teacherAdviserInput.value = [currentUser.firstname, currentUser.middlename, currentUser.lastname].filter(Boolean).join(' ').trim();
 				renderSchoolOptions("", "");
 				clearMessage();
 			}
@@ -1854,7 +1867,8 @@
 							phil_iri_result: philIriResult,
 							rma_result: rmaResult,
 							ellna_result: ellnaResult,
-							utilization_learning_gadgets: utilizationLearningGadgets
+							utilization_learning_gadgets: utilizationLearningGadgets,
+							teacher_adviser: teacherAdviserInput ? teacherAdviserInput.value.trim() : ""
 						})
 					});
 
@@ -1870,6 +1884,7 @@
 					setMessage(wasSaved, "success");
 					form.reset();
 					setCredentialMode(true);
+					if (teacherAdviserInput && currentUser) teacherAdviserInput.value = [currentUser.firstname, currentUser.middlename, currentUser.lastname].filter(Boolean).join(' ').trim();
 					renderSchoolOptions("", "");
 					loadLearnerSummary();
 					loadMyLearners();

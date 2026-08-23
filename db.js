@@ -264,6 +264,34 @@ async function ensureSchema() {
     }
   }
 
+  const learnerColumns = await db("learners").columnInfo();
+  if (!learnerColumns.adviser_user_id || !learnerColumns.teacher_adviser) {
+    await db.schema.alterTable("learners", (table) => {
+      if (!learnerColumns.adviser_user_id) table.string("adviser_user_id", 64).nullable();
+      if (!learnerColumns.teacher_adviser) table.string("teacher_adviser", 240).nullable();
+    });
+  }
+
+  if (!(await db.schema.hasTable("learning_resources"))) {
+    await db.schema.createTable("learning_resources", (table) => {
+      table.string("id", 64).primary();
+      table.string("teacher_user_id", 64).notNullable();
+      table.string("student_user_id", 64).notNullable();
+      table.string("learner_id", 64).notNullable();
+      table.string("resource_type", 40).notNullable();
+      table.string("title", 220).notNullable();
+      table.string("subject", 120).nullable();
+      table.string("description", 600).nullable();
+      table.string("original_name", 255).notNullable();
+      table.string("stored_path", 500).notNullable();
+      table.string("mime_type", 120).nullable();
+      table.integer("file_size").notNullable().defaultTo(0);
+      table.string("created_at", 40).notNullable();
+      table.index(["teacher_user_id"], "idx_learning_resource_teacher");
+      table.index(["student_user_id"], "idx_learning_resource_student");
+    });
+  }
+
   const approvalRequestsExists = await db.schema.hasTable("approval_requests");
   if (!approvalRequestsExists) {
     await db.schema.createTable("approval_requests", (table) => {

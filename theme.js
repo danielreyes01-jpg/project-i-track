@@ -179,9 +179,20 @@ function simplifyNavigation(navMenu) {
 	const currentPage = String(window.location.pathname || '').split('/').pop().toLowerCase() || 'dashboard.html';
 	const iconByLabel = [
 		[/learner/i, '📋'], [/dashboard/i, '📊'], [/account/i, '👤'], [/adm request/i, '📄'],
-		[/approval/i, '✅'], [/user/i, '👥'], [/create/i, '➕'], [/login/i, '🔐'], [/sign out/i, '↪']
+		[/learning resource|module|activity sheet/i, '📚'], [/approval/i, '✅'], [/user/i, '👥'], [/create/i, '➕'], [/login/i, '🔐'], [/sign out/i, '↪']
 	];
 	let navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
+	if (navItems.some((item) => /sign out/i.test(String(item.textContent || ''))) && !navItems.some((item) => /learning resources/i.test(String(item.textContent || '')))) {
+		const resourcesItem = document.createElement('button');
+		resourcesItem.type = 'button';
+		resourcesItem.className = 'nav-item';
+		resourcesItem.textContent = 'Learning Resources';
+		resourcesItem.setAttribute('onclick', "window.location.href='learning-resources.html'");
+		const greeting = navMenu.querySelector('.nav-greeting');
+		const signOut = navItems.find((item) => /sign out/i.test(String(item.textContent || '')));
+		navMenu.insertBefore(resourcesItem, greeting || signOut || null);
+		navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
+	}
 	const hasAdministratorNavigation = navItems.some((item) => /user management|adm approval|approval portal/i.test(String(item.textContent || '')));
 	if (hasAdministratorNavigation) {
 		const requiredAdministratorItems = [

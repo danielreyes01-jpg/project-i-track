@@ -41,6 +41,7 @@ const APPROVAL_REQUEST_UPLOAD_DIR = path.join(__dirname, "uploads", "approval-re
 const ADM_APPROVAL_TEMPLATE_PATH = path.join(__dirname, "assets", "documents", "ADM-Approval.pdf");
 const ADM_APPROVAL_OUTPUT_DIR = path.join(__dirname, "uploads", "adm-approvals");
 const PROFILE_IMAGE_UPLOAD_DIR = path.join(__dirname, "uploads", "profile-images");
+const LEARNING_RESOURCE_UPLOAD_DIR = path.join(__dirname, "uploads", "learning-resources");
 const DATABASE_RESET_EVENT = "reset-retain-configured-admin-2026-07-31-v1";
 
 const districtSchoolReferenceCache = {
@@ -53,6 +54,7 @@ const districtSchoolReferenceCache = {
 fs.mkdirSync(APPROVAL_REQUEST_UPLOAD_DIR, { recursive: true });
 fs.mkdirSync(ADM_APPROVAL_OUTPUT_DIR, { recursive: true });
 fs.mkdirSync(PROFILE_IMAGE_UPLOAD_DIR, { recursive: true });
+fs.mkdirSync(LEARNING_RESOURCE_UPLOAD_DIR, { recursive: true });
 
 const approvalRequestUpload = multer({
   storage: multer.diskStorage({
@@ -933,6 +935,20 @@ app.post("/api/auth/login", async (req, res) => {
   req.session.role = role;
   req.session.loginToken = loginToken;
   return res.json({ message: "Logged in.", user: sanitizeUser(user) });
+});
+
+const learningResourceUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, LEARNING_RESOURCE_UPLOAD_DIR),
+    filename: (req, file, cb) => cb(null, `${Date.now()}-${crypto.randomUUID()}${path.extname(String(file.originalname || "")).toLowerCase()}`)
+  }),
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".png", ".jpg", ".jpeg", ".zip"];
+    const extension = path.extname(String(file.originalname || "")).toLowerCase();
+    if (!allowed.includes(extension)) return cb(new Error("Upload a PDF, Office document, image, or ZIP file."));
+    cb(null, true);
+  }
 });
 
 app.get("/api/auth/me", async (req, res) => {
@@ -1820,6 +1836,8 @@ app.post("/api/learners", requireTeacher, async (req, res) => {
 	const studentUserId = crypto.randomUUID();
 	const learnerId = crypto.randomUUID();
 	const studentEmail = `${normalizedLrn}@student.itrack.local`;
+	const adviser = await db("users").where({ id: req.session.userId }).first();
+	const adviserName = [adviser && adviser.firstname, adviser && adviser.middlename, adviser && adviser.lastname].filter(Boolean).join(" ").trim() || "Assigned Teacher";
 	const passwordHash = await bcrypt.hash(String(student_password), 12);
 	await db.transaction(async (trx) => {
 	  await trx("users").insert({
@@ -1851,6 +1869,8 @@ app.post("/api/learners", requireTeacher, async (req, res) => {
 	  await trx("learners").insert({
 		id: learnerId,
 		user_id: req.session.userId,
+		adviser_user_id: req.session.userId,
+		teacher_adviser: adviserName,
 		learner_code: normalizedLrn,
 		family_name: String(family_name).trim(),
 		firstname: String(firstname).trim(),
@@ -1975,6 +1995,7 @@ app.get("/api/learners/export", requireLogin, async (req, res) => {
       Grade: String(item.grade || "").trim(),
       District: String(item.district || "").trim(),
       School: String(item.school || "").trim(),
+      TeacherAdviser: String(item.teacher_adviser || "").trim(),
       Modality: String(item.modality || "").trim(),
       TypeOfInstruction: String(item.type_of_instruction || "").trim(),
       DateStarted: String(item.date_started || "").trim(),
@@ -2646,6 +2667,125 @@ app.post("/api/admin/approval-requests/:id/status", requireAdmin, async (req, re
   }
 });
 
+function serializeLearningResource(row, learner) {
+  return {
+    id: row.id,
+    resource_type: row.resource_type,
+    title: row.title,
+    subject: row.subject || "",
+    description: row.description || "",
+    original_name: row.original_name,
+    mime_type: row.mime_type || "application/octet-stream",
+    file_size: Number(row.file_size || 0),
+    created_at: row.created_at,
+    learner_id: row.learner_id,
+    learner_lrn: learner ? learner.learner_code : "",
+    learner_name: learner ? [learner.firstname, learner.middlename, learner.family_name].filter(Boolean).join(" ") : "",
+    preview_url: `/api/learning-resources/${encodeURIComponent(row.id)}/file?mode=preview`,
+    download_url: `/api/learning-resources/${encodeURIComponent(row.id)}/file?mode=download`
+  };
+}
+
+app.get("/api/learning-resources", requireLogin, async (req, res) => {
+  try {
+    const user = await db("users").where({ id: req.session.userId }).first();
+    const role = String((user && user.role) || "").toLowerCase();
+    let query = db("learning_resources");
+    if (role === "student") query = query.where({ student_user_id: user.id });
+    else if (role === "teacher") query = query.where({ teacher_user_id: user.id });
+    else if (role !== "admin") return res.status(403).json({ message: "Learning resource access is not available for this account." });
+    const rows = await query.orderBy("created_at", "desc");
+    const learnerIds = [...new Set(rows.map((row) => row.learner_id).filter(Boolean))];
+    const learners = learnerIds.length ? await db("learners").whereIn("id", learnerIds) : [];
+    const learnerById = new Map(learners.map((learner) => [String(learner.id), learner]));
+    return res.json({ resources: rows.map((row) => serializeLearningResource(row, learnerById.get(String(row.learner_id)))), role });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to load learning resources.", detail: error.message });
+  }
+});
+
+app.post("/api/learning-resources", requireTeacher, learningResourceUpload.single("resource_file"), async (req, res) => {
+  try {
+    const learnerId = String((req.body || {}).learner_id || "").trim();
+    const title = String((req.body || {}).title || "").trim();
+    const resourceType = String((req.body || {}).resource_type || "").trim();
+    if (!req.file) return res.status(400).json({ message: "Select a learning resource file to upload." });
+    if (!learnerId || !title || !["Module", "Learning Activity Sheet"].includes(resourceType)) {
+      deleteFileIfExists(req.file.path);
+      return res.status(400).json({ message: "Student, resource type, title, and file are required." });
+    }
+    const role = String(req.session.role || "").toLowerCase();
+    let learnerQuery = db("learners").where({ id: learnerId });
+    if (role !== "admin") learnerQuery = learnerQuery.andWhere({ user_id: req.session.userId });
+    const learner = await learnerQuery.first();
+    if (!learner) {
+      deleteFileIfExists(req.file.path);
+      return res.status(404).json({ message: "The selected learner is unavailable for this account." });
+    }
+    const student = await db("users").where({ lrn: String(learner.learner_code || "").trim(), role: "student" }).first();
+    if (!student) {
+      deleteFileIfExists(req.file.path);
+      return res.status(409).json({ message: "The selected learner does not have a student account yet." });
+    }
+    const id = crypto.randomUUID();
+    const row = {
+      id,
+      teacher_user_id: req.session.userId,
+      student_user_id: student.id,
+      learner_id: learner.id,
+      resource_type: resourceType,
+      title,
+      subject: String((req.body || {}).subject || "").trim(),
+      description: String((req.body || {}).description || "").trim(),
+      original_name: path.basename(String(req.file.originalname || "learning-resource")),
+      stored_path: path.relative(__dirname, req.file.path).replace(/\\/g, "/"),
+      mime_type: String(req.file.mimetype || "application/octet-stream"),
+      file_size: Number(req.file.size || 0),
+      created_at: new Date().toISOString()
+    };
+    await db("learning_resources").insert(row);
+    return res.status(201).json({ message: `${resourceType} assigned to ${learner.firstname} ${learner.family_name}.`, resource: serializeLearningResource(row, learner) });
+  } catch (error) {
+    if (req.file) deleteFileIfExists(req.file.path);
+    return res.status(500).json({ message: "Unable to upload the learning resource.", detail: error.message });
+  }
+});
+
+app.get("/api/learning-resources/:id/file", requireLogin, async (req, res) => {
+  try {
+    const resource = await db("learning_resources").where({ id: String(req.params.id || "") }).first();
+    if (!resource) return res.status(404).json({ message: "Learning resource not found." });
+    const user = await db("users").where({ id: req.session.userId }).first();
+    const role = String((user && user.role) || "").toLowerCase();
+    const allowed = role === "admin" || (role === "teacher" && resource.teacher_user_id === user.id) || (role === "student" && resource.student_user_id === user.id);
+    if (!allowed) return res.status(403).json({ message: "You do not have access to this learning resource." });
+    const absolutePath = path.resolve(__dirname, String(resource.stored_path || ""));
+    const resourceRoot = path.resolve(LEARNING_RESOURCE_UPLOAD_DIR);
+    if (!absolutePath.startsWith(resourceRoot) || !fs.existsSync(absolutePath)) return res.status(404).json({ message: "The uploaded file is unavailable." });
+    if (String(req.query.mode || "preview") === "download") return res.download(absolutePath, resource.original_name);
+    res.type(resource.mime_type || "application/octet-stream");
+    res.setHeader("Content-Disposition", `inline; filename="${String(resource.original_name || "resource").replace(/["\r\n]/g, "")}"`);
+    return res.sendFile(absolutePath);
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to open the learning resource.", detail: error.message });
+  }
+});
+
+app.delete("/api/learning-resources/:id", requireTeacher, async (req, res) => {
+  try {
+    let query = db("learning_resources").where({ id: String(req.params.id || "") });
+    if (String(req.session.role || "").toLowerCase() !== "admin") query = query.andWhere({ teacher_user_id: req.session.userId });
+    const resource = await query.first();
+    if (!resource) return res.status(404).json({ message: "Learning resource not found." });
+    await db("learning_resources").where({ id: resource.id }).del();
+    const absolutePath = path.resolve(__dirname, String(resource.stored_path || ""));
+    if (absolutePath.startsWith(path.resolve(LEARNING_RESOURCE_UPLOAD_DIR))) deleteFileIfExists(absolutePath);
+    return res.json({ message: "Learning resource removed." });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to remove the learning resource.", detail: error.message });
+  }
+});
+
 app.get("/api/student/profile", requireLogin, async (req, res) => {
   try {
     const user = await db("users").where({ id: req.session.userId }).first();
@@ -2654,7 +2794,8 @@ app.get("/api/student/profile", requireLogin, async (req, res) => {
     const savedByNumber = new Map(savedModules.map((row) => [Number(row.module_no), row]));
     const modules = Array.from({ length: 10 }, (_, index) => savedByNumber.get(index + 1) || { module_no: index + 1, module_title: `Learning Module ${index + 1}`, status: "not_answered", answered_at: null });
     const attendance = await db("student_attendance").where({ student_user_id: user.id }).orderBy("school_year", "desc");
-    return res.json({ user: sanitizeUser(user), modules, attendance });
+    const learner = await db("learners").where({ learner_code: String(user.lrn || "").trim() }).first();
+    return res.json({ user: sanitizeUser(user), adviser: (learner && learner.teacher_adviser) || "", modules, attendance });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load student profile.", detail: error.message });
   }
