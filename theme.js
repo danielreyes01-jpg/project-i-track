@@ -225,8 +225,11 @@ function createITrackPageTitlebar() {
 	const titlebar = document.createElement('div');
 	titlebar.id = 'itrack-page-titlebar';
 	titlebar.className = 'itrack-page-titlebar';
-	titlebar.innerHTML = '<span class="itrack-page-titlebar-marker" aria-hidden="true"></span><strong></strong>';
+	titlebar.innerHTML = '<span class="itrack-page-titlebar-marker" aria-hidden="true"></span><strong></strong><button class="itrack-header-signout" type="button">Sign Out <span aria-hidden="true">↪</span></button>';
 	titlebar.querySelector('strong').textContent = title;
+	titlebar.querySelector('.itrack-header-signout').addEventListener('click', () => {
+		window.location.href = 'signout.html';
+	});
 	document.body.appendChild(titlebar);
 }
 
@@ -338,6 +341,9 @@ function simplifyNavigation(navMenu) {
 			}
 		}).catch(() => {});
 	}
+
+	Array.from(navMenu.querySelectorAll('.nav-item')).filter((item) => /sign out/i.test(String(item.textContent || ''))).forEach((item) => item.remove());
+	navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
 
 	navItems.forEach((item) => {
 		let cleanLabel = String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
