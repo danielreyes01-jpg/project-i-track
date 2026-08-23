@@ -1566,6 +1566,13 @@ html body .deped-fixed-header button.theme-toggle-nav:hover {
 .itrack-management-submenu::before { display:none !important; }
 html body .deped-fixed-header .itrack-management-submenu button.nav-item { color:#eef8ff !important; }
 html body .deped-fixed-header .nav-greeting { color:#d9efff !important; border-color:rgba(255,255,255,.12) !important; }
+.deped-fixed-header .nav-menu button.nav-item,
+.deped-fixed-header .nav-menu button.quick-nav-btn,
+.deped-fixed-header .nav-menu button.itrack-management-toggle,
+.deped-fixed-header .nav-menu button.theme-toggle-nav,
+.deped-fixed-header .nav-menu .nav-greeting,
+.deped-fixed-header .nav-menu .management-caret { color:#fff !important; -webkit-text-fill-color:#fff !important; }
+.deped-fixed-header .nav-menu .nav-item-icon { color:#123047 !important; -webkit-text-fill-color:#123047 !important; }
 .nav-menu > .nav-greeting { margin-top:auto !important; }
 .nav-menu .theme-toggle-nav { order:initial !important; }
 .deped-mobile-menu-toggle { border-color:var(--itrack-side-yellow) !important; }
