@@ -182,6 +182,8 @@ function simplifyNavigation(navMenu) {
 		[/learning resource|module|activity sheet/i, '📚'], [/approval/i, '✅'], [/user/i, '👥'], [/create/i, '➕'], [/login/i, '🔐'], [/sign out/i, '↪']
 	];
 	let navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
+	navItems.filter((item) => /^(create account|login page)$/i.test(String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim())).forEach((item) => item.remove());
+	navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
 	if (navItems.some((item) => /sign out/i.test(String(item.textContent || ''))) && !navItems.some((item) => /learning resources/i.test(String(item.textContent || '')))) {
 		const resourcesItem = document.createElement('button');
 		resourcesItem.type = 'button';
@@ -198,7 +200,7 @@ function simplifyNavigation(navMenu) {
 		const requiredAdministratorItems = [
 			['Learner Record', 'learner.html'], ['ADM Request Form', 'adm-request.html'], ['Dashboard', 'dashboard.html'], ['Student Dashboard', 'admin-students.html'],
 			['ADM Approval', 'approval-request.html'], ['User Management', 'user.html'], ['Approval Portal', 'approval.html'],
-			['Pending Approvals', 'admin.html'], ['Approved Users', 'approved.html'], ['Create Account', 'create.html'], ['Login Page', 'index.html']
+			['Pending Approvals', 'admin.html'], ['Approved Users', 'approved.html']
 		];
 		const currentLabels = () => Array.from(navMenu.querySelectorAll('.nav-item')).map((item) => String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase());
 		requiredAdministratorItems.forEach(([label, target]) => {
@@ -240,8 +242,7 @@ function simplifyNavigation(navMenu) {
 				const adminItems = [
 					['Student Dashboard', 'admin-students.html'], ['ADM Approval', 'approval-request.html'],
 					['User Management', 'user.html'], ['Approval Portal', 'approval.html'],
-					['Pending Approvals', 'admin.html'], ['Approved Users', 'approved.html'],
-					['Create Account', 'create.html'], ['Login Page', 'index.html']
+					['Pending Approvals', 'admin.html'], ['Approved Users', 'approved.html']
 				];
 				const existing = () => Array.from(navMenu.querySelectorAll('.nav-item')).map((item) =>
 					String(item.dataset.navLabel || item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase()
@@ -317,7 +318,7 @@ function simplifyNavigation(navMenu) {
 		});
 	}
 
-	const managementPattern = /adm approval|approval request|approval portal|pending approval|approved user|user management|create account|login page/i;
+	const managementPattern = /adm approval|approval request|approval portal|pending approval|approved user|user management/i;
 	const managementItems = navItems.filter((item) => managementPattern.test(String(item.dataset.navLabel || '')));
 	if (!managementItems.length) return;
 

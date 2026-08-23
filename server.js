@@ -2998,26 +2998,41 @@ app.get("/api/admin/student-monitoring", requireAdmin, async (req, res) => {
     const studentIds = students.map((student) => student.id);
     const lrns = students.map((student) => String(student.lrn || "").trim()).filter(Boolean);
     const progressRows = studentIds.length ? await db("student_module_progress").whereIn("student_user_id", studentIds).select("student_user_id", "status") : [];
+    const resourceRows = studentIds.length ? await db("learning_resources").whereIn("student_user_id", studentIds).select("student_user_id", "status") : [];
     const learnerRows = lrns.length ? await db("learners").whereIn("learner_code", lrns).select("learner_code", "grade", "first_grading_grade", "second_quarter_grade", "third_quarter_grade", "fourth_quarter_grade") : [];
     const teachers = await db("users").where({ approved: true }).whereIn("role", ["teacher", "supervisor"]).select("firstname", "lastname", "email", "district", "school", "role");
     const progress = new Map();
     progressRows.forEach((row) => { const key = String(row.student_user_id); const item = progress.get(key) || { answered: 0 }; if (String(row.status) === "answered") item.answered += 1; progress.set(key, item); });
+    const resourceProgress = new Map();
+    resourceRows.forEach((row) => {
+      const key = String(row.student_user_id);
+      const item = resourceProgress.get(key) || { total: 0, assigned: 0, ongoing: 0, done: 0 };
+      const status = String(row.status || "assigned").toLowerCase();
+      item.total += 1;
+      if (status === "ongoing") item.ongoing += 1;
+      else if (status === "done") item.done += 1;
+      else item.assigned += 1;
+      resourceProgress.set(key, item);
+    });
     const learnersByLrn = new Map(learnerRows.map((row) => [String(row.learner_code || "").trim(), row]));
     const teacherBySchool = new Map();
     teachers.forEach((teacher) => { const key = `${teacher.district || ""}|${teacher.school || ""}`.toLowerCase(); if (!teacherBySchool.has(key)) teacherBySchool.set(key, teacher); });
     const records = students.map((student) => {
-      const module = progress.get(String(student.id)) || { answered: 0 };
+      const legacyModule = progress.get(String(student.id)) || { answered: 0 };
+      const assignedResources = resourceProgress.get(String(student.id));
+      const module = assignedResources || { total: 10, assigned: Math.max(0, 10 - legacyModule.answered), ongoing: 0, done: legacyModule.answered };
       const learner = learnersByLrn.get(String(student.lrn || "").trim()) || {};
       const grades = [learner.first_grading_grade, learner.second_quarter_grade, learner.third_quarter_grade, learner.fourth_quarter_grade].map(Number).filter((grade) => Number.isFinite(grade) && grade > 0);
       const averageGrade = grades.length ? Math.round((grades.reduce((sum, grade) => sum + grade, 0) / grades.length) * 10) / 10 : null;
       const reasons = [];
-      if (module.answered === 0) reasons.push("No answered modules");
+      if (module.done === 0 && module.ongoing === 0) reasons.push("No answered modules");
       if (averageGrade !== null && averageGrade < 75) reasons.push("Failing grade");
       const teacher = teacherBySchool.get(`${student.district || ""}|${student.school || ""}`.toLowerCase()) || null;
-      return { id: student.id, name: [student.firstname, student.middlename, student.lastname].filter(Boolean).join(" "), lrn: student.lrn || "", district: student.district || "", school: student.school || "", gradeLevel: learner.grade || "", answeredModules: module.answered, totalModules: 10, progressPercent: module.answered * 10, averageGrade, urgent: reasons.length > 0, alertReasons: reasons, studentEmail: student.email || "", studentContact: student.guardian_contact || "", teacher: teacher ? { name: [teacher.firstname, teacher.lastname].filter(Boolean).join(" "), email: teacher.email || "", role: teacher.role } : null };
+      const learningStatus = module.ongoing > 0 ? "ongoing" : (module.total > 0 && module.done === module.total ? "done" : (module.done > 0 ? "started" : "not_started"));
+      return { id: student.id, name: [student.firstname, student.middlename, student.lastname].filter(Boolean).join(" "), lrn: student.lrn || "", district: student.district || "", school: student.school || "", gradeLevel: learner.grade || "", answeredModules: module.done, ongoingModules: module.ongoing, totalModules: module.total, progressPercent: module.total ? Math.round((module.done / module.total) * 100) : 0, learningStatus, averageGrade, urgent: reasons.length > 0, alertReasons: reasons, studentEmail: student.email || "", studentContact: student.guardian_contact || "", teacher: teacher ? { name: [teacher.firstname, teacher.lastname].filter(Boolean).join(" "), email: teacher.email || "", role: teacher.role } : null };
     });
     const districtSummary = Array.from(records.reduce((map, record) => { const item = map.get(record.district) || { district: record.district || "Unassigned", students: 0, urgent: 0 }; item.students += 1; if (record.urgent) item.urgent += 1; map.set(record.district, item); return map; }, new Map()).values());
-    return res.json({ records, districtSummary, totals: { students: records.length, urgent: records.filter((record) => record.urgent).length, noModules: records.filter((record) => record.answeredModules === 0).length, failing: records.filter((record) => record.averageGrade !== null && record.averageGrade < 75).length } });
+    return res.json({ records, districtSummary, totals: { students: records.length, urgent: records.filter((record) => record.urgent).length, noModules: records.filter((record) => record.answeredModules === 0 && record.ongoingModules === 0).length, failing: records.filter((record) => record.averageGrade !== null && record.averageGrade < 75).length } });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load student monitoring dashboard.", detail: error.message });
   }
