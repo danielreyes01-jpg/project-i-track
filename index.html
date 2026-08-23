@@ -212,24 +212,26 @@
 			background: #c8e7d3;
 		}
 
-		.login-account-selector { position:relative; max-height:0; margin-top:0; padding:0 18px; overflow:hidden; opacity:0; visibility:hidden; transform:translateY(-14px) scale(.985); pointer-events:none; background:#fff; border:0 solid #bedfd1; border-radius:17px; text-align:center; transition:max-height .65s ease,margin-top .55s ease,padding .55s ease,opacity .48s ease,transform .58s cubic-bezier(.2,.8,.2,1),visibility .48s ease,border-width .2s ease; }
-		.login-account-selector.is-open { max-height:280px; margin-top:16px; padding:22px 18px 18px; overflow:visible; opacity:1; visibility:visible; transform:translateY(0) scale(1); pointer-events:auto; border-width:1px; }
+		.login-account-selector { position:relative; width:min(420px,100%); max-height:0; margin:0 auto; padding:0 14px; overflow:hidden; opacity:0; visibility:hidden; transform:translateY(-12px) scale(.985); pointer-events:none; background:#fff; border:0 solid #bedfd1; border-radius:14px; text-align:center; transition:max-height .65s ease,margin-top .55s ease,padding .55s ease,opacity .48s ease,transform .58s cubic-bezier(.2,.8,.2,1),visibility .48s ease,border-width .2s ease; }
+		.login-account-selector.is-open { max-height:220px; margin-top:12px; padding:14px 13px 12px; overflow:visible; opacity:1; visibility:visible; transform:translateY(0) scale(1); pointer-events:auto; border-width:1px; }
 		.login-account-selector::before { content:""; position:absolute; top:-9px; left:50%; width:16px; height:16px; transform:translateX(-50%) rotate(45deg); background:#fff; border-left:1px solid #bedfd1; border-top:1px solid #bedfd1; }
-		.login-account-selector h2 { margin:0 0 4px; color:#174c3d; font-size:1rem; }
-		.login-account-selector>p { margin:0 0 13px; color:#778a84; font-size:.76rem; }
+		.login-account-selector h2 { margin:0 0 2px; color:#174c3d; font-size:.88rem; }
+		.login-account-selector>p { margin:0 0 9px; color:#778a84; font-size:.67rem; }
 		.login-account-options { display:grid; grid-template-columns:1fr; gap:10px; }
-		html body .login-account-options button { display:grid!important; grid-template-columns:48px 1fr!important; grid-template-rows:auto auto!important; align-items:center!important; gap:2px 12px!important; width:100%!important; min-height:72px!important; padding:11px 16px!important; color:#fff!important; background:linear-gradient(135deg,#176f92,#16846c)!important; border:1px solid rgba(15,99,84,.35)!important; border-radius:14px!important; box-shadow:0 8px 20px rgba(18,91,91,.18)!important; text-align:left!important; font:inherit!important; cursor:pointer!important; transition:transform .2s ease,box-shadow .2s ease,filter .2s ease!important; }
+		html body .login-account-options button { display:grid!important; grid-template-columns:38px 1fr!important; grid-template-rows:auto auto!important; align-items:center!important; gap:1px 9px!important; width:100%!important; min-height:56px!important; padding:8px 11px!important; color:#fff!important; background:linear-gradient(135deg,#176f92,#16846c)!important; border:1px solid rgba(15,99,84,.35)!important; border-radius:11px!important; box-shadow:0 7px 16px rgba(18,91,91,.16)!important; text-align:left!important; font:inherit!important; cursor:pointer!important; transition:transform .2s ease,box-shadow .2s ease,filter .2s ease!important; }
 		html body .login-account-options button:hover { transform:translateY(-3px)!important; box-shadow:0 14px 28px rgba(18,91,91,.28)!important; filter:brightness(1.08)!important; }
 		html body .login-account-options button:focus-visible { outline:3px solid rgba(23,124,179,.25)!important; outline-offset:3px!important; transform:translateY(-2px)!important; }
-		.login-account-options span { grid-row:1/3; display:grid; place-items:center; width:48px; height:48px; border-radius:12px; color:#116d79; background:rgba(255,255,255,.9); font-size:1.15rem; }
-		.login-account-options strong { font-size:.9rem; }.login-account-options small { color:rgba(255,255,255,.82); font-size:.68rem; }
+		.login-account-options span { grid-row:1/3; display:grid; place-items:center; width:38px; height:38px; border-radius:9px; color:#116d79; background:rgba(255,255,255,.9); font-size:.92rem; }
+		.login-account-options strong { font-size:.76rem; }.login-account-options small { color:rgba(255,255,255,.82); font-size:.6rem; }
 
 		.hint {
 			margin-top: 8px;
-			font-size: 0.82rem;
+			font-size: 0.72rem;
+			line-height:1.55;
 			color: var(--muted);
 			text-align: center;
 		}
+		.hint span { display:block; }
 
 		@keyframes lift-in {
 			from {
@@ -251,7 +253,7 @@
 			.brand-logo { width:clamp(92px,28vw,124px); }
 			.input-with-action { gap:6px; }
 			.toggle-btn { padding-inline:10px!important; }
-			.login-account-selector.is-open { padding:18px 12px 14px; }
+			.login-account-selector.is-open { width:min(360px,100%); padding:13px 10px 11px; }
 		}
 
 		@media (max-width: 360px) {
@@ -266,7 +268,7 @@
 			.subtitle { margin-bottom:12px; font-size:.88rem; }
 			form { gap:7px; }
 			input { padding-block:10px; }
-			.login-account-selector.is-open { margin-top:10px; padding:16px 12px 12px; }
+			.login-account-selector.is-open { margin-top:9px; padding:12px 10px 10px; }
 			.login-account-selector>p { margin-bottom:8px; }
 			.login-account-options button { min-height:58px; padding:7px; }
 			.hint { margin-top:6px; }
@@ -307,7 +309,7 @@
 			</section>
 		</form>
 
-		<p class="hint">Please Contact <strong>Daniel P. Reyes</strong> for reset password. <strong>© 2026 D. REYES</strong> All rights reserved.<br><strong>Version</strong> 1.2.1</p>
+		<p class="hint"><span>Please Contact <strong>Daniel P. Reyes</strong> for reset password.</span><span><strong>© 2026 D. REYES</strong> All rights reserved.</span><span><strong>Version</strong> 1.2.1</span></p>
 	</main>
 
 	<script>
