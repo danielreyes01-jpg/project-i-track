@@ -108,6 +108,8 @@ function createDepEdFixedHeader() {
 		return;
 	}
 
+	createFallbackAdministratorNavigation(pathname);
+
 	const header = document.createElement('header');
 	header.id = 'deped-fixed-header';
 	header.className = 'deped-fixed-header';
@@ -162,6 +164,33 @@ function createDepEdFixedHeader() {
 	} else {
 		menuToggle.hidden = true;
 	}
+}
+
+function createFallbackAdministratorNavigation(pathname) {
+	if (document.querySelector('.nav-menu')) return;
+	const page = String(pathname || '').split('/').pop();
+	const administratorPages = new Set(['admin.html', 'approval-request.html', 'approval.html', 'approved.html', 'user.html']);
+	if (!administratorPages.has(page)) return;
+
+	const panel = document.createElement('div');
+	panel.className = 'nav-panel';
+	const menu = document.createElement('nav');
+	menu.className = 'nav-menu';
+	menu.setAttribute('aria-label', 'Administrator navigation');
+	[
+		['Learner Record', 'learner.html'], ['Dashboard', 'dashboard.html'], ['FLP Request Form', 'adm-request.html'],
+		['Student Dashboard', 'admin-students.html'], ['Learning Resources', 'learning-resources.html'],
+		['User Management', 'user.html'], ['Sign Out', 'signout.html']
+	].forEach(([label, target]) => {
+		const item = document.createElement('button');
+		item.type = 'button';
+		item.className = label === 'Sign Out' ? 'nav-item nav-item-signout' : 'nav-item';
+		item.textContent = label;
+		item.setAttribute('onclick', `window.location.href='${target}'`);
+		menu.appendChild(item);
+	});
+	panel.appendChild(menu);
+	document.body.insertBefore(panel, document.body.firstChild);
 }
 
 function createITrackFooter() {
