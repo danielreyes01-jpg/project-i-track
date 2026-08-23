@@ -307,12 +307,17 @@ label:has(+ textarea[required]) {
 	height: 0.94in;
 	border-radius: 50%;
 	background: conic-gradient(
-		from -35deg,
-		#f5c324 0 31%,
-		#1687bd 31% 65%,
-		#6246a8 65% 100%
+		from -28deg,
+		transparent 0 2%,
+		#75cef1 2% 32%,
+		transparent 32% 35%,
+		#285fba 35% 66%,
+		transparent 66% 69%,
+		#f6d975 69% 98%,
+		transparent 98% 100%
 	);
-	box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.96), 0 9px 22px rgba(42, 72, 126, 0.2);
+	-webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+	mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
 	transform: translate(-50%, -50%);
 	animation: itrack-loader-colors 1.4s ease-in-out infinite alternate;
 }
@@ -325,8 +330,8 @@ label:has(+ textarea[required]) {
 
 
 @keyframes itrack-loader-colors {
-	from { filter: saturate(0.94) brightness(0.98); }
-	to { filter: saturate(1.15) brightness(1.06); }
+	from { filter: saturate(0.96) brightness(0.98) drop-shadow(0 5px 8px rgba(40,95,186,.18)); }
+	to { filter: saturate(1.12) brightness(1.06) drop-shadow(0 7px 11px rgba(40,95,186,.3)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
