@@ -295,20 +295,12 @@ label:has(+ textarea[required]) {
 	height: 1.19in;
 	object-fit: contain;
 	background: transparent;
-	transform: translate(3px, 3px);
+	transform-origin: center;
+	animation: itrack-logo-spin 1.35s linear infinite;
 }
 
 .itrack-page-loader-ring {
-	position: absolute;
-	/* Match the ring's inner edge to the logo edge so no white gap appears. */
-	inset: -4px;
-	z-index: 2;
-	border: 4px solid #f2bd2f;
-	border-top-color: #147cb3;
-	border-bottom-color: #147cb3;
-	border-radius: 50%;
-	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.82);
-	animation: itrack-loader-spin 0.9s linear infinite;
+	display: none;
 }
 
 .itrack-page-loader-text {
@@ -317,15 +309,20 @@ label:has(+ textarea[required]) {
 	letter-spacing: 0.02em;
 }
 
-@keyframes itrack-loader-spin {
+
+@keyframes itrack-logo-spin {
+	from {
+		transform: translate(3px, 3px) rotate(0deg);
+	}
 	to {
-		transform: rotate(360deg);
+		transform: translate(3px, 3px) rotate(360deg);
 	}
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.itrack-page-loader-ring {
+	.itrack-page-loader-logo {
 		animation: none;
+		transform: translate(3px, 3px);
 	}
 }
 
