@@ -296,11 +296,25 @@ label:has(+ textarea[required]) {
 	object-fit: contain;
 	background: transparent;
 	transform-origin: center;
-	animation: itrack-logo-spin 1.35s linear infinite;
+	transform: translate(3px, 3px);
 }
 
 .itrack-page-loader-ring {
-	display: none;
+	position: absolute;
+	inset: 50% auto auto 50%;
+	display: block;
+	width: 0.94in;
+	height: 0.94in;
+	border-radius: 50%;
+	background: conic-gradient(
+		from -35deg,
+		#f5c324 0 31%,
+		#1687bd 31% 65%,
+		#6246a8 65% 100%
+	);
+	box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.96), 0 9px 22px rgba(42, 72, 126, 0.2);
+	transform: translate(-50%, -50%);
+	animation: itrack-loader-colors 1.4s ease-in-out infinite alternate;
 }
 
 .itrack-page-loader-text {
@@ -310,19 +324,14 @@ label:has(+ textarea[required]) {
 }
 
 
-@keyframes itrack-logo-spin {
-	from {
-		transform: translate(3px, 3px) rotate(0deg);
-	}
-	to {
-		transform: translate(3px, 3px) rotate(360deg);
-	}
+@keyframes itrack-loader-colors {
+	from { filter: saturate(0.94) brightness(0.98); }
+	to { filter: saturate(1.15) brightness(1.06); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.itrack-page-loader-logo {
+	.itrack-page-loader-ring {
 		animation: none;
-		transform: translate(3px, 3px);
 	}
 }
 
