@@ -616,6 +616,7 @@
 			box-shadow: 0 18px 45px rgba(16, 75, 57, 0.16);
 			transition: opacity 250ms ease;
 		}
+		.resource-alerts{margin-top:18px;padding:16px;border:1px solid #d7e5df;border-radius:14px;background:#f8fcfb}.resource-alerts h2{margin:0 0 10px;font-size:1rem}.resource-alert-list{display:grid;gap:8px}.resource-alert{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:10px;background:#fff;border:1px solid #e0ebe7;font-size:.82rem}.resource-alert strong{color:#173d56}.resource-alert .ongoing{color:#825b00}.resource-alert .done{color:#08745b}.resource-alert-empty{color:#6b7f78;font-size:.84rem}
 	</style>
 </head>
 <body>
@@ -644,6 +645,7 @@
 			<div id="welcomeBanner" class="welcome-banner"></div>
 			<p class="subtitle">Overview of registered users and learner records.</p>
 			<div id="message" class="message" role="status" aria-live="polite"></div>
+			<section id="resourceAlerts" class="resource-alerts" hidden><h2>🔔 Student Answer Notifications</h2><div id="resourceAlertList" class="resource-alert-list"><div class="resource-alert-empty">Checking student activity…</div></div></section>
 
 		</section>
 
@@ -2110,6 +2112,14 @@
 		})();
 	</script>
 
+<script>
+(function(){
+	const box=document.getElementById('resourceAlerts'),list=document.getElementById('resourceAlertList');
+	const esc=(v)=>String(v==null?'':v).replace(/[&<>"']/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+	async function loadAnswerNotifications(){try{const me=await fetch('/api/auth/me',{credentials:'include'});if(!me.ok)return;const user=(await me.json()).user||{};if(!['teacher','admin'].includes(String(user.role||'').toLowerCase()))return;box.hidden=false;const response=await fetch('/api/learning-resources',{credentials:'include'});if(!response.ok)return;const resources=((await response.json()).resources||[]).filter((item)=>item.status==='ongoing'||item.status==='done');if(!resources.length){list.innerHTML='<div class="resource-alert-empty">No students are currently answering or newly submitted.</div>';return}list.innerHTML=resources.slice(0,8).map((item)=>'<div class="resource-alert"><span><strong>'+esc(item.learner_name)+'</strong> · Term '+Number(item.term||1)+' · '+esc(item.resource_type)+' '+Number(item.module_number||1)+' — '+esc(item.title)+'</span><span class="'+esc(item.status)+'">'+(item.status==='done'?'✓ Done Answering':'● Ongoing Answer')+'</span></div>').join('')}catch(error){list.innerHTML='<div class="resource-alert-empty">Notifications will refresh automatically.</div>'}}
+	loadAnswerNotifications();setInterval(loadAnswerNotifications,30000);
+})();
+</script>
 <script src="/theme.js"></script>
 </body>
 </html>
