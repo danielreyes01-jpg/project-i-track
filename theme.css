@@ -1855,7 +1855,7 @@ html.has-deped-fixed-header .itrack-page-titlebar-marker { height:23px !importan
 html.has-deped-fixed-header .itrack-page-titlebar strong { font-size:clamp(.9rem,1.15vw,1.05rem) !important; }
 html.has-deped-fixed-header .itrack-header-signout { min-height:36px !important; padding:6px 10px !important; font-size:.75rem !important; }
 
-/* Only the page that is currently open receives the yellow selection stroke. */
+/* Selected sidebar item: translucent box with a yellow bottom line only. */
 html body .deped-fixed-header button.nav-item,
 html body .deped-fixed-header button.quick-nav-btn,
 html body .deped-fixed-header button.itrack-management-toggle {
@@ -1866,31 +1866,31 @@ html body .deped-fixed-header button.itrack-management-toggle {
 html body .deped-fixed-header button.nav-item:not(.nav-current):hover,
 html body .deped-fixed-header button.quick-nav-btn:not(.active):hover,
 html body .deped-fixed-header button.itrack-management-toggle:not(.nav-current):hover {
-	background:#147db5 !important;
-	border-color:transparent !important;
-	box-shadow:0 7px 18px rgba(0,0,0,.16) !important;
+	background:rgba(255,255,255,.11) !important;
+	border-color:rgba(255,255,255,.04) !important;
+	box-shadow:none !important;
 }
 
 html body .deped-fixed-header button.nav-item.nav-current,
 html body .deped-fixed-header button.quick-nav-btn.active,
 html body .deped-fixed-header button.itrack-management-toggle.nav-current {
-	background:#147db5 !important;
-	border-color:var(--itrack-side-yellow) !important;
-	box-shadow:inset 4px 0 0 var(--itrack-side-yellow),0 7px 18px rgba(0,0,0,.2) !important;
+	background:rgba(255,255,255,.13) !important;
+	border-color:rgba(255,255,255,.34) !important;
+	box-shadow:inset 0 -4px 0 var(--itrack-side-yellow),0 7px 18px rgba(0,0,0,.16) !important;
 }
 
 html body .deped-fixed-header button.nav-item:not(.nav-current) .nav-item-icon,
 html body .deped-fixed-header button.itrack-management-toggle:not(.nav-current) .nav-item-icon {
-	background:rgba(255,255,255,.13) !important;
+	background:transparent !important;
 	color:#fff !important;
 	-webkit-text-fill-color:#fff !important;
 }
 
 html body .deped-fixed-header button.nav-item.nav-current .nav-item-icon,
 html body .deped-fixed-header button.itrack-management-toggle.nav-current .nav-item-icon {
-	background:var(--itrack-side-yellow) !important;
-	color:#123047 !important;
-	-webkit-text-fill-color:#123047 !important;
+	background:transparent !important;
+	color:#fff !important;
+	-webkit-text-fill-color:#fff !important;
 }
 
 html body .deped-fixed-header button.nav-item:not(.nav-current):focus-visible,
