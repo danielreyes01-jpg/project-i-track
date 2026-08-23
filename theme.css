@@ -1475,7 +1475,7 @@ html[data-theme="dark"] .dialog-head { background:#1c2a32 !important; border-col
 :root { --itrack-side-width:260px; --itrack-side-blue:#0b4f87; --itrack-side-blue-deep:#073b68; --itrack-side-yellow:#f5c52b; }
 
 html.has-deped-fixed-header body {
-	padding-top:0 !important;
+	padding-top:72px !important;
 	padding-left:var(--itrack-side-width) !important;
 	transition:padding-left .28s ease !important;
 }
@@ -1528,6 +1528,10 @@ html body .deped-fixed-header button.quick-nav-btn,
 html body .deped-fixed-header button.itrack-management-toggle,
 html body .deped-fixed-header button.theme-toggle-nav,
 html body .deped-fixed-header .nav-greeting {
+	display:grid !important;
+	grid-template-columns:28px minmax(0,1fr) auto !important;
+	align-items:center !important;
+	column-gap:10px !important;
 	width:100% !important;
 	min-height:43px !important;
 	justify-content:flex-start !important;
@@ -1557,7 +1561,8 @@ html body .deped-fixed-header button.theme-toggle-nav:hover {
 }
 
 .deped-compact-menu-dock .nav-item::after { display:none !important; }
-.nav-menu .nav-item-icon { display:inline-grid !important; place-items:center !important; width:28px !important; height:28px !important; flex:0 0 28px !important; margin-right:8px !important; border-radius:8px !important; background:var(--itrack-side-yellow) !important; color:#123047 !important; font-size:.82rem !important; text-align:center !important; }
+.nav-menu .nav-item-icon { display:inline-grid !important; grid-column:1 !important; place-items:center !important; width:28px !important; height:28px !important; flex:0 0 28px !important; margin:0 !important; border-radius:8px !important; background:var(--itrack-side-yellow) !important; color:#123047 !important; font-size:.82rem !important; text-align:center !important; }
+.nav-menu .management-caret { grid-column:3 !important; justify-self:end !important; margin:0 !important; }
 .itrack-management-menu { width:100% !important; display:flex !important; flex-direction:column !important; align-items:stretch !important; }
 .itrack-management-submenu { position:static !important; display:flex !important; flex-direction:column !important; min-width:0 !important; width:100% !important; max-height:0 !important; margin:0 !important; padding:0 0 0 10px !important; overflow:hidden !important; opacity:0 !important; visibility:hidden !important; transform:translateY(-7px) !important; pointer-events:none !important; background:rgba(2,31,57,.28) !important; border:0 !important; border-left:2px solid rgba(245,197,43,.7) !important; border-radius:8px !important; box-shadow:none !important; transition:max-height .48s ease,opacity .34s ease,transform .42s ease,padding .42s ease,margin .42s ease,visibility .34s ease !important; }
 .itrack-management-menu:hover > .itrack-management-submenu,
@@ -1608,6 +1613,38 @@ html body .deped-fixed-header .nav-greeting { color:#d9efff !important; border-c
 	html body .deped-fixed-header button.quick-nav-btn,
 	html body .deped-fixed-header button.itrack-management-toggle,
 	html body .deped-fixed-header button.theme-toggle-nav { animation:none !important; transform:none !important; }
+}
+
+/* Fixed page-name header beside the sidebar */
+.itrack-page-titlebar {
+	position:fixed;
+	top:0;
+	left:var(--itrack-side-width);
+	right:0;
+	z-index:9500;
+	height:72px;
+	display:flex;
+	align-items:center;
+	gap:12px;
+	padding:0 clamp(20px,3vw,42px);
+	background:rgba(255,255,255,.97);
+	border-bottom:1px solid #d8e4e8;
+	box-shadow:0 5px 20px rgba(18,48,71,.08);
+	backdrop-filter:blur(16px);
+}
+.itrack-page-titlebar-marker { width:5px; height:28px; flex:0 0 5px; border-radius:999px; background:var(--itrack-side-yellow); box-shadow:0 0 0 4px rgba(245,197,43,.14); }
+.itrack-page-titlebar strong { color:#123047; font-size:clamp(1rem,1.7vw,1.28rem); font-weight:850; letter-spacing:.01em; }
+html[data-theme="dark"] .itrack-page-titlebar { background:rgba(24,36,43,.97); border-color:#2a3c45; }
+html[data-theme="dark"] .itrack-page-titlebar strong { color:#f0f7fa; }
+
+@media (max-width:1024px) {
+	.itrack-page-titlebar { left:68px; height:68px; padding:0 16px; }
+	.itrack-page-titlebar-marker { height:24px; }
+}
+
+@media (max-width:480px) {
+	.itrack-page-titlebar { gap:9px; padding:0 12px; }
+	.itrack-page-titlebar strong { max-width:calc(100vw - 115px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 }
 
 /* Shared footer for every signed-in menu page */

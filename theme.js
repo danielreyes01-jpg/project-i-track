@@ -210,6 +210,20 @@ function createITrackFooter() {
 	document.body.appendChild(footer);
 }
 
+function createITrackPageTitlebar() {
+	if (!document.documentElement.classList.contains('has-deped-fixed-header') || document.getElementById('itrack-page-titlebar')) return;
+	const activeItem = document.querySelector('.deped-fixed-header .itrack-management-submenu .nav-current') || document.querySelector('.deped-fixed-header .nav-current');
+	const pageHeading = document.querySelector('main h1, .page h1, .shell h1, h1');
+	const title = String((activeItem && (activeItem.dataset.navLabel || activeItem.textContent)) || (pageHeading && pageHeading.textContent) || document.title || 'Project i-Track')
+		.replace(/^[^\p{L}\p{N}]+/u, '').replace(/▾\s*$/, '').trim();
+	const titlebar = document.createElement('div');
+	titlebar.id = 'itrack-page-titlebar';
+	titlebar.className = 'itrack-page-titlebar';
+	titlebar.innerHTML = '<span class="itrack-page-titlebar-marker" aria-hidden="true"></span><strong></strong>';
+	titlebar.querySelector('strong').textContent = title;
+	document.body.appendChild(titlebar);
+}
+
 function dockNavigationInHeader(menuDock) {
 	const navMenu = document.querySelector('.nav-menu');
 	const navPanel = navMenu ? navMenu.closest('.nav-panel') : null;
@@ -651,6 +665,7 @@ if (document.readyState === 'loading') {
 	document.addEventListener('DOMContentLoaded', () => {
 		initializeITrackPageLoader();
 		createDepEdFixedHeader();
+		createITrackPageTitlebar();
 		createITrackFooter();
 		initializeRequiredFields();
 		initializeCreateAccountPopover();
@@ -660,6 +675,7 @@ if (document.readyState === 'loading') {
 } else {
 	initializeITrackPageLoader();
 	createDepEdFixedHeader();
+	createITrackPageTitlebar();
 	createITrackFooter();
 	initializeRequiredFields();
 	initializeCreateAccountPopover();
