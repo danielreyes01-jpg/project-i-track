@@ -410,7 +410,7 @@ function initializeCreateAccountPopover() {
 	popover.id = 'itrack-account-popover';
 	popover.className = 'itrack-account-popover';
 	popover.setAttribute('aria-label', 'Create an account');
-	popover.innerHTML = '<h2>Create an account</h2><p>Select the type of account you want to register.</p><div class="itrack-account-choices"><button type="button" data-account-type="school"><span aria-hidden="true">▣</span><strong>School Account</strong><small>For teachers and school staff</small></button><button type="button" data-account-type="student"><span aria-hidden="true">♙</span><strong>Student Account</strong><small>For registered learners</small></button></div>';
+	popover.innerHTML = '<h2>Create a School Account</h2><p>Registration for teachers and authorized school staff.</p><div class="itrack-account-choices"><button type="button" data-account-type="school"><span aria-hidden="true">▣</span><strong>Create School Account</strong><small>For teachers and authorized school personnel</small></button></div>';
 	document.body.appendChild(popover);
 	const overlay = document.createElement('div');
 	overlay.className = 'itrack-account-overlay';
@@ -432,7 +432,7 @@ function initializeCreateAccountPopover() {
 	document.addEventListener('click', (event) => {
 		const trigger = event.target.closest('a,button');
 		const directType = trigger && trigger.dataset.openAccountType;
-		if (directType === 'school' || directType === 'student') {
+		if (directType === 'school') {
 			event.preventDefault(); event.stopImmediatePropagation(); popover.classList.remove('is-open'); openAccountForm(directType); return;
 		}
 		if (trigger && /create account/i.test(String(trigger.dataset.navLabel || trigger.textContent || '')) && !trigger.closest('.itrack-account-popover')) {
