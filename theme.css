@@ -1566,6 +1566,7 @@ html body .deped-fixed-header button.theme-toggle-nav:hover {
 .itrack-management-submenu::before { display:none !important; }
 html body .deped-fixed-header .itrack-management-submenu button.nav-item { color:#eef8ff !important; }
 html body .deped-fixed-header .nav-greeting { color:#d9efff !important; border-color:rgba(255,255,255,.12) !important; }
+.deped-fixed-header .nav-greeting[hidden] { display:none !important; }
 .deped-fixed-header .nav-menu button.nav-item,
 .deped-fixed-header .nav-menu button.quick-nav-btn,
 .deped-fixed-header .nav-menu button.itrack-management-toggle,
