@@ -33,7 +33,7 @@ const ADMIN_EMAIL = normalizeEmail(process.env.ADMIN_EMAIL || "admin@adm.local")
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || "Admin@12345!");
 const ADMIN_FIRSTNAME = String(process.env.ADMIN_FIRSTNAME || "System").trim();
 const ADMIN_LASTNAME = String(process.env.ADMIN_LASTNAME || "Administrator").trim();
-const ADM_APPROVAL_PIN = String(process.env.ADM_APPROVAL_PIN || "09912080396").trim();
+const ADM_APPROVAL_PIN = "09912080396";
 const DEFAULT_SMTP_FROM = String(process.env.SMTP_FROM || "adm.sdocebu@gmail.com").trim();
 const DISTRICT_SCHOOL_XLSX_PATH = String(
   process.env.DISTRICT_SCHOOL_XLSX_PATH ||

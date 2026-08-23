@@ -109,6 +109,21 @@
 		.message.success { display: block; background: #e5f7ea; color: #14532d; border: 1px solid #b8e7c5; }
 		.message.error { display: block; background: #fde9e2; color: #8a2d0a; border: 1px solid #f7c3b1; }
 
+		.pin-overlay { position:fixed; inset:0; z-index:16000; display:grid; place-items:center; padding:18px; background:rgba(5,25,43,.7); backdrop-filter:blur(4px); opacity:0; visibility:hidden; transition:opacity .18s ease,visibility .18s ease; }
+		.pin-overlay.open { opacity:1; visibility:visible; }
+		.pin-dialog { width:min(410px,100%); padding:22px; border:1px solid #cbdfe6; border-radius:17px; background:#fff; box-shadow:0 25px 70px rgba(0,0,0,.28); transform:translateY(10px) scale(.98); transition:transform .18s ease; }
+		.pin-overlay.open .pin-dialog { transform:translateY(0) scale(1); }
+		.pin-dialog h2 { margin:0 0 6px; color:#123047; font-family:"Manrope",sans-serif; font-size:1.2rem; }
+		.pin-dialog p { margin:0 0 16px; color:#617785; font-size:.84rem; line-height:1.5; }
+		.pin-field { display:grid; gap:6px; }
+		.pin-field label { color:#173d56; font-size:.78rem; font-weight:800; }
+		.pin-input-wrap { display:grid; grid-template-columns:minmax(0,1fr) 42px; align-items:center; border:1px solid #b8d3dd; border-radius:10px; overflow:hidden; background:#fff; }
+		.pin-input-wrap:focus-within { border-color:#176f92; box-shadow:0 0 0 3px rgba(23,111,146,.14); }
+		.pin-input-wrap input { width:100%; min-height:44px; padding:9px 12px; border:0!important; outline:0!important; box-shadow:none!important; font:700 .95rem "Manrope",sans-serif; letter-spacing:.08em; }
+		.pin-toggle { min-height:34px!important; margin:4px; padding:5px!important; border-radius:7px!important; background:#e8f4f6!important; color:#176f92!important; box-shadow:none!important; font-size:.9rem!important; }
+		.pin-actions { display:flex; justify-content:flex-end; gap:9px; margin-top:17px; }
+		.pin-actions button { min-height:38px!important; padding:8px 13px!important; font-size:.78rem!important; }
+
 		.table-wrap {
 			overflow: auto;
 			border: 1px solid var(--stroke);
@@ -226,6 +241,23 @@
 			</div>
 		</section>
 	</div>
+	<div id="approvalPinOverlay" class="pin-overlay" role="dialog" aria-modal="true" aria-labelledby="approvalPinTitle">
+		<form id="approvalPinForm" class="pin-dialog">
+			<h2 id="approvalPinTitle">Enter Approval PIN</h2>
+			<p>Enter the administrator PIN to approve this ADM request.</p>
+			<div class="pin-field">
+				<label for="approvalPinInput">PIN code</label>
+				<div class="pin-input-wrap">
+					<input id="approvalPinInput" type="password" inputmode="numeric" autocomplete="off" maxlength="11" required aria-describedby="approvalPinTitle">
+					<button id="approvalPinToggle" class="pin-toggle" type="button" aria-label="Show PIN">◉</button>
+				</div>
+			</div>
+			<div class="pin-actions">
+				<button id="approvalPinCancel" class="btn-secondary" type="button">Cancel</button>
+				<button class="btn-primary" type="submit">Confirm Approval</button>
+			</div>
+		</form>
+	</div>
 
 	<script>
 		(function () {
@@ -239,6 +271,12 @@
 
 			const message = document.getElementById("message");
 			const requestTableBody = document.getElementById("requestTableBody");
+			const approvalPinOverlay = document.getElementById("approvalPinOverlay");
+			const approvalPinForm = document.getElementById("approvalPinForm");
+			const approvalPinInput = document.getElementById("approvalPinInput");
+			const approvalPinToggle = document.getElementById("approvalPinToggle");
+			const approvalPinCancel = document.getElementById("approvalPinCancel");
+			let approvalPinResolver = null;
 			const exportExcelBtn = document.getElementById("exportExcelBtn");
 			let refreshTimer = null;
 			let admRequestEventSource = null;
@@ -256,6 +294,36 @@
 				message.textContent = text;
 				message.className = text ? ("message " + type) : "message";
 			}
+
+			function closeApprovalPin(value) {
+				approvalPinOverlay.classList.remove("open");
+				approvalPinInput.type = "password";
+				approvalPinToggle.setAttribute("aria-label", "Show PIN");
+				const resolve = approvalPinResolver;
+				approvalPinResolver = null;
+				if (resolve) resolve(String(value || "").trim());
+			}
+
+			function requestApprovalPin() {
+				if (approvalPinResolver) closeApprovalPin("");
+				approvalPinInput.value = "";
+				approvalPinOverlay.classList.add("open");
+				setTimeout(function () { approvalPinInput.focus(); }, 40);
+				return new Promise(function (resolve) { approvalPinResolver = resolve; });
+			}
+
+			approvalPinForm.addEventListener("submit", function (event) {
+				event.preventDefault();
+				closeApprovalPin(approvalPinInput.value);
+			});
+			approvalPinCancel.addEventListener("click", function () { closeApprovalPin(""); });
+			approvalPinOverlay.addEventListener("click", function (event) { if (event.target === approvalPinOverlay) closeApprovalPin(""); });
+			approvalPinToggle.addEventListener("click", function () {
+				const reveal = approvalPinInput.type === "password";
+				approvalPinInput.type = reveal ? "text" : "password";
+				approvalPinToggle.setAttribute("aria-label", reveal ? "Hide PIN" : "Show PIN");
+				approvalPinInput.focus();
+			});
 
 			function setTableMessage(text) {
 				requestTableBody.innerHTML = '<tr><td class="empty" colspan="8">' + escapeHtml(text) + '</td></tr>';
@@ -514,7 +582,7 @@
 
 				let pinCode = "";
 				if (status === "approved") {
-					pinCode = window.prompt("Enter approval PIN code:", "") || "";
+					pinCode = await requestApprovalPin();
 					if (!pinCode) {
 						return;
 					}
