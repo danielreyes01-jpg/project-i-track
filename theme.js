@@ -359,10 +359,13 @@ function simplifyNavigation(navMenu) {
 	const dashboardItem = navItems.find((item) => /^dashboard$/i.test(String(item.dataset.navLabel || '')));
 	const flpRequestItem = navItems.find((item) => /^flp request form$/i.test(String(item.dataset.navLabel || '')));
 	if (dashboardItem && flpRequestItem) dashboardItem.insertAdjacentElement('afterend', flpRequestItem);
+	const admApprovalItem = navItems.find((item) => /^adm approval$/i.test(String(item.dataset.navLabel || '')));
+	if (flpRequestItem && admApprovalItem) flpRequestItem.insertAdjacentElement('afterend', admApprovalItem);
 
-	const managementPattern = /adm approval|approval request|user management/i;
+	const managementPattern = /user management/i;
 	const managementItems = navItems.filter((item) => managementPattern.test(String(item.dataset.navLabel || '')));
 	if (!managementItems.length) return;
+	if (managementItems.length === 1) return;
 
 	const previousGroups = new Set(managementItems.map((item) => item.closest('.nav-dropdown')).filter(Boolean));
 	const managementMenu = document.createElement('div');
