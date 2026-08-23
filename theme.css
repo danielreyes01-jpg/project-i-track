@@ -1783,3 +1783,34 @@ html body table .btn {
 	html body table td { font-size:.62rem !important; line-height:1.3 !important; }
 	html body table input[type="checkbox"] { width:16px !important; height:16px !important; min-height:16px !important; }
 }
+
+/* Consistent Project i-Track typography */
+html body,
+html body button,
+html body input,
+html body select,
+html body textarea {
+	font-family:Manrope,Inter,"Segoe UI",Arial,sans-serif !important;
+}
+
+html body {
+	font-size:clamp(.88rem,.18vw + .84rem,1rem) !important;
+	line-height:1.55 !important;
+}
+
+html body h1 { font-size:clamp(1.75rem,3vw,2.65rem) !important; line-height:1.12 !important; letter-spacing:-.035em !important; }
+html body h2 { font-size:clamp(1.22rem,2vw,1.65rem) !important; line-height:1.25 !important; letter-spacing:-.02em !important; }
+html body h3 { font-size:clamp(1rem,1.35vw,1.22rem) !important; line-height:1.32 !important; }
+
+html body .deped-fixed-header button.nav-item,
+html body .deped-fixed-header button.quick-nav-btn,
+html body .deped-fixed-header button.itrack-management-toggle {
+	font-size:clamp(.78rem,.45vw + .68rem,.9rem) !important;
+	line-height:1.28 !important;
+}
+
+@media (max-width:560px) {
+	html body { font-size:.88rem !important; }
+	html body h1 { font-size:1.65rem !important; }
+	html body h2 { font-size:1.2rem !important; }
+}

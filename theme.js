@@ -4,6 +4,13 @@ const ITRACK_BRAND_LOGO = 'assets/project-itrack-logo.png';
 const ITRACK_SITE_ICON = 'assets/project-itrack-icon.png';
 
 function initializeITrackBrandAssets() {
+	if (!document.head.querySelector('link[data-itrack-font]')) {
+		const fontLink = document.createElement('link');
+		fontLink.rel = 'stylesheet';
+		fontLink.href = 'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap';
+		fontLink.dataset.itrackFont = 'true';
+		document.head.appendChild(fontLink);
+	}
 	const setIcon = (rel, sizes) => {
 		let link = document.head.querySelector(`link[rel="${rel}"]`);
 		if (!link) {
@@ -185,7 +192,7 @@ function createFallbackAdministratorNavigation(pathname) {
 	menu.setAttribute('aria-label', 'Administrator navigation');
 	[
 		['Learner Record', 'learner.html'], ['Dashboard', 'dashboard.html'], ['FLP Request Form', 'adm-request.html'],
-		['Student Dashboard', 'admin-students.html'], ['Learning Resources', 'learning-resources.html'],
+		['ADM Approval', 'approval-request.html'], ['Student Dashboard', 'admin-students.html'], ['Student Profile', 'student-profile.html'], ['Learning Resources', 'learning-resources.html'],
 		['User Management', 'user.html'], ['Sign Out', 'signout.html']
 	].forEach(([label, target]) => {
 		const item = document.createElement('button');
@@ -275,8 +282,8 @@ function simplifyNavigation(navMenu) {
 	const hasAdministratorNavigation = navItems.some((item) => /user management|adm approval|approval portal/i.test(String(item.textContent || '')));
 	if (hasAdministratorNavigation) {
 		const requiredAdministratorItems = [
-			['Learner Record', 'learner.html'], ['FLP Request Form', 'adm-request.html'], ['Dashboard', 'dashboard.html'], ['Student Dashboard', 'admin-students.html'],
-			['ADM Approval', 'approval-request.html'], ['User Management', 'user.html']
+			['Learner Record', 'learner.html'], ['Dashboard', 'dashboard.html'], ['FLP Request Form', 'adm-request.html'], ['ADM Approval', 'approval-request.html'],
+			['Student Dashboard', 'admin-students.html'], ['Student Profile', 'student-profile.html'], ['Learning Resources', 'learning-resources.html'], ['User Management', 'user.html']
 		];
 		const currentLabels = () => Array.from(navMenu.querySelectorAll('.nav-item')).map((item) => String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase());
 		requiredAdministratorItems.forEach(([label, target]) => {
@@ -302,10 +309,13 @@ function simplifyNavigation(navMenu) {
 			signOut.setAttribute('onclick', "window.location.href='signout.html'");
 			navMenu.appendChild(signOut);
 		}
-		['Student Dashboard', 'Dashboard', 'Learner Record'].forEach((label) => {
+		const administratorOrder = ['Learner Record', 'Dashboard', 'FLP Request Form', 'ADM Approval', 'Student Dashboard', 'Student Profile', 'Learning Resources', 'User Management'];
+		const orderAnchor = navMenu.querySelector('.nav-greeting, .nav-item-signout');
+		administratorOrder.forEach((label) => {
 			const item = Array.from(navMenu.querySelectorAll('.nav-item')).find((candidate) => String(candidate.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase() === label.toLowerCase());
-			if (item) navMenu.insertBefore(item, navMenu.firstChild);
+			if (item) navMenu.insertBefore(item, orderAnchor || null);
 		});
+		navMenu.querySelectorAll('.nav-dropdown').forEach((group) => { if (!group.querySelector('.nav-item')) group.remove(); });
 		navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
 	}
 	const accountGreeting = navMenu.querySelector('.nav-greeting');
@@ -316,8 +326,8 @@ function simplifyNavigation(navMenu) {
 			if (role === 'admin' && !navMenu.dataset.adminNavigationLoaded) {
 				navMenu.dataset.adminNavigationLoaded = 'true';
 				const adminItems = [
-					['Student Dashboard', 'admin-students.html'], ['ADM Approval', 'approval-request.html'],
-					['User Management', 'user.html']
+					['Learner Record', 'learner.html'], ['Dashboard', 'dashboard.html'], ['FLP Request Form', 'adm-request.html'], ['ADM Approval', 'approval-request.html'],
+					['Student Dashboard', 'admin-students.html'], ['Student Profile', 'student-profile.html'], ['Learning Resources', 'learning-resources.html'], ['User Management', 'user.html']
 				];
 				const existing = () => Array.from(navMenu.querySelectorAll('.nav-item')).map((item) =>
 					String(item.dataset.navLabel || item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase()
