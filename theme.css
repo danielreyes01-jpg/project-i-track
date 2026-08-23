@@ -1465,3 +1465,125 @@ html[data-theme="dark"] .dialog-head { background:#1c2a32 !important; border-col
 @media (prefers-reduced-motion:reduce) {
 	*,*::before,*::after { scroll-behavior:auto !important; transition-duration:.01ms !important; animation-duration:.01ms !important; }
 }
+
+/* Blue side-panel navigation */
+:root { --itrack-side-width:260px; --itrack-side-blue:#0b4f87; --itrack-side-blue-deep:#073b68; --itrack-side-yellow:#f5c52b; }
+
+html.has-deped-fixed-header body {
+	padding-top:0 !important;
+	padding-left:var(--itrack-side-width) !important;
+	transition:padding-left .28s ease !important;
+}
+
+.deped-fixed-header {
+	inset:0 auto 0 0 !important;
+	width:var(--itrack-side-width) !important;
+	height:100vh !important;
+	height:100dvh !important;
+	background:linear-gradient(180deg,var(--itrack-side-blue) 0%,var(--itrack-side-blue-deep) 100%) !important;
+	border:0 !important;
+	border-right:1px solid rgba(245,197,43,.42) !important;
+	box-shadow:8px 0 28px rgba(7,38,67,.18) !important;
+}
+
+.deped-compact-bar {
+	position:relative !important;
+	inset:auto !important;
+	display:flex !important;
+	flex-direction:column !important;
+	align-items:stretch !important;
+	height:100% !important;
+	gap:14px !important;
+	padding:18px 14px !important;
+	background:transparent !important;
+	white-space:normal !important;
+}
+
+.deped-compact-brand {
+	width:100% !important;
+	height:82px !important;
+	padding:5px !important;
+	background:rgba(255,255,255,.1) !important;
+	border:1px solid rgba(255,255,255,.16) !important;
+	border-radius:15px !important;
+}
+
+.deped-compact-logo { max-width:74px !important; max-height:74px !important; }
+.deped-compact-menu-dock { display:block !important; flex:1 1 auto !important; width:100% !important; min-height:0 !important; overflow-y:auto !important; overflow-x:hidden !important; scrollbar-color:rgba(245,197,43,.55) transparent; }
+.deped-compact-menu-dock .nav-menu { display:flex !important; flex-direction:column !important; align-items:stretch !important; width:100% !important; min-height:100% !important; gap:7px !important; overflow:visible !important; }
+
+html body .deped-fixed-header button.nav-item,
+html body .deped-fixed-header button.quick-nav-btn,
+html body .deped-fixed-header button.itrack-management-toggle,
+html body .deped-fixed-header button.theme-toggle-nav,
+html body .deped-fixed-header .nav-greeting {
+	width:100% !important;
+	min-height:43px !important;
+	justify-content:flex-start !important;
+	margin:0 !important;
+	padding:9px 11px !important;
+	background:rgba(255,255,255,.045) !important;
+	border:1px solid transparent !important;
+	border-radius:10px !important;
+	color:#fff !important;
+	font-size:.82rem !important;
+	text-align:left !important;
+	transition:background-color .2s ease,color .2s ease,border-color .2s ease,transform .2s cubic-bezier(.2,.8,.2,1),box-shadow .2s ease !important;
+}
+
+html body .deped-fixed-header button.nav-item:hover,
+html body .deped-fixed-header button.nav-item:focus-visible,
+html body .deped-fixed-header button.nav-item.nav-current,
+html body .deped-fixed-header button.quick-nav-btn:hover,
+html body .deped-fixed-header button.quick-nav-btn.active,
+html body .deped-fixed-header button.itrack-management-toggle:hover,
+html body .deped-fixed-header button.theme-toggle-nav:hover {
+	background:rgba(245,197,43,.14) !important;
+	border-color:var(--itrack-side-yellow) !important;
+	color:#fff7c9 !important;
+	box-shadow:0 5px 16px rgba(0,0,0,.16),inset 3px 0 0 var(--itrack-side-yellow) !important;
+	transform:translateX(5px) !important;
+}
+
+.deped-compact-menu-dock .nav-item::after { display:none !important; }
+.nav-menu .nav-item-icon { width:22px !important; margin-right:7px !important; color:var(--itrack-side-yellow) !important; text-align:center !important; }
+.itrack-management-menu { width:100% !important; display:flex !important; flex-direction:column !important; align-items:stretch !important; }
+.itrack-management-submenu { position:static !important; min-width:0 !important; width:100% !important; margin:4px 0 3px !important; padding:5px 0 5px 10px !important; background:rgba(2,31,57,.28) !important; border:0 !important; border-left:2px solid rgba(245,197,43,.7) !important; border-radius:8px !important; box-shadow:none !important; }
+.itrack-management-submenu::before { display:none !important; }
+html body .deped-fixed-header .itrack-management-submenu button.nav-item { color:#eef8ff !important; }
+html body .deped-fixed-header .nav-greeting { color:#d9efff !important; border-color:rgba(255,255,255,.12) !important; }
+.nav-menu > .nav-greeting { margin-top:auto !important; }
+.nav-menu .theme-toggle-nav { order:initial !important; }
+.deped-mobile-menu-toggle { border-color:var(--itrack-side-yellow) !important; }
+.deped-mobile-menu-toggle span { background:#fff !important; }
+
+@keyframes itrack-side-button-hover {
+	0% { transform:translateX(0); }
+	60% { transform:translateX(7px); }
+	100% { transform:translateX(5px); }
+}
+
+@media (hover:hover) and (pointer:fine) {
+	html body .deped-fixed-header button.nav-item:hover,
+	html body .deped-fixed-header button.quick-nav-btn:hover,
+	html body .deped-fixed-header button.itrack-management-toggle:hover,
+	html body .deped-fixed-header button.theme-toggle-nav:hover { animation:itrack-side-button-hover .28s ease-out both !important; }
+}
+
+@media (max-width:1024px) {
+	html.has-deped-fixed-header body { padding-left:0 !important; padding-top:68px !important; }
+	.deped-fixed-header { width:68px !important; height:68px !important; overflow:visible !important; border-radius:0 0 16px 0 !important; transition:width .28s ease,height .28s ease !important; }
+	.deped-fixed-header.mobile-menu-open { width:min(286px,88vw) !important; height:100vh !important; height:100dvh !important; border-radius:0 !important; }
+	.deped-compact-bar { padding:12px !important; gap:10px !important; }
+	.deped-compact-brand { display:none !important; }
+	.deped-mobile-menu-toggle:not([hidden]) { display:inline-flex !important; margin:0 !important; flex:0 0 42px !important; }
+	.deped-compact-menu-dock { position:static !important; inset:auto !important; display:none !important; width:100% !important; max-height:none !important; padding:0 !important; overflow-y:auto !important; background:transparent !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; opacity:0 !important; visibility:hidden !important; transform:none !important; pointer-events:none !important; }
+	.deped-fixed-header.mobile-menu-open .deped-compact-menu-dock { display:block !important; padding:0 !important; opacity:1 !important; visibility:visible !important; transform:none !important; pointer-events:auto !important; }
+}
+
+@media (prefers-reduced-motion:reduce) {
+	html body .deped-fixed-header button.nav-item,
+	html body .deped-fixed-header button.quick-nav-btn,
+	html body .deped-fixed-header button.itrack-management-toggle,
+	html body .deped-fixed-header button.theme-toggle-nav { animation:none !important; transform:none !important; }
+}
