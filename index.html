@@ -212,7 +212,8 @@
 			background: #c8e7d3;
 		}
 
-		.login-account-selector { position:relative; margin-top:16px; padding:22px 18px 18px; background:#fff; border:1px solid #bedfd1; border-radius:17px; text-align:center; }
+		.login-account-selector { position:relative; max-height:0; margin-top:0; padding:0 18px; overflow:hidden; opacity:0; visibility:hidden; transform:translateY(-14px) scale(.985); pointer-events:none; background:#fff; border:0 solid #bedfd1; border-radius:17px; text-align:center; transition:max-height .65s ease,margin-top .55s ease,padding .55s ease,opacity .48s ease,transform .58s cubic-bezier(.2,.8,.2,1),visibility .48s ease,border-width .2s ease; }
+		.login-account-selector.is-open { max-height:280px; margin-top:16px; padding:22px 18px 18px; overflow:visible; opacity:1; visibility:visible; transform:translateY(0) scale(1); pointer-events:auto; border-width:1px; }
 		.login-account-selector::before { content:""; position:absolute; top:-9px; left:50%; width:16px; height:16px; transform:translateX(-50%) rotate(45deg); background:#fff; border-left:1px solid #bedfd1; border-top:1px solid #bedfd1; }
 		.login-account-selector h2 { margin:0 0 4px; color:#174c3d; font-size:1rem; }
 		.login-account-selector>p { margin:0 0 13px; color:#778a84; font-size:.76rem; }
@@ -250,7 +251,7 @@
 			.brand-logo { width:clamp(92px,28vw,124px); }
 			.input-with-action { gap:6px; }
 			.toggle-btn { padding-inline:10px!important; }
-			.login-account-selector { padding:18px 12px 14px; }
+			.login-account-selector.is-open { padding:18px 12px 14px; }
 		}
 
 		@media (max-width: 360px) {
@@ -265,7 +266,7 @@
 			.subtitle { margin-bottom:12px; font-size:.88rem; }
 			form { gap:7px; }
 			input { padding-block:10px; }
-			.login-account-selector { margin-top:10px; padding:16px 12px 12px; }
+			.login-account-selector.is-open { margin-top:10px; padding:16px 12px 12px; }
 			.login-account-selector>p { margin-bottom:8px; }
 			.login-account-options button { min-height:58px; padding:7px; }
 			.hint { margin-top:6px; }
@@ -306,12 +307,31 @@
 			</section>
 		</form>
 
-		<p class="hint">Secure access for authorized users only.</p>
+		<p class="hint">Please Contact <strong>Daniel P. Reyes</strong> for reset password. <strong>© 2026 D. REYES</strong> All rights reserved.<br><strong>Version</strong> 1.2.1</p>
 	</main>
 
 	<script>
 		(function () {
 			const loginForm = document.getElementById("loginForm");
+			const loginButton = loginForm.querySelector(".btn-login");
+			const accountSelector = loginForm.querySelector(".login-account-selector");
+			let accountSelectorTimer = null;
+			const showAccountSelector = function () {
+				clearTimeout(accountSelectorTimer);
+				accountSelector.classList.add("is-open");
+			};
+			const hideAccountSelectorSoon = function () {
+				clearTimeout(accountSelectorTimer);
+				accountSelectorTimer = setTimeout(function () { accountSelector.classList.remove("is-open"); }, 480);
+			};
+			loginButton.addEventListener("mouseenter", function () {
+				clearTimeout(accountSelectorTimer);
+				accountSelectorTimer = setTimeout(showAccountSelector, 280);
+			});
+			loginButton.addEventListener("mouseleave", hideAccountSelectorSoon);
+			loginButton.addEventListener("focus", showAccountSelector);
+			accountSelector.addEventListener("mouseenter", function () { clearTimeout(accountSelectorTimer); });
+			accountSelector.addEventListener("mouseleave", hideAccountSelectorSoon);
 			const usernameInput = document.getElementById("username");
 			const passwordInput = document.getElementById("password");
 			const togglePasswordBtn = document.getElementById("togglePassword");
