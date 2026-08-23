@@ -176,7 +176,7 @@ function createITrackFooter() {
 				<div><strong>PROJECT I-TRACK</strong><span>SDO CEBU PROVINCE</span></div>
 			</div>
 			<p class="itrack-footer-rights">ALL RIGHTS RESERVED © 2026<br><span>Department of Education • Division of Cebu Province</span></p>
-			<p class="itrack-footer-credit">Project HELPS Website developed by:<br><a href="https://www.facebook.com/dan.rey0888" target="_blank" rel="noopener noreferrer">DANIEL P. REYES</a></p>
+			<p class="itrack-footer-credit">Project i-Track Website developed by:<br><a href="https://www.facebook.com/dan.rey0888" target="_blank" rel="noopener noreferrer">DANIEL P. REYES</a></p>
 		</div>`;
 	document.body.appendChild(footer);
 }
