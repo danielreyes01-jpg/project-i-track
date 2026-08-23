@@ -3,7 +3,7 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>User Approval</title>
+	<title>User Management</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
@@ -401,28 +401,34 @@
 				width: 100%;
 			}
 		}
+
+		.management-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:18px;padding:20px;border:1px solid #d7e5e7;border-radius:16px;background:linear-gradient(135deg,#f8fcff,#eef7f5)}
+		.management-hero h1{font-family:"Manrope",sans-serif;margin:0 0 5px;color:#123047}.management-hero .subtitle{margin:0}.management-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:999px;background:#e6f2ff;color:#0b5d91;font-size:.74rem;font-weight:800;white-space:nowrap}
+		.user-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}.user-metric{padding:15px;border:1px solid #dce7ea;border-radius:13px;background:#fff;box-shadow:0 6px 18px rgba(18,48,71,.05)}.user-metric span{display:block;color:#607481;font-size:.76rem}.user-metric strong{display:block;margin-top:3px;color:#123047;font-size:1.65rem}.user-metric.pending{border-left:4px solid #f0b429}.user-metric.approved{border-left:4px solid #16805e}
+		.management-controls{display:grid;grid-template-columns:minmax(220px,1.4fr) minmax(150px,.65fr) minmax(150px,.65fr) auto;gap:10px;align-items:center;margin-bottom:12px}.management-controls input,.management-controls select{width:100%;min-height:44px;padding:9px 11px;border:1px solid #c8dadd;border-radius:10px;background:#fff;font:inherit}.access-panel{position:relative}.access-panel summary{display:flex;align-items:center;min-height:44px;padding:9px 12px;border:1px solid #c8dadd;border-radius:10px;background:#fff;color:#31566d;font-size:.78rem;font-weight:750;cursor:pointer;list-style:none}.access-panel summary::-webkit-details-marker{display:none}.access-panel[open] summary{border-radius:10px 10px 0 0}.access-panel input{border-radius:0 0 10px 10px}
+		.bulk-actions{display:grid;grid-template-columns:minmax(180px,260px) auto;justify-content:end;gap:9px;padding:10px 0;margin:0 0 10px;border-top:1px solid #e1eaec}.bulk-actions select{min-height:42px;padding:8px 10px;border:1px solid #c8dadd;border-radius:9px;background:#fff;font:inherit}.bulk-actions button{min-width:92px}
+		@media(max-width:900px){.management-controls{grid-template-columns:1fr 1fr}.user-metrics{grid-template-columns:1fr}.bulk-actions{grid-template-columns:1fr auto}.management-hero{flex-direction:column}}
+		@media(max-width:560px){.management-controls{grid-template-columns:1fr}.bulk-actions{grid-template-columns:1fr}.bulk-actions button{width:100%}}
 	</style>
 </head>
 <body>
 	<main class="shell">
-		<div class="brand">
-			<img class="brand-logo" src="assets/project-itrack-logo.png" alt="Project i-Track logo">
-		</div>
-		<h1>User Approval Page</h1>
-		<p class="subtitle">View all registrations and approve pending users.</p>
+		<section class="management-hero"><div><h1>User Management</h1><p class="subtitle">Manage pending approvals, approved accounts, roles, and access from one workspace.</p></div><span class="management-badge">● Live account directory</span></section>
 
-		<div class="toolbar">
-			<input id="adminKey" type="password" placeholder="Enter ADMIN_ACCESS_KEY">
-			<button id="loadBtn" class="btn-primary" type="button">Load Users</button>
-			<button id="saveBtn" class="btn-secondary" type="button">Save Key</button>
+		<section class="user-metrics" aria-label="User account summary"><article class="user-metric"><span>All users</span><strong id="totalUsers">0</strong></article><article class="user-metric pending"><span>Pending approval</span><strong id="pendingUsers">0</strong></article><article class="user-metric approved"><span>Approved users</span><strong id="approvedUsers">0</strong></article></section>
+
+		<div class="management-controls">
+			<input id="userSearch" type="search" placeholder="Search name, email, district, or school" aria-label="Search users">
+			<select id="statusFilter" aria-label="Filter by approval status"><option value="all">All statuses</option><option value="pending">Pending approval</option><option value="approved">Approved</option></select>
+			<select id="roleFilter" aria-label="Filter by role"><option value="all">All roles</option><option value="teacher">Teacher</option><option value="student">Student</option><option value="supervisor">Supervisor</option><option value="admin">Admin</option></select>
+			<details class="access-panel"><summary>🔐 Access key</summary><input id="adminKey" type="password" placeholder="Optional admin access key"></details>
 		</div>
 
 		<div id="message" class="message" role="status" aria-live="polite"></div>
 
 		<div class="bulk-actions">
-			<button id="approveSelectedBtn" class="approve" type="button">Approve</button>
-			<button id="rejectSelectedBtn" class="reject" type="button">Reject</button>
-			<button id="deleteSelectedBtn" class="delete" type="button">Delete</button>
+			<select id="bulkAction" aria-label="Action for selected users"><option value="">Action for selected users</option><option value="approve">Approve accounts</option><option value="reject">Reject accounts</option><option value="delete">Delete accounts</option></select>
+			<button id="applyBulkBtn" class="btn-primary" type="button">Apply</button>
 		</div>
 
 		<div id="usersSection" class="table-wrap hidden">
@@ -444,27 +450,26 @@
 			</table>
 		</div>
 
-		<div class="footer">
-			<button class="btn-secondary" type="button" onclick="window.location.href='dashboard.html'">Back to Admin Dashboard</button>
-			<button class="btn-secondary" type="button" onclick="window.location.href='approval.html'">Back to Approval Portal</button>
-			<button class="btn-secondary" type="button" onclick="window.location.href='signout.html'">Sign Out</button>
-		</div>
 	</main>
 
 	<script>
 		(function () {
 			const AUTO_REFRESH_MS = 30000;
 			const adminKeyInput = document.getElementById("adminKey");
-			const loadBtn = document.getElementById("loadBtn");
-			const saveBtn = document.getElementById("saveBtn");
 			const message = document.getElementById("message");
 			const usersBody = document.getElementById("usersBody");
 			const usersSection = document.getElementById("usersSection");
 			const selectAllUsers = document.getElementById("selectAllUsers");
-			const approveSelectedBtn = document.getElementById("approveSelectedBtn");
-			const rejectSelectedBtn = document.getElementById("rejectSelectedBtn");
-			const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
+			const userSearch = document.getElementById("userSearch");
+			const statusFilter = document.getElementById("statusFilter");
+			const roleFilter = document.getElementById("roleFilter");
+			const bulkAction = document.getElementById("bulkAction");
+			const applyBulkBtn = document.getElementById("applyBulkBtn");
+			const totalUsers = document.getElementById("totalUsers");
+			const pendingUsers = document.getElementById("pendingUsers");
+			const approvedUsers = document.getElementById("approvedUsers");
 			let autoRefreshTimer = null;
+			let allUsers = [];
 
 			adminKeyInput.value = localStorage.getItem("adminAccessKey") || "";
 
@@ -548,6 +553,25 @@
 				selectAllUsers.checked = false;
 			}
 
+			function updateSummary() {
+				totalUsers.textContent = allUsers.length;
+				pendingUsers.textContent = allUsers.filter(function (user) { return !Boolean(user.approved); }).length;
+				approvedUsers.textContent = allUsers.filter(function (user) { return Boolean(user.approved); }).length;
+			}
+
+			function applyFilters() {
+				const search = userSearch.value.trim().toLowerCase();
+				const status = statusFilter.value;
+				const role = roleFilter.value;
+				const filtered = allUsers.filter(function (user) {
+					const matchesSearch = !search || [user.firstname, user.middlename, user.lastname, user.email, user.district, user.school].join(" ").toLowerCase().includes(search);
+					const matchesStatus = status === "all" || (status === "approved" ? Boolean(user.approved) : !Boolean(user.approved));
+					const matchesRole = role === "all" || String(user.role || "teacher").toLowerCase() === role;
+					return matchesSearch && matchesStatus && matchesRole;
+				});
+				renderRows(filtered);
+			}
+
 			function getSelectedUserIds() {
 				return Array.from(usersBody.querySelectorAll("input.user-select:checked")).map(function (el) {
 					return el.getAttribute("data-id");
@@ -572,7 +596,9 @@
 						throw new Error(payload.message || "Failed to load users.");
 					}
 
-					renderRows(Array.isArray(payload.users) ? payload.users : []);
+					allUsers = Array.isArray(payload.users) ? payload.users : [];
+					updateSummary();
+					applyFilters();
 					setUsersSectionVisible(true);
 					if (!silent) {
 						setMessage("Users loaded.", "success");
@@ -689,10 +715,6 @@
 				loadUsers();
 			}
 
-			loadBtn.addEventListener("click", function () {
-				loadUsers({ silent: false });
-			});
-
 			async function initializeUserApprovalPage() {
 				try {
 					const response = await fetch("/api/auth/me");
@@ -707,10 +729,11 @@
 
 			initializeUserApprovalPage();
 
-			saveBtn.addEventListener("click", function () {
+			adminKeyInput.addEventListener("change", function () {
 				localStorage.setItem("adminAccessKey", getAdminKey());
-				setMessage("Admin key saved on this browser.", "success");
+				loadUsers({ silent: false });
 			});
+			[userSearch, statusFilter, roleFilter].forEach(function (control) { control.addEventListener(control === userSearch ? "input" : "change", applyFilters); });
 
 			usersBody.addEventListener("click", function (event) {
 				const button = event.target.closest("button[data-action]");
@@ -733,16 +756,9 @@
 				}
 			});
 
-			approveSelectedBtn.addEventListener("click", function () {
-				applyBulkAction("approve");
-			});
-
-			rejectSelectedBtn.addEventListener("click", function () {
-				applyBulkAction("reject");
-			});
-
-			deleteSelectedBtn.addEventListener("click", function () {
-				applyBulkAction("delete");
+			applyBulkBtn.addEventListener("click", function () {
+				if (!bulkAction.value) { setMessage("Choose an action for the selected users.", "error"); return; }
+				applyBulkAction(bulkAction.value);
 			});
 
 			usersBody.addEventListener("change", function (event) {

@@ -98,6 +98,12 @@ function initializeITrackPageLoader() {
 
 function createDepEdFixedHeader() {
 	const pathname = String(window.location.pathname || '/').toLowerCase();
+	const currentPage = pathname.split('/').pop();
+	const consolidatedAccountPages = new Set(['approval.html', 'admin.html', 'approved.html']);
+	if (consolidatedAccountPages.has(currentPage)) {
+		window.location.replace('/user.html');
+		return;
+	}
 	const isHeaderlessPage = pathname === '/' || pathname.endsWith('/index.html') || pathname.endsWith('/create.html');
 	if (isHeaderlessPage) {
 		document.documentElement.classList.add('login-page-without-deped-header');
@@ -250,7 +256,7 @@ function simplifyNavigation(navMenu) {
 		const label = String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
 		if (/^adm request( form)?$/i.test(label)) item.textContent = 'FLP Request Form';
 	});
-	navItems.filter((item) => /^(create account|login page)$/i.test(String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim())).forEach((item) => item.remove());
+	navItems.filter((item) => /^(create account|login page|approval portal|pending approvals?|approved users)$/i.test(String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim())).forEach((item) => item.remove());
 	navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
 	if (navItems.some((item) => /sign out/i.test(String(item.textContent || ''))) && !navItems.some((item) => /learning resources/i.test(String(item.textContent || '')))) {
 		const resourcesItem = document.createElement('button');
@@ -267,8 +273,7 @@ function simplifyNavigation(navMenu) {
 	if (hasAdministratorNavigation) {
 		const requiredAdministratorItems = [
 			['Learner Record', 'learner.html'], ['FLP Request Form', 'adm-request.html'], ['Dashboard', 'dashboard.html'], ['Student Dashboard', 'admin-students.html'],
-			['ADM Approval', 'approval-request.html'], ['User Management', 'user.html'], ['Approval Portal', 'approval.html'],
-			['Pending Approvals', 'admin.html'], ['Approved Users', 'approved.html']
+			['ADM Approval', 'approval-request.html'], ['User Management', 'user.html']
 		];
 		const currentLabels = () => Array.from(navMenu.querySelectorAll('.nav-item')).map((item) => String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase());
 		requiredAdministratorItems.forEach(([label, target]) => {
@@ -309,8 +314,7 @@ function simplifyNavigation(navMenu) {
 				navMenu.dataset.adminNavigationLoaded = 'true';
 				const adminItems = [
 					['Student Dashboard', 'admin-students.html'], ['ADM Approval', 'approval-request.html'],
-					['User Management', 'user.html'], ['Approval Portal', 'approval.html'],
-					['Pending Approvals', 'admin.html'], ['Approved Users', 'approved.html']
+					['User Management', 'user.html']
 				];
 				const existing = () => Array.from(navMenu.querySelectorAll('.nav-item')).map((item) =>
 					String(item.dataset.navLabel || item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase()
@@ -356,7 +360,7 @@ function simplifyNavigation(navMenu) {
 	const flpRequestItem = navItems.find((item) => /^flp request form$/i.test(String(item.dataset.navLabel || '')));
 	if (dashboardItem && flpRequestItem) dashboardItem.insertAdjacentElement('afterend', flpRequestItem);
 
-	const managementPattern = /adm approval|approval request|approval portal|pending approval|approved user|user management/i;
+	const managementPattern = /adm approval|approval request|user management/i;
 	const managementItems = navItems.filter((item) => managementPattern.test(String(item.dataset.navLabel || '')));
 	if (!managementItems.length) return;
 
