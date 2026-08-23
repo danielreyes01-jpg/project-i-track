@@ -102,6 +102,37 @@
 		.message.success { display: block; background: var(--success-bg); color: var(--success-ink); border: 1px solid #b8e7c5; }
 		.message.error { display: block; background: var(--error-bg); color: var(--error-ink); border: 1px solid #f7c3b1; }
 
+		.approval-notice {
+			position: fixed;
+			inset: 0;
+			z-index: 15000;
+			display: grid;
+			place-items: center;
+			padding: 20px;
+			background: rgba(6, 25, 43, 0.72);
+			backdrop-filter: blur(4px);
+			opacity: 0;
+			visibility: hidden;
+			transition: opacity 180ms ease, visibility 180ms ease;
+		}
+
+		.approval-notice.show { opacity: 1; visibility: visible; }
+		.approval-notice-card {
+			width: min(430px, 100%);
+			padding: 24px;
+			border: 1px solid #b8e7c5;
+			border-radius: 18px;
+			background: #fff;
+			box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+			text-align: center;
+			transform: translateY(12px) scale(0.98);
+			transition: transform 180ms ease;
+		}
+		.approval-notice.show .approval-notice-card { transform: translateY(0) scale(1); }
+		.approval-notice-icon { width: 52px; height: 52px; margin: 0 auto 12px; border-radius: 50%; display: grid; place-items: center; background: #dff6e8; color: #08745b; font-size: 1.6rem; font-weight: 900; }
+		.approval-notice-card h2 { margin: 0 0 8px; color: #123047; font-size: 1.25rem; }
+		.approval-notice-card p { margin: 0; color: var(--muted); line-height: 1.55; }
+
 		.form-grid {
 			display: grid;
 			grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -312,6 +343,13 @@
 			</div>
 		</section>
 	</div>
+	<div id="approvalNotice" class="approval-notice" role="alertdialog" aria-modal="true" aria-labelledby="approvalNoticeTitle" aria-describedby="approvalNoticeText">
+		<div class="approval-notice-card">
+			<div class="approval-notice-icon" aria-hidden="true">✓</div>
+			<h2 id="approvalNoticeTitle">ADM Request Approved</h2>
+			<p id="approvalNoticeText">Your request was approved. Your official approval PDF is ready in the request table.</p>
+		</div>
+	</div>
 
 	<script>
 		(function () {
@@ -322,12 +360,26 @@
 			const requestDateInput = document.getElementById("requestDate");
 			const districtInput = document.getElementById("district");
 			const schoolInput = document.getElementById("school");
+			const approvalNotice = document.getElementById("approvalNotice");
 			let requestRefreshTimer = null;
 			let requestEventSource = null;
+			let approvalNoticeTimer = null;
 
 			function setMessage(text, type) {
 				message.textContent = text;
 				message.className = "message " + type;
+			}
+
+			function showApprovalNotice(item) {
+				if (!item || !approvalNotice) return;
+				const noticeKey = "admApprovalNotice:" + String(item.id || "") + ":" + String(item.reviewed_at || "approved");
+				if (localStorage.getItem(noticeKey)) return;
+				localStorage.setItem(noticeKey, "shown");
+				if (approvalNoticeTimer) clearTimeout(approvalNoticeTimer);
+				approvalNotice.classList.add("show");
+				approvalNoticeTimer = setTimeout(function () {
+					approvalNotice.classList.remove("show");
+				}, 3000);
 			}
 
 			function escapeHtml(value) {
@@ -434,6 +486,10 @@
 						'<td><span class="status-pill">' + escapeHtml(formatStatusLabel(status)) + '</span></td>' +
 					'</tr>';
 				}).join("");
+				const approvedRequest = requests.find(function (item) {
+					return String(item.status || "").trim().toLowerCase() === "approved" && item.approval_pdf_path;
+				});
+				if (approvedRequest) showApprovalNotice(approvedRequest);
 			}
 
 			async function loadRequests(options) {
@@ -462,7 +518,11 @@
 				}
 
 				requestEventSource = new EventSource("/api/adm-requests/stream", { withCredentials: true });
-				requestEventSource.addEventListener("adm-request-updated", function () {
+				requestEventSource.addEventListener("adm-request-updated", function (event) {
+					try {
+						const update = JSON.parse(String(event.data || "{}"));
+						if (String(update.status || "").toLowerCase() === "approved") showApprovalNotice(update);
+					} catch (error) {}
 					loadRequests({ silent: true });
 				});
 				requestEventSource.onerror = function () {

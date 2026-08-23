@@ -9,6 +9,7 @@ const session = require("express-session");
 const multer = require("multer");
 const nodemailer = require("nodemailer");
 const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
+const fontkit = require("@pdf-lib/fontkit");
 const xlsx = require("xlsx");
 const ExcelJS = require("exceljs");
 const { createTemplatedDocxBuffer } = require("./report-docx");
@@ -40,6 +41,7 @@ const DISTRICT_SCHOOL_XLSX_PATH = String(
 ).trim();
 const APPROVAL_REQUEST_UPLOAD_DIR = path.join(__dirname, "uploads", "approval-requests");
 const ADM_APPROVAL_TEMPLATE_PATH = path.join(__dirname, "assets", "documents", "ADM-Approval.pdf");
+const ADM_APPROVAL_FONT_PATH = path.join(__dirname, "assets", "fonts", "Bookman-Old-Style.ttf");
 const ADM_APPROVAL_OUTPUT_DIR = path.join(__dirname, "uploads", "adm-approvals");
 const PROFILE_IMAGE_UPLOAD_DIR = path.join(__dirname, "uploads", "profile-images");
 const LEARNING_RESOURCE_UPLOAD_DIR = path.join(__dirname, "uploads", "learning-resources");
@@ -472,7 +474,7 @@ async function sendApprovalRequestStatusEmail({ email, requestorName, learnerNam
   return true;
 }
 
-async function sendAdmRequestStatusEmail({ email, requestorName, status, reviewNote, requestDate, district, school, admFocal }) {
+async function sendAdmRequestStatusEmail({ email, requestorName, status, reviewNote, requestDate, district, school, admFocal, approvalPdfPath }) {
   if (!hasSmtpConfig()) {
     return false;
   }
@@ -514,11 +516,18 @@ async function sendAdmRequestStatusEmail({ email, requestorName, status, reviewN
     `;
   }
 
+  const approvalAttachmentPath = approvalPdfPath
+    ? path.join(__dirname, String(approvalPdfPath).replace(/^[/\\]+/, ""))
+    : "";
+
   await transporter.sendMail({
     from: DEFAULT_SMTP_FROM,
     to: email,
     subject: subject,
-    html: htmlContent
+    html: htmlContent,
+    attachments: approvalAttachmentPath && fs.existsSync(approvalAttachmentPath)
+      ? [{ filename: "ADM-Approval-Letter.pdf", path: approvalAttachmentPath, contentType: "application/pdf" }]
+      : []
   });
 
   return true;
@@ -554,26 +563,26 @@ async function createAdmApprovalPdf({ requestId, requestDate, approvedAt, reques
   if (!fs.existsSync(ADM_APPROVAL_TEMPLATE_PATH)) {
     throw new Error("ADM approval template PDF not found.");
   }
+  if (!fs.existsSync(ADM_APPROVAL_FONT_PATH)) {
+    throw new Error("Bookman Old Style font file not found.");
+  }
 
   const templateBytes = fs.readFileSync(ADM_APPROVAL_TEMPLATE_PATH);
   const pdfDoc = await PDFDocument.load(templateBytes);
+  pdfDoc.registerFontkit(fontkit);
   const pages = pdfDoc.getPages();
-  const page = pages[pages.length - 1];
-  const { width, height } = page.getSize();
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const page = pages[0];
+  const fontBytes = fs.readFileSync(ADM_APPROVAL_FONT_PATH);
+  const bookmanFont = await pdfDoc.embedFont(fontBytes, { subset: true });
 
-  // Add approval date above "Dear Sir/Madam" section
-  // Positioned in the center top area of the document
-  const approvalDateY = height - 80; // Position near top, above body text
-  const approvalDateX = (width - 200) / 2; // Center-aligned with 200pt width
-
-  page.drawText(`Date Approved: ${formatIsoOrDateToLongDate(approvedAt)}`, {
-    x: approvalDateX,
-    y: approvalDateY,
-    size: 10,
-    font: boldFont,
-    color: rgb(0.1, 0.16, 0.13)
+  // The official template reserves this line directly below the
+  // "Office the Schools Division / Superintendent" heading.
+  page.drawText(`Approved Date: ${formatIsoOrDateToLongDate(approvedAt)}`, {
+    x: 54.025,
+    y: 737,
+    size: 12,
+    font: bookmanFont,
+    color: rgb(0, 0, 0)
   });
 
   const outputName = `adm-approval-${String(requestId)}.pdf`;
@@ -2398,7 +2407,8 @@ app.post("/api/admin/adm-requests/:id/status", requireAdmin, async (req, res) =>
           requestDate: admRequest.request_date,
           district: admRequest.district,
           school: admRequest.school,
-          admFocal: admRequest.adm_focal
+          admFocal: admRequest.adm_focal,
+          approvalPdfPath
         });
       } catch (mailError) {
         console.warn("ADM request status email failed:", mailError.message);
@@ -2414,7 +2424,12 @@ app.post("/api/admin/adm-requests/:id/status", requireAdmin, async (req, res) =>
       reviewed_at: nowIso
     });
 
-    return res.json({ message: "ADM request updated." });
+    return res.json({
+      message: status === "approved"
+        ? "ADM request approved. The requester was notified and the approval PDF is ready."
+        : "ADM request updated.",
+      approval_pdf_path: approvalPdfPath
+    });
   } catch (error) {
     return res.status(500).json({ message: "Failed to update ADM request.", detail: error.message });
   }
