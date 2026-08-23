@@ -314,9 +314,37 @@ function simplifyNavigation(navMenu) {
 	}
 	const accountGreeting = navMenu.querySelector('.nav-greeting');
 	if (accountGreeting) accountGreeting.hidden = true;
-	if (accountGreeting && !String(accountGreeting.textContent || '').trim()) {
-		fetch('/api/auth/me', { credentials: 'include' }).then((response) => response.ok ? response.json() : null).then((payload) => {
+	fetch('/api/auth/me', { credentials: 'include' }).then((response) => response.ok ? response.json() : null).then((payload) => {
 			const role = String((payload && payload.user && payload.user.role) || '').trim().toLowerCase();
+			if (role === 'teacher' && !navMenu.dataset.teacherNavigationLoaded) {
+				navMenu.dataset.teacherNavigationLoaded = 'true';
+				const teacherItems = [
+					['Learner Record', 'learner.html'],
+					['FLP Request Form', 'adm-request.html'],
+					['My Account', 'account.html'],
+					['Learning Resources', 'learning-resources.html']
+				];
+				const allowed = new Set(teacherItems.map(([label]) => label.toLowerCase()));
+				Array.from(navMenu.querySelectorAll('.nav-item')).forEach((item) => {
+					const label = String(item.dataset.navLabel || item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase();
+					if (!allowed.has(label)) item.remove();
+				});
+				const existing = () => Array.from(navMenu.querySelectorAll('.nav-item')).map((item) =>
+					String(item.dataset.navLabel || item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase()
+				);
+				teacherItems.forEach(([label, target]) => {
+					if (existing().includes(label.toLowerCase())) return;
+					const item = document.createElement('button');
+					item.type = 'button';
+					item.className = 'nav-item';
+					item.textContent = label;
+					item.setAttribute('onclick', `window.location.href='${target}'`);
+					navMenu.appendChild(item);
+				});
+				navMenu.querySelectorAll('.nav-dropdown,.itrack-management-menu').forEach((group) => { if (!group.querySelector('.nav-item')) group.remove(); });
+				simplifyNavigation(navMenu);
+				return;
+			}
 			if (role === 'admin' && !navMenu.dataset.adminNavigationLoaded) {
 				navMenu.dataset.adminNavigationLoaded = 'true';
 				const adminItems = [
@@ -344,7 +372,6 @@ function simplifyNavigation(navMenu) {
 				simplifyNavigation(navMenu);
 			}
 		}).catch(() => {});
-	}
 
 	Array.from(navMenu.querySelectorAll('.nav-item')).filter((item) => /sign out/i.test(String(item.textContent || ''))).forEach((item) => item.remove());
 	navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
