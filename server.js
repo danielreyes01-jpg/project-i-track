@@ -11,6 +11,7 @@ const nodemailer = require("nodemailer");
 const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
 const xlsx = require("xlsx");
 const ExcelJS = require("exceljs");
+const { createTemplatedDocxBuffer } = require("./report-docx");
 
 dotenv.config();
 
@@ -664,65 +665,7 @@ async function hasActiveAccountSession(req) {
 }
 
 async function createTemplatedExcelBuffer({ title, sheetName, rows, emptyRow }) {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(GENERATED_EXCEL_TEMPLATE_PATH);
-  const worksheet = workbook.worksheets[0] || workbook.addWorksheet(sheetName);
-  worksheet.name = String(sheetName || "Report").slice(0, 31);
-
-  const reportRows = rows.length ? rows : [emptyRow];
-  const headers = Object.keys(reportRows[0] || {});
-  const columnCount = Math.max(11, headers.length || 1);
-  const lastColumn = excelColumnName(columnCount);
-
-  for (let rowNumber = 1; rowNumber <= 12; rowNumber += 1) {
-    try {
-      worksheet.unMergeCells(`A${rowNumber}:K${rowNumber}`);
-    } catch (_) {
-      // The template may already contain an unmerged row.
-    }
-    worksheet.mergeCells(`A${rowNumber}:${lastColumn}${rowNumber}`);
-  }
-
-  const titleCell = worksheet.getCell("A11");
-  titleCell.value = String(title || "PROJECT I-TRACK REPORT").toUpperCase();
-  titleCell.style = { ...titleCell.style, font: { name: "Bookman Old Style", size: 12, bold: true } };
-  titleCell.alignment = { horizontal: "center", vertical: "middle" };
-
-  const noteCell = worksheet.getCell("A12");
-  noteCell.value = "Note: Generated data from Project i-Track Website";
-  noteCell.style = { ...noteCell.style, font: { name: "Bookman Old Style", size: 10, italic: true } };
-  noteCell.alignment = { horizontal: "center", vertical: "middle" };
-
-  const headerRow = worksheet.getRow(13);
-  headerRow.values = headers;
-  headerRow.font = { name: "Bookman Old Style", size: 11, bold: true };
-  headerRow.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-
-  reportRows.forEach((record, index) => {
-    const row = worksheet.getRow(14 + index);
-    row.values = headers.map((header) => record[header]);
-    row.font = { name: "Bookman Old Style", size: 11 };
-    row.alignment = { vertical: "top", wrapText: true };
-    headers.forEach((header, columnIndex) => {
-      if (typeof record[header] === "string") {
-        row.getCell(columnIndex + 1).numFmt = "@";
-      }
-    });
-  });
-
-  headers.forEach((header, index) => {
-    const longestValue = reportRows.reduce(
-      (length, record) => Math.max(length, String(record[header] == null ? "" : record[header]).length),
-      String(header).length
-    );
-    worksheet.getColumn(index + 1).width = Math.min(35, Math.max(12, longestValue + 2));
-  });
-
-  worksheet.views = [{ state: "frozen", ySplit: 13 }];
-  worksheet.autoFilter = { from: { row: 13, column: 1 }, to: { row: 13, column: Math.max(1, headers.length) } };
-  worksheet.pageSetup = { orientation: headers.length > 8 ? "landscape" : "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
-
-  return Buffer.from(await workbook.xlsx.writeBuffer());
+  return createTemplatedDocxBuffer({ title, rows, emptyRow });
 }
 
 app.get("/api/reference/district-schools", (req, res) => {
@@ -1113,8 +1056,8 @@ app.get("/api/admin/pending-users/export", requireAdmin, async (req, res) => {
       emptyRow: { Firstname: "", Middlename: "", Lastname: "", Email: "", District: "", School: "", CreatedAt: "" }
     });
 
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename="pending-users-${Date.now()}.xlsx"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename="pending-users-${Date.now()}.docx"`);
     return res.send(fileBuffer);
   } catch (error) {
     return res.status(500).json({ message: "Failed to export pending users.", detail: error.message });
@@ -1427,8 +1370,8 @@ app.get("/api/admin/export/adm-percentage-graph", requireSupervisorOrAdmin, asyn
       emptyRow: { District: "", School: "", GradeLevel: "", Total: 0 }
     });
 
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename="adm-percentage-graph-${Date.now()}.xlsx"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename="adm-percentage-report-${Date.now()}.docx"`);
     return res.send(fileBuffer);
   } catch (error) {
     return res.status(500).json({ message: "Failed to export ADM percentage graph.", detail: error.message });
@@ -1483,8 +1426,8 @@ app.get("/api/admin/export/grade-level-graph", requireSupervisorOrAdmin, async (
       emptyRow: { Grade: "", Learners: 0 }
     });
 
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename="grade-level-graph-${Date.now()}.xlsx"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename="grade-level-report-${Date.now()}.docx"`);
     return res.send(fileBuffer);
   } catch (error) {
     return res.status(500).json({ message: "Failed to export grade-level graph.", detail: error.message });
@@ -1550,8 +1493,8 @@ app.get("/api/admin/export/graph-report", requireSupervisorOrAdmin, async (req, 
         emptyRow: { District: "", School: "", Total: 0, Percentage: "" }
       });
 
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-      res.setHeader("Content-Disposition", `attachment; filename="adm-percentage-graph-${Date.now()}.xlsx"`);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      res.setHeader("Content-Disposition", `attachment; filename="adm-percentage-report-${Date.now()}.docx"`);
       return res.send(fileBuffer);
     }
 
@@ -1598,8 +1541,8 @@ app.get("/api/admin/export/graph-report", requireSupervisorOrAdmin, async (req, 
         emptyRow: { GradeLevel: "", Total: 0, Percentage: "" }
       });
 
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-      res.setHeader("Content-Disposition", `attachment; filename="grade-level-graph-${Date.now()}.xlsx"`);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      res.setHeader("Content-Disposition", `attachment; filename="grade-level-report-${Date.now()}.docx"`);
       return res.send(fileBuffer);
     }
 
@@ -1646,14 +1589,37 @@ app.get("/api/admin/export/graph-report", requireSupervisorOrAdmin, async (req, 
         emptyRow: { Modality: "", Total: 0, Percentage: "" }
       });
 
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-      res.setHeader("Content-Disposition", `attachment; filename="modality-graph-${Date.now()}.xlsx"`);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      res.setHeader("Content-Disposition", `attachment; filename="learning-modality-report-${Date.now()}.docx"`);
       return res.send(fileBuffer);
     }
 
     return res.status(400).json({ message: "Invalid graphType. Use adm-percentage, grade-level, or modality." });
   } catch (error) {
     return res.status(500).json({ message: "Failed to export graph report.", detail: error.message });
+  }
+});
+
+app.post("/api/admin/export/custom-report", requireSupervisorOrAdmin, async (req, res) => {
+  try {
+    const title = String((req.body || {}).title || "Project i-Track Report").trim().slice(0, 120);
+    const sourceRows = Array.isArray((req.body || {}).rows) ? req.body.rows.slice(0, 5000) : [];
+    const rows = sourceRows.filter((row) => row && typeof row === "object" && !Array.isArray(row)).map((row) => {
+      const normalized = {};
+      Object.keys(row).slice(0, 40).forEach((key) => {
+        const safeKey = String(key || "Field").trim().slice(0, 80) || "Field";
+        const value = row[key];
+        normalized[safeKey] = value == null ? "" : (typeof value === "object" ? JSON.stringify(value) : String(value));
+      });
+      return normalized;
+    });
+    const fileBuffer = await createTemplatedDocxBuffer({ title, rows, emptyRow: {} });
+    const fileName = String(title || "project-itrack-report").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 70) || "project-itrack-report";
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}-${Date.now()}.docx"`);
+    return res.send(fileBuffer);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to generate Project i-Track report.", detail: error.message });
   }
 });
 
@@ -2017,8 +1983,8 @@ app.get("/api/learners/export", requireLogin, async (req, res) => {
       emptyRow: { LRN: "", FamilyName: "", FirstName: "", Grade: "", District: "", School: "" }
     });
 
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename="learner-records-${Date.now()}.xlsx"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename="learner-records-${Date.now()}.docx"`);
     return res.send(fileBuffer);
   } catch (error) {
     return res.status(500).json({ message: "Failed to export learner records.", detail: error.message });
@@ -2342,8 +2308,8 @@ app.get("/api/admin/approval-requests/export", requireAdmin, async (req, res) =>
       emptyRow: { RequestType: "", DateRequested: "", District: "", School: "", Requestor: "", Details: "", DocumentsSubmitted: "", DocumentPaths: "", Result: "", ReviewedBy: "", ReviewedAt: "", Status: "" }
     });
 
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename="adm-approval-dashboard-${Date.now()}.xlsx"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename="adm-approval-report-${Date.now()}.docx"`);
     return res.send(fileBuffer);
   } catch (error) {
     return res.status(500).json({ message: "Failed to export ADM approval dashboard.", detail: error.message });

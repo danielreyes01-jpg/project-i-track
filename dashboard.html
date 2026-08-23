@@ -722,7 +722,7 @@
 				<select id="districtGraphFilter" aria-label="Select district for ADM learner percentage graph">
 					<option value="">All Districts</option>
 				</select>
-				<button id="exportAdmGraphBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+				<button id="exportAdmGraphBtn" class="btn-excel" type="button" title="Extract Report" aria-label="Extract ADM percentage report">⇩ 📄</button>
 			</div>
 			<div id="admPercentGraph" class="graph-wrap">
 				<div class="empty">No data yet.</div>
@@ -736,7 +736,7 @@
 				<select id="modalityPercentDistrictFilter" aria-label="Select district for learner modality percentage graph">
 					<option value="">All Districts</option>
 				</select>
-				<button id="exportModalityPercentGraphBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+				<button id="exportModalityPercentGraphBtn" class="btn-excel" type="button" title="Extract Report" aria-label="Extract modality percentage report">⇩ 📄</button>
 			</div>
 			<div id="modalityPercentGraph" class="graph-wrap">
 				<div class="empty">No data yet.</div>
@@ -750,7 +750,7 @@
 				<select id="performanceSchoolFilter" aria-label="Select school for performance pie graph">
 					<option value="">All Schools</option>
 				</select>
-				<button id="exportPerformanceGraphBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+				<button id="exportPerformanceGraphBtn" class="btn-excel" type="button" title="Extract Report" aria-label="Extract performance report">⇩ 📄</button>
 			</div>
 			<div id="performanceGraph" class="graph-wrap">
 				<div class="empty">No data yet.</div>
@@ -764,7 +764,7 @@
 				<select id="philIriSchoolFilter" aria-label="Select school for Phil-Iri pie graph">
 					<option value="">All Schools</option>
 				</select>
-				<button id="exportPhilIriGraphBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+				<button id="exportPhilIriGraphBtn" class="btn-excel" type="button" title="Extract Report" aria-label="Extract Phil-IRI report">⇩ 📄</button>
 			</div>
 			<div id="philIriGraph" class="graph-wrap">
 				<div class="empty">No data yet.</div>
@@ -778,7 +778,7 @@
 				<select id="crlaSchoolFilter" aria-label="Select school for CRLA pie graph">
 					<option value="">All Schools</option>
 				</select>
-				<button id="exportCrlaGraphBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+				<button id="exportCrlaGraphBtn" class="btn-excel" type="button" title="Extract Report" aria-label="Extract CRLA report">⇩ 📄</button>
 			</div>
 			<div id="crlaGraph" class="graph-wrap">
 				<div class="empty">No data yet.</div>
@@ -792,7 +792,7 @@
 				<select id="rmaSchoolFilter" aria-label="Select school for RMA pie graph">
 					<option value="">All Schools</option>
 				</select>
-				<button id="exportRmaGraphBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+				<button id="exportRmaGraphBtn" class="btn-excel" type="button" title="Extract Report" aria-label="Extract RMA report">⇩ 📄</button>
 			</div>
 			<div id="rmaGraph" class="graph-wrap">
 				<div class="empty">No data yet.</div>
@@ -810,7 +810,7 @@
 				<select id="schoolGradeFilter" aria-label="Select school for grade-level ADM learner graph">
 					<option value="">All Schools</option>
 				</select>
-				<button id="exportGradeGraphBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+				<button id="exportGradeGraphBtn" class="btn-excel" type="button" title="Extract Report" aria-label="Extract grade-level report">⇩ 📄</button>
 			</div>
 			<div id="gradeLevelGraph" class="graph-wrap">
 				<div class="empty">No data yet.</div>
@@ -828,7 +828,7 @@
 				<select id="modalitySchoolFilter" aria-label="Select school for modality graph">
 					<option value="">All Schools</option>
 				</select>
-				<button id="exportModalityGraphBtn" class="btn-excel" type="button" title="Download Excel" aria-label="Download Excel report">⭳ 📗</button>
+				<button id="exportModalityGraphBtn" class="btn-excel" type="button" title="Extract Report" aria-label="Extract learning modality report">⇩ 📄</button>
 			</div>
 			<div id="modalityGraph" class="graph-wrap">
 				<div class="empty">No data yet.</div>
@@ -1052,16 +1052,18 @@
 					const contentType = String(response.headers.get("content-type") || "").toLowerCase();
 					if (contentType.includes("application/json")) {
 						const payload = await parseApiPayload(response);
-						throw new Error(payload.message || "Failed to export Excel.");
+						throw new Error(payload.message || "Failed to extract report.");
 					}
-					throw new Error("Failed to export Excel (HTTP " + response.status + ").");
+					throw new Error("Failed to extract report (HTTP " + response.status + ").");
 				}
 
 				const blob = await response.blob();
 				const objectUrl = URL.createObjectURL(blob);
 				const link = document.createElement("a");
 				link.href = objectUrl;
-				link.download = fallbackFileName;
+				const disposition = String(response.headers.get("content-disposition") || "");
+				const fileNameMatch = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+				link.download = decodeURIComponent((fileNameMatch && (fileNameMatch[1] || fileNameMatch[2])) || fallbackFileName);
 				document.body.appendChild(link);
 				link.click();
 				link.remove();
@@ -1095,12 +1097,7 @@
 				URL.revokeObjectURL(url);
 			}
 
-			function downloadXlsxClient(fileName, headers, rows, sheetName) {
-				if (typeof window.XLSX === "undefined" || !window.XLSX || !window.XLSX.utils) {
-					downloadCsv(fileName.replace(/\.xlsx$/i, ".csv"), headers, rows);
-					return;
-				}
-
+			async function downloadXlsxClient(fileName, headers, rows, sheetName) {
 				const records = rows.map(function (row) {
 					const obj = {};
 					headers.forEach(function (header, index) {
@@ -1109,13 +1106,30 @@
 					return obj;
 				});
 
-				const workbook = window.XLSX.utils.book_new();
-				const worksheet = window.XLSX.utils.json_to_sheet(records.length ? records : [headers.reduce(function (acc, header) {
-					acc[header] = "";
-					return acc;
-				}, {})]);
-				window.XLSX.utils.book_append_sheet(workbook, worksheet, String(sheetName || "Report"));
-				window.XLSX.writeFile(workbook, fileName);
+				try {
+					const requestOptions = buildRequestOptions();
+					requestOptions.method = "POST";
+					requestOptions.headers = Object.assign({}, requestOptions.headers || {}, { "Content-Type": "application/json" });
+					requestOptions.body = JSON.stringify({ title: String(sheetName || "Project i-Track") + " Report", rows: records });
+					const response = await fetch(apiUrl("/admin/export/custom-report"), requestOptions);
+					if (!response.ok) {
+						const payload = await parseApiPayload(response);
+						throw new Error(payload.message || "Failed to extract report.");
+					}
+					const blob = await response.blob();
+					const objectUrl = URL.createObjectURL(blob);
+					const link = document.createElement("a");
+					const disposition = String(response.headers.get("content-disposition") || "");
+					const fileNameMatch = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+					link.href = objectUrl;
+					link.download = decodeURIComponent((fileNameMatch && (fileNameMatch[1] || fileNameMatch[2])) || fileName.replace(/\.xlsx$/i, ".docx"));
+					document.body.appendChild(link);
+					link.click();
+					link.remove();
+					URL.revokeObjectURL(objectUrl);
+				} catch (error) {
+					setMessage(String(error && error.message ? error.message : "Failed to extract report."), "error");
+				}
 			}
 
 			async function loadDistrictSchoolReference() {
@@ -1926,15 +1940,15 @@
 				try {
 					const district = String(districtGraphFilter.value || "").trim();
 					const query = "?graphType=adm-percentage" + (district ? ("&district=" + encodeURIComponent(district)) : "");
-					await downloadExcel(apiUrl("/admin/export/graph-report") + query, "adm-percentage-graph.xlsx");
-					setMessage("ADM percentage graph exported to Excel.", "success");
+					await downloadExcel(apiUrl("/admin/export/graph-report") + query, "adm-percentage-report.docx");
+					setMessage("ADM percentage report extracted.", "success");
 				} catch (error) {
 					if (isExportRouteMissing(error)) {
 						try {
 							const district = String(districtGraphFilter.value || "").trim();
 							const legacyQuery = district ? ("?district=" + encodeURIComponent(district)) : "";
-							await downloadExcel(apiUrl("/admin/export/adm-percentage-graph") + legacyQuery, "adm-percentage-graph.xlsx");
-							setMessage("ADM percentage graph exported via legacy route.", "success");
+							await downloadExcel(apiUrl("/admin/export/adm-percentage-graph") + legacyQuery, "adm-percentage-report.docx");
+							setMessage("ADM percentage report extracted.", "success");
 							return;
 						} catch (legacyError) {
 							const district = String(districtGraphFilter.value || "").trim();
@@ -1958,7 +1972,7 @@
 								return [item.label, item.total, ((item.total / totalAll) * 100).toFixed(2) + "%"];
 							});
 							downloadXlsxClient("adm-percentage-graph.xlsx", [district ? "School" : "District", "Total", "Percentage"], xlsxRows, "ADM Percentage");
-							setMessage("ADM export downloaded as .xlsx fallback.", "success");
+							setMessage("ADM percentage report extracted.", "success");
 							return;
 						}
 					}
@@ -1973,16 +1987,16 @@
 					const query = "?graphType=grade-level"
 						+ (district ? ("&district=" + encodeURIComponent(district)) : "")
 						+ (school ? ("&school=" + encodeURIComponent(school)) : "");
-					await downloadExcel(apiUrl("/admin/export/graph-report") + query, "grade-level-graph.xlsx");
-					setMessage("Grade-level graph exported to Excel.", "success");
+					await downloadExcel(apiUrl("/admin/export/graph-report") + query, "grade-level-report.docx");
+					setMessage("Grade-level report extracted.", "success");
 				} catch (error) {
 					if (isExportRouteMissing(error)) {
 						try {
 							const school = String(schoolGradeFilter.value || "").trim();
 							const district = String(districtGradeFilter.value || "").trim();
 							const legacyQuery = school ? ("?school=" + encodeURIComponent(school)) : "";
-							await downloadExcel(apiUrl("/admin/export/grade-level-graph") + legacyQuery, "grade-level-graph.xlsx");
-							setMessage("Grade-level graph exported via legacy route.", "success");
+							await downloadExcel(apiUrl("/admin/export/grade-level-graph") + legacyQuery, "grade-level-report.docx");
+							setMessage("Grade-level report extracted.", "success");
 							return;
 						} catch (legacyError) {
 							const district = String(districtGradeFilter.value || "").trim();
@@ -2008,7 +2022,7 @@
 								return [item.label, item.total, ((item.total / totalAll) * 100).toFixed(2) + "%"];
 							});
 							downloadXlsxClient("grade-level-graph.xlsx", ["GradeLevel", "Total", "Percentage"], xlsxRows, "Grade Level");
-							setMessage("Grade-level export downloaded as .xlsx fallback.", "success");
+							setMessage("Grade-level report extracted.", "success");
 							return;
 						}
 					}
@@ -2023,8 +2037,8 @@
 					const query = "?graphType=modality"
 						+ (district ? ("&district=" + encodeURIComponent(district)) : "")
 						+ (school ? ("&school=" + encodeURIComponent(school)) : "");
-					await downloadExcel(apiUrl("/admin/export/graph-report") + query, "modality-graph.xlsx");
-					setMessage("Modality graph exported to Excel.", "success");
+					await downloadExcel(apiUrl("/admin/export/graph-report") + query, "learning-modality-report.docx");
+					setMessage("Learning modality report extracted.", "success");
 				} catch (error) {
 					if (isExportRouteMissing(error)) {
 						const district = String(modalityDistrictFilter.value || "").trim();
@@ -2051,7 +2065,7 @@
 							return [item.label, item.total, ((item.total / totalAll) * 100).toFixed(2) + "%"];
 						});
 						downloadXlsxClient("modality-graph.xlsx", ["Modality", "Total", "Percentage"], xlsxRows, "Modality");
-						setMessage("Modality export downloaded as .xlsx fallback.", "success");
+						setMessage("Learning modality report extracted.", "success");
 						return;
 					}
 					setMessage(String(error && error.message ? error.message : "Failed to export graph."), "error");
@@ -2083,7 +2097,7 @@
 				});
 
 				downloadXlsxClient("modality-percent-by-district.xlsx", ["District", "Modality", "Total", "Percentage"], xlsxRows, "Modality Percentage by District");
-				setMessage("Modality percentage graph exported to Excel.", "success");
+				setMessage("Modality percentage report extracted.", "success");
 			});
 
 			function exportAssessmentPieRows(rows, selectedSchool, categoryColumn, fileName, sheetName, successMessage) {
@@ -2106,7 +2120,7 @@
 					"Performance",
 					"performance-per-school.xlsx",
 					"Performance",
-					"Performance graph exported to Excel."
+					"Performance report extracted."
 				);
 			});
 
@@ -2117,7 +2131,7 @@
 					"Phil-Iri Result",
 					"phil-iri-per-school.xlsx",
 					"Phil-Iri",
-					"Phil-Iri graph exported to Excel."
+					"PHIL-IRI report extracted."
 				);
 			});
 
@@ -2128,7 +2142,7 @@
 					"CRLA Result",
 					"crla-per-school.xlsx",
 					"CRLA",
-					"CRLA graph exported to Excel."
+					"CRLA report extracted."
 				);
 			});
 
@@ -2139,7 +2153,7 @@
 					"RMA Result",
 					"rma-per-school.xlsx",
 					"RMA",
-					"RMA graph exported to Excel."
+					"RMA report extracted."
 				);
 			});
 

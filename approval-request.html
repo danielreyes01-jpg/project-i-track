@@ -485,12 +485,12 @@
 					const objectUrl = URL.createObjectURL(blob);
 					const link = document.createElement("a");
 					link.href = objectUrl;
-					link.download = getDownloadFileName(response, "adm-approval-dashboard.csv");
+					link.download = getDownloadFileName(response, "adm-approval-report.docx");
 					document.body.appendChild(link);
 					link.click();
 					link.remove();
 					URL.revokeObjectURL(objectUrl);
-					setMessage("ADM approval dashboard exported.", "success");
+					setMessage("ADM approval report extracted.", "success");
 				} catch (error) {
 					setMessage(String(error && error.message ? error.message : "Failed to export approval requests."), "error");
 				} finally {
