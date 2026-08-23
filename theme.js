@@ -1,6 +1,31 @@
 // Theme System - Manage dark/light mode per user
 
+const ITRACK_BRAND_LOGO = 'assets/project-itrack-logo.png';
+const ITRACK_SITE_ICON = 'assets/project-itrack-icon.png';
+
+function initializeITrackBrandAssets() {
+	const setIcon = (rel, sizes) => {
+		let link = document.head.querySelector(`link[rel="${rel}"]`);
+		if (!link) {
+			link = document.createElement('link');
+			link.rel = rel;
+			document.head.appendChild(link);
+		}
+		link.type = 'image/png';
+		link.href = ITRACK_SITE_ICON;
+		if (sizes) link.sizes = sizes;
+	};
+	setIcon('icon', '96x96');
+	setIcon('shortcut icon', '96x96');
+	setIcon('apple-touch-icon', '96x96');
+	document.querySelectorAll('img.brand-logo').forEach((image) => {
+		image.src = ITRACK_BRAND_LOGO;
+		image.alt = 'Project i-Track logo';
+	});
+}
+
 function initializeITrackPageLoader() {
+	initializeITrackBrandAssets();
 	if (document.getElementById('itrack-page-loader')) return;
 
 	const loader = document.createElement('div');
@@ -11,7 +36,7 @@ function initializeITrackPageLoader() {
 	loader.setAttribute('aria-label', 'Loading Project i-Track');
 
 	const logo = document.createElement('img');
-	logo.src = '/assets/i-track-loading.png';
+	logo.src = ITRACK_BRAND_LOGO;
 	logo.alt = 'Project i-Track loading';
 	logo.className = 'itrack-page-loader-logo';
 
@@ -98,7 +123,7 @@ function createDepEdFixedHeader() {
 	compactBrand.setAttribute('aria-label', 'Project i-Track home');
 
 	const compactLogo = document.createElement('img');
-	compactLogo.src = '/assets/itrack-final.png';
+	compactLogo.src = ITRACK_BRAND_LOGO;
 	compactLogo.alt = 'Project i-Track';
 	compactLogo.className = 'deped-compact-logo';
 	compactBrand.appendChild(compactLogo);
