@@ -1801,3 +1801,124 @@ html body .deped-fixed-header button.itrack-management-toggle {
 	html body h1 { font-size:1.65rem !important; }
 	html body h2 { font-size:1.2rem !important; }
 }
+
+/* Compact spacing for every signed-in menu page */
+html.has-deped-fixed-header { --itrack-side-width:235px; }
+
+html.has-deped-fixed-header body {
+	padding-top:60px !important;
+	font-size:clamp(.8rem,.16vw + .77rem,.9rem) !important;
+	line-height:1.42 !important;
+}
+
+html.has-deped-fixed-header .deped-fixed-header { width:var(--itrack-side-width) !important; }
+html.has-deped-fixed-header .deped-compact-bar { gap:9px !important; padding:12px 10px !important; }
+html.has-deped-fixed-header .deped-compact-brand { gap:4px !important; padding:0 4px 10px !important; }
+html.has-deped-fixed-header .deped-compact-logo { max-width:58px !important; max-height:58px !important; }
+html.has-deped-fixed-header .deped-compact-brand-name { font-size:.72rem !important; }
+html.has-deped-fixed-header .deped-compact-menu-dock .nav-menu { gap:4px !important; }
+
+html body .deped-fixed-header button.nav-item,
+html body .deped-fixed-header button.quick-nav-btn,
+html body .deped-fixed-header button.itrack-management-toggle {
+	min-height:38px !important;
+	padding:7px 8px !important;
+	column-gap:8px !important;
+	font-size:clamp(.72rem,.35vw + .66rem,.82rem) !important;
+}
+
+html.has-deped-fixed-header .nav-menu .nav-item-icon {
+	width:25px !important;
+	height:25px !important;
+	flex-basis:25px !important;
+	border-radius:7px !important;
+	font-size:.72rem !important;
+}
+
+html.has-deped-fixed-header .itrack-page-titlebar {
+	left:var(--itrack-side-width) !important;
+	height:60px !important;
+	gap:10px !important;
+	padding:0 clamp(14px,2vw,26px) !important;
+}
+
+html.has-deped-fixed-header .itrack-page-titlebar-marker { height:23px !important; }
+html.has-deped-fixed-header .itrack-page-titlebar strong { font-size:clamp(.9rem,1.15vw,1.05rem) !important; }
+html.has-deped-fixed-header .itrack-header-signout { min-height:36px !important; padding:6px 10px !important; font-size:.75rem !important; }
+html.has-deped-fixed-header .itrack-header-signout span { width:22px !important; height:22px !important; font-size:.78rem !important; }
+
+html.has-deped-fixed-header body > .page,
+html.has-deped-fixed-header body > .shell,
+html.has-deped-fixed-header main.page,
+html.has-deped-fixed-header main.shell {
+	gap:12px !important;
+}
+
+html.has-deped-fixed-header .panel,
+html.has-deped-fixed-header .dashboard-card,
+html.has-deped-fixed-header .section-card,
+html.has-deped-fixed-header .content-card,
+html.has-deped-fixed-header .profile-card {
+	padding:clamp(12px,1.25vw,17px) !important;
+	border-radius:14px !important;
+}
+
+html.has-deped-fixed-header .cards,
+html.has-deped-fixed-header .metrics,
+html.has-deped-fixed-header .summary-cards,
+html.has-deped-fixed-header .dashboard-tile-grid,
+html.has-deped-fixed-header .tables {
+	gap:10px !important;
+}
+
+html.has-deped-fixed-header .card,
+html.has-deped-fixed-header .stat-card,
+html.has-deped-fixed-header .metric-card {
+	min-height:0 !important;
+	padding:11px 12px !important;
+	gap:9px !important;
+	border-radius:12px !important;
+}
+
+html.has-deped-fixed-header .card-icon,
+html.has-deped-fixed-header .stat-icon,
+html.has-deped-fixed-header .metric-icon {
+	width:40px !important;
+	height:40px !important;
+	flex-basis:40px !important;
+	border-radius:10px !important;
+	font-size:.95rem !important;
+}
+
+html.has-deped-fixed-header h1 { margin-bottom:4px !important; font-size:clamp(1.45rem,2.1vw,2.05rem) !important; }
+html.has-deped-fixed-header h2 { font-size:clamp(1.05rem,1.45vw,1.3rem) !important; }
+html.has-deped-fixed-header h3 { font-size:clamp(.9rem,1vw,1.05rem) !important; }
+html.has-deped-fixed-header .subtitle,
+html.has-deped-fixed-header .panel-subtitle,
+html.has-deped-fixed-header .description { margin-bottom:9px !important; font-size:.82rem !important; }
+html.has-deped-fixed-header .section-title { margin-bottom:7px !important; font-size:.78rem !important; }
+html.has-deped-fixed-header .live-users-panel { padding:12px 14px !important; }
+html.has-deped-fixed-header .live-users-panel .card { min-height:78px !important; padding:9px 11px !important; }
+html.has-deped-fixed-header .live-users-panel .card-value { margin-top:2px !important; font-size:1.35rem !important; }
+html.has-deped-fixed-header .live-users-panel .card-note { font-size:.61rem !important; }
+html.has-deped-fixed-header .dashboard-tile-grid > .panel { padding:13px !important; }
+html.has-deped-fixed-header .graph-wrap { min-height:210px !important; padding:8px !important; }
+
+@media (max-width:1024px) {
+	html.has-deped-fixed-header { --itrack-side-width:60px; }
+	html.has-deped-fixed-header body { padding-top:60px !important; }
+	html.has-deped-fixed-header .deped-fixed-header { width:60px !important; height:60px !important; }
+	html.has-deped-fixed-header .deped-fixed-header.mobile-menu-open { width:min(270px,88vw) !important; height:100dvh !important; }
+	html.has-deped-fixed-header .itrack-page-titlebar { left:60px !important; height:60px !important; padding:0 12px !important; }
+}
+
+@media (max-width:560px) {
+	html.has-deped-fixed-header body { font-size:.78rem !important; }
+	html.has-deped-fixed-header .panel,
+	html.has-deped-fixed-header .dashboard-card,
+	html.has-deped-fixed-header .section-card,
+	html.has-deped-fixed-header .content-card { padding:10px !important; border-radius:11px !important; }
+	html.has-deped-fixed-header h1 { font-size:1.38rem !important; }
+	html.has-deped-fixed-header h2 { font-size:1rem !important; }
+	html.has-deped-fixed-header .itrack-page-titlebar strong { font-size:.85rem !important; }
+}
