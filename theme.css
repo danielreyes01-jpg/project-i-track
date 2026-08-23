@@ -1548,16 +1548,31 @@ html body .deped-fixed-header .nav-greeting {
 
 html body .deped-fixed-header button.nav-item:hover,
 html body .deped-fixed-header button.nav-item:focus-visible,
-html body .deped-fixed-header button.nav-item.nav-current,
 html body .deped-fixed-header button.quick-nav-btn:hover,
-html body .deped-fixed-header button.quick-nav-btn.active,
 html body .deped-fixed-header button.itrack-management-toggle:hover,
 html body .deped-fixed-header button.theme-toggle-nav:hover {
 	background:#147db5 !important;
-	border-color:var(--itrack-side-yellow) !important;
+	border-color:transparent !important;
 	color:#fff !important;
 	box-shadow:0 7px 18px rgba(0,0,0,.2) !important;
 	transform:translateX(5px) !important;
+}
+
+html body .deped-fixed-header button.nav-item.nav-current,
+html body .deped-fixed-header button.quick-nav-btn.active,
+html body .deped-fixed-header button.itrack-management-toggle.nav-current {
+	background:#147db5 !important;
+	border-color:var(--itrack-side-yellow) !important;
+	color:#fff !important;
+	box-shadow:inset 4px 0 0 var(--itrack-side-yellow),0 7px 18px rgba(0,0,0,.2) !important;
+	transform:none !important;
+}
+
+html body .deped-fixed-header button.nav-item:focus-visible,
+html body .deped-fixed-header button.quick-nav-btn:focus-visible,
+html body .deped-fixed-header button.itrack-management-toggle:focus-visible {
+	outline:2px solid var(--itrack-side-yellow) !important;
+	outline-offset:2px !important;
 }
 
 .deped-compact-menu-dock .nav-item::after { display:none !important; }
