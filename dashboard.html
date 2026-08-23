@@ -169,6 +169,33 @@
 
 		.card-note { margin-top:3px; color:#2b8a65; font-size:.72rem; }
 
+		.live-users-panel { padding:18px 20px; }
+		.live-users-panel .section-title { margin-bottom:8px; }
+		.live-users-panel .cards { gap:10px; }
+		.live-users-panel .card { min-height:112px; padding:14px 16px; gap:12px; border-radius:15px; animation:dashboard-tile-in .55s cubic-bezier(.22,1,.36,1) both; }
+		.live-users-panel .card:nth-child(2) { animation-delay:.08s; }
+		.live-users-panel .card:nth-child(3) { animation-delay:.16s; }
+		.live-users-panel .card-icon { width:48px; height:48px; flex-basis:48px; border-radius:13px; font-size:1.1rem; }
+		.live-users-panel .card-label { font-size:.72rem; }
+		.live-users-panel .card-value { margin-top:3px; font-size:1.75rem; line-height:1; }
+		.live-users-panel .card-note { font-size:.66rem; }
+
+		.dashboard-tile-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
+		.dashboard-tile-grid > .panel { min-width:0; margin:0; padding:18px; box-shadow:0 12px 32px rgba(16,47,73,.09); animation:dashboard-tile-in .6s cubic-bezier(.22,1,.36,1) both; transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease; }
+		.dashboard-tile-grid > .panel:hover { transform:translateY(-3px); border-color:rgba(23,122,103,.28); box-shadow:0 18px 38px rgba(16,47,73,.14); }
+		.dashboard-tile-grid > .panel:nth-child(2n) { animation-delay:.08s; }
+		.dashboard-tile-grid .section-title { min-height:38px; margin-bottom:8px; font-size:.78rem; line-height:1.35; }
+		.dashboard-tile-grid .graph-toolbar { gap:7px; margin-bottom:9px; }
+		.dashboard-tile-grid .graph-toolbar label { font-size:.72rem; }
+		.dashboard-tile-grid .graph-toolbar select { min-width:140px; max-width:230px; padding:7px 9px; font-size:.75rem; }
+		.dashboard-tile-grid .graph-wrap { min-height:250px; padding:10px; }
+		.dashboard-tile-grid .pie-layout { grid-template-columns:minmax(130px,180px) 1fr; gap:12px; }
+		.dashboard-tile-grid .pie-chart { width:min(170px,100%); }
+		.dashboard-tile-grid .pie-label,.dashboard-tile-grid .pie-value { font-size:.7rem; }
+		.dashboard-tile-grid .bar-layout { min-height:220px; }
+		.dashboard-tile-grid .bar-track { height:145px; }
+		@keyframes dashboard-tile-in { from { opacity:0; transform:translateY(16px) scale(.985); } to { opacity:1; transform:translateY(0) scale(1); } }
+
 		.section-title {
 			font-size: 0.95rem;
 			font-weight: 800;
@@ -421,9 +448,15 @@
 				grid-template-columns: 1fr;
 			}
 
+			.dashboard-tile-grid { grid-template-columns:1fr; }
+
 			input {
 				min-width: 220px;
 			}
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			.live-users-panel .card,.dashboard-tile-grid > .panel { animation:none; transition:none; }
 		}
 
 		@media (max-width: 1100px) {
@@ -649,7 +682,7 @@
 
 		</section>
 
-		<section class="panel">
+		<section class="panel live-users-panel">
 			<div class="section-title">Live Database Users</div>
 			<div class="cards">
 				<div class="card card-division">
@@ -681,6 +714,7 @@
 			</div>
 		</section>
 
+		<div class="dashboard-tile-grid" aria-label="Dashboard graph tiles">
 		<section class="panel">
 			<div class="section-title">Graph for Percentage of ADM Learner</div>
 			<div class="graph-toolbar">
@@ -800,6 +834,7 @@
 				<div class="empty">No data yet.</div>
 			</div>
 		</section>
+		</div>
 
 		<section class="panel">
 			<div class="section-title">Summary of Schools (Top 30)</div>
@@ -848,6 +883,19 @@
 			const divisionPersonnelCountEl = document.getElementById("divisionPersonnelCount");
 			const teacherUserCountEl = document.getElementById("teacherUserCount");
 			const studentUserCountEl = document.getElementById("studentUserCount");
+			function animateCount(element, target) {
+				const end = Math.max(0, Number(target) || 0);
+				if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { element.textContent = String(end); return; }
+				const start = Number(element.textContent) || 0;
+				const started = performance.now();
+				function frame(now) {
+					const progress = Math.min(1, (now - started) / 650);
+					const eased = 1 - Math.pow(1 - progress, 3);
+					element.textContent = String(Math.round(start + (end - start) * eased));
+					if (progress < 1) requestAnimationFrame(frame);
+				}
+				requestAnimationFrame(frame);
+			}
 			const districtTableBody = document.getElementById("districtTableBody");
 			const schoolTableBody = document.getElementById("schoolTableBody");
 			const districtGraphFilter = document.getElementById("districtGraphFilter");
@@ -1753,9 +1801,9 @@
 
 					if (currentRole === "supervisor") {
 						const districtUsers = new Set(filteredSummary.map(function (row) { return String(row.user_id || "").trim(); }).filter(Boolean)).size;
-						divisionPersonnelCountEl.textContent = "0";
-						teacherUserCountEl.textContent = String(districtUsers);
-						studentUserCountEl.textContent = "0";
+						animateCount(divisionPersonnelCountEl, 0);
+						animateCount(teacherUserCountEl, districtUsers);
+						animateCount(studentUserCountEl, 0);
 					} else {
 						const usersResponse = await fetch(apiUrl("/admin/users"), requestOptions);
 						if (usersResponse.ok) {
@@ -1768,9 +1816,9 @@
 								else summary.teacherUsers += 1;
 								return summary;
 							}, { divisionPersonnel: 0, teacherUsers: 0, students: 0 });
-							divisionPersonnelCountEl.textContent = String(counts.divisionPersonnel);
-							teacherUserCountEl.textContent = String(counts.teacherUsers);
-							studentUserCountEl.textContent = String(counts.students);
+							animateCount(divisionPersonnelCountEl, counts.divisionPersonnel);
+							animateCount(teacherUserCountEl, counts.teacherUsers);
+							animateCount(studentUserCountEl, counts.students);
 							if (false) {
 								const attention = await parseApiPayload(attentionResponse);
 								const attentionStudents = Array.isArray(attention.students) ? attention.students : [];
