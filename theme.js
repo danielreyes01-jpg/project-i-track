@@ -638,32 +638,8 @@ class ThemeManager {
 	}
 
 	createThemeToggle() {
-		// Only create if not already present
-		if (document.getElementById('theme-toggle-btn')) {
-			return;
-		}
-
-		const button = document.createElement('button');
-		button.id = 'theme-toggle-btn';
-		button.className = 'theme-toggle-nav';
-		button.type = 'button';
-		
-		const currentTheme = this.getTheme();
-		button.textContent = currentTheme === 'dark' ? '☀️' : '🌙';
-		button.setAttribute('aria-label', currentTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
-		
-		button.addEventListener('click', () => this.toggleTheme());
-		
-		// Try to insert beside user greeting first
-		const navGreeting = document.getElementById('navGreeting');
-		if (navGreeting && navGreeting.parentNode) {
-			navGreeting.parentNode.insertBefore(button, navGreeting.nextSibling);
-		} else {
-			// Fallback: append to body
-			document.body.appendChild(button);
-			// Add fixed positioning class as fallback
-			button.classList.add('theme-toggle-fixed');
-		}
+		// The site uses one presentation theme; keep the theme control out of the menu.
+		document.querySelectorAll('#theme-toggle-btn, .theme-toggle-nav, .theme-toggle-fixed').forEach((button) => button.remove());
 	}
 }
 
