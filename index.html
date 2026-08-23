@@ -38,15 +38,17 @@
 				radial-gradient(circle at 15% 20%, rgba(31, 122, 68, 0.18), transparent 38%),
 				radial-gradient(circle at 80% 5%, rgba(95, 142, 104, 0.22), transparent 36%),
 				linear-gradient(145deg, var(--bg-1), var(--bg-2));
-			display: grid;
-			place-items: center;
-			padding: clamp(20px, 4vw, 48px);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: clamp(12px, 3vw, 36px);
 			overflow-x: hidden;
 			overflow-y: auto;
 		}
 
 		.login-shell {
-			width: min(100%, 620px) !important;
+			width: min(92vw, 600px) !important;
+			min-width: 0;
 			max-height: none;
 			margin: auto !important;
 			overflow: visible;
@@ -55,7 +57,7 @@
 			border: 1px solid var(--stroke);
 			border-radius: calc(var(--radius) + 4px);
 			box-shadow: var(--shadow);
-			padding: clamp(26px, 4vw, 42px) clamp(22px, 5vw, 48px) 30px;
+			padding: clamp(22px, 3.5vw, 36px) clamp(20px, 4.5vw, 42px) 26px;
 			animation: lift-in 560ms ease-out both;
 		}
 
@@ -66,8 +68,8 @@
 		}
 
 		.brand-logo {
-			width: clamp(118px, 20vw, 155px);
-			max-height: 155px;
+			width: clamp(100px, 17vw, 140px);
+			max-height: 140px;
 			object-fit: contain;
 			height: auto;
 			display: block;
@@ -83,7 +85,7 @@
 		.subtitle {
 			color: var(--muted);
 			max-width: 420px;
-			margin: 0 auto 22px;
+			margin: 0 auto clamp(14px,2.5vh,22px);
 			font-size: 0.95rem;
 			text-align: center;
 		}
@@ -239,13 +241,34 @@
 			}
 		}
 
-		@media (max-width: 420px) {
+		@media (max-width: 640px) {
 			body { padding: 10px; }
 			.login-shell {
-				width: 100% !important;
-				padding: 24px 18px 20px;
+				width: calc(100vw - 20px) !important;
+				padding: 22px 16px 18px;
 			}
+			.brand-logo { width:clamp(92px,28vw,124px); }
+			.input-with-action { gap:6px; }
+			.toggle-btn { padding-inline:10px!important; }
+			.login-account-selector { padding:18px 12px 14px; }
+		}
+
+		@media (max-width: 360px) {
 			.login-account-options { grid-template-columns:1fr; }
+		}
+
+		@media (max-height: 760px) and (min-width: 361px) {
+			body { padding-block:10px; }
+			.login-shell { padding-top:18px; padding-bottom:16px; }
+			.brand { margin-bottom:8px; }
+			.brand-logo { width:90px; max-height:90px; }
+			.subtitle { margin-bottom:12px; font-size:.88rem; }
+			form { gap:7px; }
+			input { padding-block:10px; }
+			.login-account-selector { margin-top:10px; padding:16px 12px 12px; }
+			.login-account-selector>p { margin-bottom:8px; }
+			.login-account-options button { min-height:58px; padding:7px; }
+			.hint { margin-top:6px; }
 		}
 	</style>
 </head>
