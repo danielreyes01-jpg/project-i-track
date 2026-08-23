@@ -2725,13 +2725,36 @@ app.get("/api/admin/learning-resources-overview", requireAdmin, async (req, res)
     });
     const studentSummary = students.map((student) => {
       const assigned = resources.filter((resource) => String(resource.student_user_id) === String(student.id));
-      return { id: student.id, name: fullName(student), lrn: student.lrn || "", school: student.school || "", assigned: assigned.length, ongoing: assigned.filter((item) => item.status === "ongoing").length, completed: assigned.filter((item) => item.status === "done").length };
+      return { id: student.id, name: fullName(student), lrn: student.lrn || "", school: student.school || "", district: student.district || "", assigned: assigned.length, ongoing: assigned.filter((item) => item.status === "ongoing").length, completed: assigned.filter((item) => item.status === "done").length };
     });
+    const districtReference = loadDistrictSchoolReference();
+    const districtNames = Array.from(new Set([
+      ...(districtReference.districts || []),
+      ...students.map((student) => String(student.district || "").trim()),
+      ...teacherAccounts.map((teacher) => String(teacher.district || "").trim())
+    ].filter(Boolean)));
+    const districtKey = (value) => String(value || "").trim().toLocaleLowerCase("en-PH");
+    const districts = districtNames.map((district) => {
+      const key = districtKey(district);
+      const districtStudents = students.filter((student) => districtKey(student.district) === key);
+      const districtTeachers = teacherAccounts.filter((teacher) => districtKey(teacher.district) === key);
+      const studentIds = new Set(districtStudents.map((student) => String(student.id)));
+      const districtResources = resources.filter((resource) => studentIds.has(String(resource.student_user_id)));
+      return {
+        district,
+        teachers: districtTeachers.length,
+        students: districtStudents.length,
+        assigned: districtResources.filter((item) => item.status === "assigned").length,
+        ongoing: districtResources.filter((item) => item.status === "ongoing").length,
+        completed: districtResources.filter((item) => item.status === "done").length
+      };
+    }).sort((a, b) => a.district.localeCompare(b.district, "en-PH"));
     return res.json({
       totals: { uploads: resources.length, teachers: teacherAccounts.length, students: students.length, assigned: resources.filter((item) => item.status === "assigned").length, ongoing: resources.filter((item) => item.status === "ongoing").length, completed: resources.filter((item) => item.status === "done").length },
       activity,
       teachers: teacherSummary,
-      students: studentSummary
+      students: studentSummary,
+      districts
     });
   } catch (error) {
     return res.status(500).json({ message: "Unable to load the administrator learning resources overview.", detail: error.message });
