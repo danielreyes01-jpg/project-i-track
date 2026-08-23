@@ -860,7 +860,7 @@ app.post("/api/auth/login", async (req, res) => {
   const password = String((req.body || {}).password || "");
 
   if (!email || !password) {
-    return res.status(400).json({ message: "Email and password are required." });
+    return res.status(400).json({ message: "Username or email and password are required." });
   }
 
 	const user = await db("users")
@@ -1754,10 +1754,13 @@ function getStatusLabel(status) {
   return statusLabels[normalizedStatus] || (normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1));
 }
 
-app.post("/api/learners", requireLogin, async (req, res) => {
+app.post("/api/learners", requireTeacher, async (req, res) => {
   try {
     const {
       learner_code,
+	  student_username,
+	  student_password,
+	  student_confirm_password,
       family_name,
       firstname,
       middlename,
@@ -1783,43 +1786,101 @@ app.post("/api/learners", requireLogin, async (req, res) => {
       utilization_learning_gadgets
     } = req.body || {};
 
-    if (learner_code && !/^\d{12}$/.test(String(learner_code || "").trim())) {
+    const normalizedLrn = String(learner_code || "").trim();
+    const normalizedStudentUsername = String(student_username || "").trim();
+    if (!/^\d{12}$/.test(normalizedLrn)) {
       return res.status(400).json({ message: "Learner LRN must be exactly 12 digits." });
     }
+	if (normalizedStudentUsername !== normalizedLrn) {
+	  return res.status(400).json({ message: "Student username must be the learner's 12-digit LRN." });
+	}
+	if (String(student_password || "") !== String(student_confirm_password || "")) {
+	  return res.status(400).json({ message: "Student password and confirmation do not match." });
+	}
+	if (!isStrongPassword(student_password)) {
+	  return res.status(400).json({ message: "Student password must have 8+ characters with uppercase, lowercase, number, and special character." });
+	}
+	if (!String(family_name || "").trim() || !String(firstname || "").trim() || !String(grade || "").trim() || !String(district || "").trim() || !String(school || "").trim()) {
+	  return res.status(400).json({ message: "LRN, learner name, grade, district, and school are required." });
+	}
+
+	const existingStudentAccount = await db("users")
+	  .whereRaw("LOWER(username) = ?", [normalizedStudentUsername.toLowerCase()])
+	  .orWhere({ lrn: normalizedLrn })
+	  .first();
+	if (existingStudentAccount) {
+	  return res.status(409).json({ message: "A student account already exists for this LRN." });
+	}
+	const existingLearner = await db("learners").where({ learner_code: normalizedLrn }).first();
+	if (existingLearner) {
+	  return res.status(409).json({ message: "A learner record already exists for this LRN." });
+	}
 
     const nowIso = new Date().toISOString();
-    await db("learners").insert({
-      id: crypto.randomUUID(),
-      user_id: req.session.userId,
-      learner_code: String(learner_code || "").trim(),
-      family_name: String(family_name || "").trim(),
-      firstname: String(firstname || "").trim(),
-      middlename: String(middlename || "").trim(),
-      grade: String(grade || "").trim(),
-      district: String(district || "").trim(),
-      school: String(school || "").trim(),
-      modality: String(modality || "").trim(),
-      type_of_instruction: String(type_of_instruction || "").trim(),
-      date_started: String(date_started || "").trim(),
-      first_grading_grade: first_grading_grade != null ? parseInt(first_grading_grade, 10) || null : null,
-      first_grading_verbal: String(first_grading_verbal || "").trim(),
-      first_grading_interpretation: String(first_grading_interpretation || "").trim(),
-      second_quarter_grade: second_quarter_grade != null ? parseInt(second_quarter_grade, 10) || null : null,
-      second_quarter_verbal: String(second_quarter_verbal || "").trim(),
-      second_quarter_interpretation: String(second_quarter_interpretation || "").trim(),
-      third_quarter_grade: third_quarter_grade != null ? parseInt(third_quarter_grade, 10) || null : null,
-      third_quarter_verbal: String(third_quarter_verbal || "").trim(),
-      third_quarter_interpretation: String(third_quarter_interpretation || "").trim(),
-      intervention: String(intervention || "").trim(),
-      phil_iri_result: String(phil_iri_result || "").trim(),
-      rma_result: String(rma_result || "").trim(),
-      ellna_result: String(ellna_result || "").trim(),
-      utilization_learning_gadgets: String(utilization_learning_gadgets || "").trim(),
-      created_at: nowIso,
-      updated_at: nowIso
-    });
+	const studentUserId = crypto.randomUUID();
+	const learnerId = crypto.randomUUID();
+	const studentEmail = `${normalizedLrn}@student.itrack.local`;
+	const passwordHash = await bcrypt.hash(String(student_password), 12);
+	await db.transaction(async (trx) => {
+	  await trx("users").insert({
+		id: studentUserId,
+		email: studentEmail,
+		password_hash: passwordHash,
+		firstname: String(firstname).trim(),
+		lastname: String(family_name).trim(),
+		middlename: String(middlename || "").trim(),
+		district: String(district).trim(),
+		school: String(school).trim(),
+		account_type: "student",
+		username: normalizedStudentUsername,
+		lrn: normalizedLrn,
+		school_id: null,
+		role: "student",
+		verified: true,
+		approved: true,
+		verification_token_hash: null,
+		verification_token_expires_at: null,
+		verification_email_sent_at: null,
+		resend_window_started_at: null,
+		resend_count: 0,
+		failed_login_count: 0,
+		lockout_until: null,
+		created_at: nowIso,
+		updated_at: nowIso
+	  });
+	  await trx("learners").insert({
+		id: learnerId,
+		user_id: req.session.userId,
+		learner_code: normalizedLrn,
+		family_name: String(family_name).trim(),
+		firstname: String(firstname).trim(),
+		middlename: String(middlename || "").trim(),
+		grade: String(grade || "").trim(),
+		district: String(district || "").trim(),
+		school: String(school || "").trim(),
+		modality: String(modality || "").trim(),
+		type_of_instruction: String(type_of_instruction || "").trim(),
+		date_started: String(date_started || "").trim(),
+		first_grading_grade: first_grading_grade != null ? parseInt(first_grading_grade, 10) || null : null,
+		first_grading_verbal: String(first_grading_verbal || "").trim(),
+		first_grading_interpretation: String(first_grading_interpretation || "").trim(),
+		second_quarter_grade: second_quarter_grade != null ? parseInt(second_quarter_grade, 10) || null : null,
+		second_quarter_verbal: String(second_quarter_verbal || "").trim(),
+		second_quarter_interpretation: String(second_quarter_interpretation || "").trim(),
+		third_quarter_grade: third_quarter_grade != null ? parseInt(third_quarter_grade, 10) || null : null,
+		third_quarter_verbal: String(third_quarter_verbal || "").trim(),
+		third_quarter_interpretation: String(third_quarter_interpretation || "").trim(),
+		intervention: String(intervention || "").trim(),
+		phil_iri_result: String(phil_iri_result || "").trim(),
+		rma_result: String(rma_result || "").trim(),
+		ellna_result: String(ellna_result || "").trim(),
+		utilization_learning_gadgets: String(utilization_learning_gadgets || "").trim(),
+		created_at: nowIso,
+		updated_at: nowIso
+	  });
+	});
 
-    return res.json({ message: "Learner record saved." });
+    return res.status(201).json({ message: "Learner record and approved student account created.", username: normalizedStudentUsername, account_type: "student" });
   } catch (error) {
     return res.status(500).json({ message: formatDatabaseError(error, "Failed to save learner record."), detail: error.message });
   }
@@ -1849,6 +1910,9 @@ app.put("/api/learners/:id", requireLogin, async (req, res) => {
     if (learner_code && !/^\d{12}$/.test(String(learner_code).trim())) {
       return res.status(400).json({ message: "Learner LRN must be exactly 12 digits." });
     }
+	if (String(learner_code || "").trim() !== String(existing.learner_code || "").trim()) {
+	  return res.status(400).json({ message: "LRN cannot be changed because it is linked to the student's login account." });
+	}
 
     await db("learners").where({ id: learnerId, user_id: req.session.userId }).update({
       learner_code: String(learner_code).trim(),

@@ -289,6 +289,40 @@
 			grid-column: 1 / -1;
 		}
 
+		.account-access {
+			padding: 16px;
+			border: 1px solid rgba(23, 122, 103, 0.2);
+			border-radius: 14px;
+			background: rgba(231, 242, 240, 0.58);
+		}
+
+		.account-access[hidden] { display: none !important; }
+
+		.account-note {
+			margin: -3px 0 12px;
+			color: var(--muted);
+			font-size: .78rem;
+		}
+
+		.password-wrap { position: relative; }
+		.password-wrap input { padding-right: 70px; }
+		html body .password-wrap .password-toggle {
+			position: absolute;
+			top: 50%;
+			right: 7px;
+			min-width: 52px !important;
+			min-height: 32px !important;
+			padding: 5px 8px !important;
+			transform: translateY(-50%) !important;
+			border: 0 !important;
+			border-radius: 8px !important;
+			background: #e9f3f1 !important;
+			box-shadow: none !important;
+			color: #176c5b !important;
+			font-size: .72rem !important;
+			font-weight: 750 !important;
+		}
+
 		label {
 			font-weight: 700;
 			font-size: 0.9rem;
@@ -752,6 +786,28 @@
 				</div>
 			</div>
 
+			<!-- Student Account Credentials -->
+			<section id="accountAccess" class="account-access" aria-labelledby="accountAccessTitle">
+				<div id="accountAccessTitle" class="section-label">Student Account Access</div>
+				<p class="account-note">Saving this learner creates an approved student account. The 12-digit LRN is used as the username.</p>
+				<div class="grid-3">
+					<div class="field">
+						<label for="studentUsername">Username (LRN)</label>
+						<input id="studentUsername" name="studentUsername" type="text" inputmode="numeric" maxlength="12" readonly aria-describedby="usernameHelp" placeholder="Enter the learner's LRN above">
+						<small id="usernameHelp">Automatically copied from the 12-digit LRN.</small>
+					</div>
+					<div class="field">
+						<label for="studentPassword">Student Password</label>
+						<div class="password-wrap"><input id="studentPassword" name="studentPassword" type="password" autocomplete="new-password" minlength="8" aria-describedby="passwordHelp"><button class="password-toggle tool" type="button" data-password-target="studentPassword" aria-label="Show student password">Show</button></div>
+						<small id="passwordHelp">Use 8+ characters with uppercase, lowercase, number, and symbol.</small>
+					</div>
+					<div class="field">
+						<label for="studentConfirmPassword">Confirm Password</label>
+						<div class="password-wrap"><input id="studentConfirmPassword" name="studentConfirmPassword" type="password" autocomplete="new-password" minlength="8"><button class="password-toggle tool" type="button" data-password-target="studentConfirmPassword" aria-label="Show confirmed password">Show</button></div>
+					</div>
+				</div>
+			</section>
+
 			<!-- School Details -->
 			<div class="section-label">School Details</div>
 			<div class="grid-2">
@@ -1002,6 +1058,11 @@
 			const myLearnersCount = document.getElementById("myLearnersCount");
 			const myLearnersShown = document.getElementById("myLearnersShown");
 			const exportLearnerRecordsBtn = document.getElementById("exportLearnerRecordsBtn");
+			const learnerCodeInput = document.getElementById("learnerCode");
+			const accountAccess = document.getElementById("accountAccess");
+			const studentUsernameInput = document.getElementById("studentUsername");
+			const studentPasswordInput = document.getElementById("studentPassword");
+			const studentConfirmPasswordInput = document.getElementById("studentConfirmPassword");
 			let userRole = "teacher";
 			let messageTimer = null;
 			let editingLearnerId = null;
@@ -1034,6 +1095,35 @@
 				messageBox.textContent = "";
 				messageBox.className = "message-box";
 			}
+
+			function setCredentialMode(isCreating) {
+				accountAccess.hidden = !isCreating;
+				studentPasswordInput.required = isCreating;
+				studentConfirmPasswordInput.required = isCreating;
+				learnerCodeInput.readOnly = !isCreating;
+				if (isCreating) studentUsernameInput.value = learnerCodeInput.value.replace(/\D/g, '').slice(0, 12);
+				else {
+					studentPasswordInput.value = '';
+					studentConfirmPasswordInput.value = '';
+				}
+			}
+
+			learnerCodeInput.addEventListener('input', function () {
+				this.value = this.value.replace(/\D/g, '').slice(0, 12);
+				studentUsernameInput.value = this.value;
+			});
+
+			document.querySelectorAll('[data-password-target]').forEach(function (button) {
+				button.addEventListener('click', function () {
+					const input = document.getElementById(button.dataset.passwordTarget);
+					const show = input.type === 'password';
+					input.type = show ? 'text' : 'password';
+					button.textContent = show ? 'Hide' : 'Show';
+					button.setAttribute('aria-label', (show ? 'Hide ' : 'Show ') + (button.dataset.passwordTarget === 'studentPassword' ? 'student password' : 'confirmed password'));
+				});
+			});
+
+			setCredentialMode(true);
 
 			function escapeCsv(value) {
 				const text = String(value == null ? "" : value);
@@ -1505,12 +1595,14 @@
 				setVal('rmaResult', lr.rma_result);
 				setVal('ellnaResult', lr.ellna_result);
 				setVal('utilizationLearningGadgets', lr.utilization_learning_gadgets);
+				setCredentialMode(false);
 			}
 
 			function cancelEdit() {
 				editingLearnerId = null;
 				editIndicator.style.display = 'none';
 				form.reset();
+				setCredentialMode(true);
 				renderSchoolOptions("", "");
 				clearMessage();
 			}
@@ -1623,6 +1715,7 @@
 				editingLearnerId = null;
 				editIndicator.style.display = 'none';
 				form.reset();
+				setCredentialMode(true);
 				renderSchoolOptions("", "");
 				clearMessage();
 			});
@@ -1680,6 +1773,9 @@
 				clearMessage();
 
 				const learnerCode = document.getElementById("learnerCode").value.trim();
+				const studentUsername = studentUsernameInput.value.trim();
+				const studentPassword = studentPasswordInput.value;
+				const studentConfirmPassword = studentConfirmPasswordInput.value;
 				const familyName = document.getElementById("familyName").value.trim();
 				const firstName = document.getElementById("firstName").value.trim();
 				const middleName = document.getElementById("middleName").value.trim();
@@ -1704,6 +1800,24 @@
 				const ellnaResult = document.getElementById("ellnaResult").value;
 				const utilizationLearningGadgets = document.getElementById("utilizationLearningGadgets").value;
 
+				if (!editingLearnerId) {
+					if (!/^\d{12}$/.test(learnerCode) || studentUsername !== learnerCode) {
+						setMessage("Enter a valid 12-digit LRN. It will also be the student's username.", "error");
+						learnerCodeInput.focus();
+						return;
+					}
+					if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(studentPassword)) {
+						setMessage("Student password must have 8+ characters with uppercase, lowercase, number, and symbol.", "error");
+						studentPasswordInput.focus();
+						return;
+					}
+					if (studentPassword !== studentConfirmPassword) {
+						setMessage("Student password and confirmation do not match.", "error");
+						studentConfirmPasswordInput.focus();
+						return;
+					}
+				}
+
 				try {
 					const url = editingLearnerId
 						? (isLocalNodeMode ? ("/api/learners/" + editingLearnerId) : ("api/learners-update.php?id=" + encodeURIComponent(editingLearnerId)))
@@ -1715,6 +1829,9 @@
 						headers: { "Content-Type": "application/json" },
 						body: JSON.stringify({
 							learner_code: learnerCode,
+							student_username: studentUsername,
+							student_password: studentPassword,
+							student_confirm_password: studentConfirmPassword,
 							family_name: familyName,
 							firstname: firstName,
 							middlename: middleName,
@@ -1747,11 +1864,12 @@
 						throw new Error(payload.message || "Failed to save learner record.");
 					}
 
-					const wasSaved = editingLearnerId ? "Learner record updated successfully." : "Learner record saved successfully.";
+					const wasSaved = payload.message || (editingLearnerId ? "Learner record updated successfully." : "Learner record and student account created successfully.");
 					editingLearnerId = null;
 					editIndicator.style.display = 'none';
 					setMessage(wasSaved, "success");
 					form.reset();
+					setCredentialMode(true);
 					renderSchoolOptions("", "");
 					loadLearnerSummary();
 					loadMyLearners();
