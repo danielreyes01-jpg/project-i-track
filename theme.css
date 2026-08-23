@@ -283,28 +283,15 @@ label:has(+ textarea[required]) {
 	place-items: center;
 	width: 1in;
 	height: 1in;
-	filter: drop-shadow(0 10px 16px rgba(20, 124, 179, 0.18));
-}
-
-.itrack-page-loader-logo {
-	position: relative;
-	z-index: 1;
-	display: block;
-	/* The source PNG has transparent padding; scale its visible seal to the ring. */
-	width: 1.19in;
-	height: 1.19in;
-	object-fit: contain;
-	background: transparent;
-	transform-origin: center;
-	transform: translate(3px, 3px);
+	filter: drop-shadow(0 10px 16px rgba(20, 124, 179, 0.2));
 }
 
 .itrack-page-loader-ring {
 	position: absolute;
 	inset: 50% auto auto 50%;
 	display: block;
-	width: 0.94in;
-	height: 0.94in;
+	width: 1in;
+	height: 1in;
 	border-radius: 50%;
 	background: conic-gradient(
 		from -28deg,
@@ -318,8 +305,8 @@ label:has(+ textarea[required]) {
 	);
 	-webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
 	mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
-	transform: translate(-50%, -50%);
-	animation: itrack-loader-colors 1.4s ease-in-out infinite alternate;
+	transform: translate(-50%, -50%) rotate(0deg);
+	animation: itrack-loader-colors 1.15s linear infinite;
 }
 
 .itrack-page-loader-text {
@@ -330,8 +317,8 @@ label:has(+ textarea[required]) {
 
 
 @keyframes itrack-loader-colors {
-	from { filter: saturate(0.96) brightness(0.98) drop-shadow(0 5px 8px rgba(40,95,186,.18)); }
-	to { filter: saturate(1.12) brightness(1.06) drop-shadow(0 7px 11px rgba(40,95,186,.3)); }
+	from { transform:translate(-50%,-50%) rotate(0deg); filter:drop-shadow(0 5px 8px rgba(40,95,186,.2)); }
+	to { transform:translate(-50%,-50%) rotate(360deg); filter:drop-shadow(0 7px 11px rgba(40,95,186,.3)); }
 }
 
 @media (prefers-reduced-motion: reduce) {

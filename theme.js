@@ -42,18 +42,12 @@ function initializeITrackPageLoader() {
 	loader.setAttribute('aria-live', 'polite');
 	loader.setAttribute('aria-label', 'Loading Project i-Track');
 
-	const logo = document.createElement('img');
-	logo.src = ITRACK_BRAND_LOGO;
-	logo.alt = 'Project i-Track loading';
-	logo.className = 'itrack-page-loader-logo';
-
 	const logoFrame = document.createElement('div');
 	logoFrame.className = 'itrack-page-loader-logo-frame';
 	const loadingRing = document.createElement('span');
 	loadingRing.className = 'itrack-page-loader-ring';
 	loadingRing.setAttribute('aria-hidden', 'true');
 	logoFrame.appendChild(loadingRing);
-	logoFrame.appendChild(logo);
 
 	const loadingText = document.createElement('div');
 	loadingText.className = 'itrack-page-loader-text';
