@@ -91,9 +91,10 @@
 
 		.btn-primary { background: var(--accent); color: #fff; }
 		.btn-secondary { background: var(--accent-soft); color: var(--accent); }
-		.btn-excel { background: #217346; color: #fff; transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease; }
-		.btn-excel:hover { background: #1a5c38; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(33, 115, 70, 0.28); }
-		.btn-excel:active { transform: translateY(1px); box-shadow: none; }
+		html body .btn-extract { display:inline-flex!important; align-items:center!important; justify-content:center!important; gap:7px!important; width:auto!important; min-width:0!important; min-height:38px!important; padding:8px 12px!important; background:#176f92!important; color:#fff!important; border:1px solid #176f92!important; border-radius:9px!important; font-size:.78rem!important; font-weight:800!important; transition:background 150ms ease,transform 150ms ease,box-shadow 150ms ease!important; }
+		html body .btn-extract .extract-icon { display:inline-grid; place-items:center; width:17px; height:17px; font-size:.78rem; line-height:1; }
+		html body .btn-extract:hover { background:#125c7a!important; border-color:#f5c52b!important; transform:translateY(-2px); box-shadow:0 6px 18px rgba(23,111,146,.24)!important; }
+		html body .btn-extract:active { transform:translateY(1px); box-shadow:none!important; }
 		.btn-revise { background: var(--warn-soft); color: var(--warn-ink); }
 
 		.message {
@@ -200,8 +201,7 @@
 					<p class="subtitle">Manage all ADM requests from the teacher form and learner approval requests in one dashboard.</p>
 				</div>
 				<div class="actions">
-					<button id="exportExcelBtn" class="btn-excel" type="button">&#11015; &#128202; Download Excel</button>
-					<button class="btn-secondary" type="button" onclick="window.location.href='dashboard.html'">Back to Dashboard</button>
+					<button id="exportExcelBtn" class="btn-extract" type="button"><span class="extract-icon" aria-hidden="true">⇩</span>Extract Report</button>
 				</div>
 			</div>
 			<div id="message" class="message" role="status" aria-live="polite"></div>
