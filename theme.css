@@ -1809,6 +1809,15 @@ html.has-deped-fixed-header body {
 	padding-top:60px !important;
 	font-size:clamp(.8rem,.16vw + .77rem,.9rem) !important;
 	line-height:1.42 !important;
+	display:flex !important;
+	flex-direction:column !important;
+	min-height:100vh !important;
+	min-height:100dvh !important;
+}
+
+html.has-deped-fixed-header .itrack-site-footer {
+	flex:0 0 auto !important;
+	margin-top:auto !important;
 }
 
 html.has-deped-fixed-header .deped-fixed-header { width:var(--itrack-side-width) !important; }
