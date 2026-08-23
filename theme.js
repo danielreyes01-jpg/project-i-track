@@ -127,6 +127,10 @@ function createDepEdFixedHeader() {
 	compactLogo.alt = 'Project i-Track';
 	compactLogo.className = 'deped-compact-logo';
 	compactBrand.appendChild(compactLogo);
+	const compactBrandName = document.createElement('span');
+	compactBrandName.className = 'deped-compact-brand-name';
+	compactBrandName.textContent = 'PROJECT I-TRACK';
+	compactBrand.appendChild(compactBrandName);
 
 	const menuDock = document.createElement('div');
 	menuDock.id = 'deped-mobile-navigation';

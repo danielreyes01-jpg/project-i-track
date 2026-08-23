@@ -1506,14 +1506,20 @@ html.has-deped-fixed-header body {
 
 .deped-compact-brand {
 	width:100% !important;
-	height:82px !important;
-	padding:5px !important;
-	background:rgba(255,255,255,.1) !important;
-	border:1px solid rgba(255,255,255,.16) !important;
-	border-radius:15px !important;
+	height:auto !important;
+	display:flex !important;
+	flex-direction:column !important;
+	gap:7px !important;
+	padding:2px 5px 16px !important;
+	background:transparent !important;
+	border:0 !important;
+	border-bottom:1px solid rgba(255,255,255,.2) !important;
+	border-radius:0 !important;
+	box-shadow:none !important;
 }
 
 .deped-compact-logo { max-width:74px !important; max-height:74px !important; }
+.deped-compact-brand-name { color:#fff; font-size:.82rem; font-weight:850; letter-spacing:.11em; text-align:center; }
 .deped-compact-menu-dock { display:block !important; flex:1 1 auto !important; width:100% !important; min-height:0 !important; overflow-y:auto !important; overflow-x:hidden !important; scrollbar-color:rgba(245,197,43,.55) transparent; }
 .deped-compact-menu-dock .nav-menu { display:flex !important; flex-direction:column !important; align-items:stretch !important; width:100% !important; min-height:100% !important; gap:7px !important; overflow:visible !important; }
 
@@ -1527,7 +1533,7 @@ html body .deped-fixed-header .nav-greeting {
 	justify-content:flex-start !important;
 	margin:0 !important;
 	padding:9px 11px !important;
-	background:rgba(255,255,255,.045) !important;
+	background:transparent !important;
 	border:1px solid transparent !important;
 	border-radius:10px !important;
 	color:#fff !important;
@@ -1543,17 +1549,20 @@ html body .deped-fixed-header button.quick-nav-btn:hover,
 html body .deped-fixed-header button.quick-nav-btn.active,
 html body .deped-fixed-header button.itrack-management-toggle:hover,
 html body .deped-fixed-header button.theme-toggle-nav:hover {
-	background:rgba(245,197,43,.14) !important;
+	background:#147db5 !important;
 	border-color:var(--itrack-side-yellow) !important;
-	color:#fff7c9 !important;
-	box-shadow:0 5px 16px rgba(0,0,0,.16),inset 3px 0 0 var(--itrack-side-yellow) !important;
+	color:#fff !important;
+	box-shadow:0 7px 18px rgba(0,0,0,.2) !important;
 	transform:translateX(5px) !important;
 }
 
 .deped-compact-menu-dock .nav-item::after { display:none !important; }
-.nav-menu .nav-item-icon { width:22px !important; margin-right:7px !important; color:var(--itrack-side-yellow) !important; text-align:center !important; }
+.nav-menu .nav-item-icon { display:inline-grid !important; place-items:center !important; width:28px !important; height:28px !important; flex:0 0 28px !important; margin-right:8px !important; border-radius:8px !important; background:var(--itrack-side-yellow) !important; color:#123047 !important; font-size:.82rem !important; text-align:center !important; }
 .itrack-management-menu { width:100% !important; display:flex !important; flex-direction:column !important; align-items:stretch !important; }
-.itrack-management-submenu { position:static !important; min-width:0 !important; width:100% !important; margin:4px 0 3px !important; padding:5px 0 5px 10px !important; background:rgba(2,31,57,.28) !important; border:0 !important; border-left:2px solid rgba(245,197,43,.7) !important; border-radius:8px !important; box-shadow:none !important; }
+.itrack-management-submenu { position:static !important; display:flex !important; flex-direction:column !important; min-width:0 !important; width:100% !important; max-height:0 !important; margin:0 !important; padding:0 0 0 10px !important; overflow:hidden !important; opacity:0 !important; visibility:hidden !important; transform:translateY(-7px) !important; pointer-events:none !important; background:rgba(2,31,57,.28) !important; border:0 !important; border-left:2px solid rgba(245,197,43,.7) !important; border-radius:8px !important; box-shadow:none !important; transition:max-height .48s ease,opacity .34s ease,transform .42s ease,padding .42s ease,margin .42s ease,visibility .34s ease !important; }
+.itrack-management-menu:hover > .itrack-management-submenu,
+.itrack-management-menu:focus-within > .itrack-management-submenu,
+.itrack-management-menu.is-open > .itrack-management-submenu { max-height:620px !important; margin:5px 0 4px !important; padding:6px 0 6px 10px !important; opacity:1 !important; visibility:visible !important; transform:translateY(0) !important; pointer-events:auto !important; }
 .itrack-management-submenu::before { display:none !important; }
 html body .deped-fixed-header .itrack-management-submenu button.nav-item { color:#eef8ff !important; }
 html body .deped-fixed-header .nav-greeting { color:#d9efff !important; border-color:rgba(255,255,255,.12) !important; }
