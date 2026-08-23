@@ -288,11 +288,12 @@ label:has(+ textarea[required]) {
 	position: relative;
 	z-index: 1;
 	display: block;
-	width: 1in;
-	height: 1in;
+	/* The source PNG has transparent padding; scale its visible seal to the ring. */
+	width: 1.19in;
+	height: 1.19in;
 	object-fit: contain;
-	border-radius: 50%;
-	background: #ffffff;
+	background: transparent;
+	transform: translate(3px, 3px);
 }
 
 .itrack-page-loader-ring {
