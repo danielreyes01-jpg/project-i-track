@@ -1968,6 +1968,83 @@ html.itrack-page-admin-students body .hero {
 	background-repeat:no-repeat !important;
 }
 
+/* Final sidebar menu polish: consistent spacing, alignment, hover, and selection. */
+html.has-deped-fixed-header .deped-compact-bar {
+	gap:0 !important;
+	padding:12px 10px !important;
+}
+
+html.has-deped-fixed-header .deped-compact-brand {
+	margin:0 !important;
+	padding:0 4px 9px !important;
+}
+
+html.has-deped-fixed-header .deped-compact-menu-dock {
+	padding-top:7px !important;
+}
+
+html.has-deped-fixed-header .deped-compact-menu-dock .nav-menu {
+	gap:6px !important;
+}
+
+html body .deped-fixed-header button.nav-item,
+html body .deped-fixed-header button.quick-nav-btn,
+html body .deped-fixed-header button.itrack-management-toggle {
+	grid-template-columns:28px minmax(0,1fr) auto !important;
+	min-height:42px !important;
+	padding:7px 9px !important;
+	column-gap:9px !important;
+	border:1px solid transparent !important;
+	border-radius:12px !important;
+	font-weight:700 !important;
+}
+
+html.has-deped-fixed-header .nav-menu .nav-item-icon {
+	width:28px !important;
+	height:28px !important;
+	flex-basis:28px !important;
+	border-radius:8px !important;
+	background:rgba(210,237,252,.13) !important;
+	color:#eef8ff !important;
+	-webkit-text-fill-color:#eef8ff !important;
+	transition:background-color .2s ease,color .2s ease,transform .2s ease !important;
+}
+
+html body .deped-fixed-header button.nav-item:not(.nav-current):hover,
+html body .deped-fixed-header button.quick-nav-btn:not(.active):hover,
+html body .deped-fixed-header button.itrack-management-toggle:not(.nav-current):hover {
+	background:rgba(41,139,194,.46) !important;
+	border-color:rgba(199,231,248,.22) !important;
+	box-shadow:0 7px 16px rgba(0,29,55,.16) !important;
+	transform:translateX(3px) !important;
+}
+
+html body .deped-fixed-header button.nav-item:not(.nav-current):hover .nav-item-icon,
+html body .deped-fixed-header button.itrack-management-toggle:not(.nav-current):hover .nav-item-icon {
+	background:rgba(255,255,255,.2) !important;
+	transform:scale(1.04) !important;
+}
+
+html body .deped-fixed-header button.nav-item.nav-current,
+html body .deped-fixed-header button.quick-nav-btn.active,
+html body .deped-fixed-header button.itrack-management-toggle.nav-current {
+	background:linear-gradient(135deg,rgba(33,133,190,.78),rgba(23,116,172,.68)) !important;
+	border-color:rgba(214,237,250,.4) !important;
+	box-shadow:0 8px 18px rgba(0,25,49,.2) !important;
+}
+
+html body .deped-fixed-header button.nav-item.nav-current .nav-item-icon,
+html body .deped-fixed-header button.itrack-management-toggle.nav-current .nav-item-icon {
+	background:var(--itrack-side-yellow) !important;
+	color:#123047 !important;
+	-webkit-text-fill-color:#123047 !important;
+	box-shadow:0 4px 9px rgba(0,25,49,.18) !important;
+}
+
+@media (max-width:1024px) {
+	html.has-deped-fixed-header .deped-compact-menu-dock { padding-top:5px !important; }
+}
+
 .itrack-abstract-hero::before,
 html.itrack-page-admin-students body .hero::before {
 	content:"";
