@@ -1980,7 +1980,9 @@ html.has-deped-fixed-header .deped-compact-brand {
 }
 
 html.has-deped-fixed-header .deped-compact-menu-dock {
-	padding-top:7px !important;
+	margin-top:4px !important;
+	padding-top:10px !important;
+	border-top:1px solid rgba(214,237,250,.24) !important;
 }
 
 .itrack-sidebar-account {
@@ -2111,7 +2113,7 @@ html body .deped-fixed-header button.itrack-management-toggle.nav-current .nav-i
 }
 
 @media (max-width:1024px) {
-	html.has-deped-fixed-header .deped-compact-menu-dock { padding-top:5px !important; }
+	html.has-deped-fixed-header .deped-compact-menu-dock { margin-top:3px !important; padding-top:8px !important; }
 	.itrack-sidebar-account { display:none; }
 	.deped-fixed-header.mobile-menu-open .itrack-sidebar-account { display:flex; margin-top:5px; }
 }
