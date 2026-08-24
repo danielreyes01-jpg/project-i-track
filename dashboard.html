@@ -639,29 +639,6 @@
 			white-space: nowrap;
 		}
 
-		.welcome-banner {
-			display: none;
-			position: fixed;
-			inset: 50% auto auto 50%;
-			z-index: 12000;
-			width: 2in;
-			height: 2in;
-			padding: 18px;
-			transform: translate(-50%, -50%);
-			align-items: center;
-			justify-content: center;
-			text-align: center;
-			border-radius: 16px;
-			background: rgba(236, 253, 245, 0.76);
-			backdrop-filter: blur(8px);
-			border: 1px solid rgba(23, 88, 55, 0.18);
-			color: #14532d;
-			font-weight: 700;
-			font-size: 0.95rem;
-			opacity: 0;
-			box-shadow: 0 18px 45px rgba(16, 75, 57, 0.16);
-			transition: opacity 250ms ease;
-		}
 		.resource-alerts{position:fixed;inset:0;z-index:25000;display:grid;place-items:center;padding:18px;background:rgba(5,18,29,.72);backdrop-filter:blur(3px);opacity:0;visibility:hidden;transition:opacity .22s ease,visibility .22s ease}.resource-alerts[hidden]{display:none}.resource-alerts.is-visible{opacity:1;visibility:visible}.resource-alert-dialog{width:min(680px,calc(100vw - 32px));max-height:min(72vh,560px);overflow:auto;padding:22px;border:1px solid rgba(255,255,255,.8);border-radius:18px;background:#f8fcfb;box-shadow:0 28px 75px rgba(0,0,0,.38);transform:translateY(14px) scale(.97);transition:transform .22s ease}.resource-alerts.is-visible .resource-alert-dialog{transform:translateY(0) scale(1)}.resource-alerts h2{margin:0 0 14px;font-size:1.12rem;color:#12364f}.resource-alert-list{display:grid;gap:8px}.resource-alert{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:11px;background:#fff;border:1px solid #d7e7e0;font-size:.84rem}.resource-alert strong{color:#173d56}.resource-alert .ongoing{color:#825b00}.resource-alert .done{color:#08745b}.resource-alert-empty{color:#6b7f78;font-size:.84rem}@media(max-width:560px){.resource-alert-dialog{padding:17px}.resource-alert{align-items:flex-start;flex-direction:column}.resource-alert .ongoing,.resource-alert .done{font-weight:700}}
 	</style>
 </head>
@@ -688,7 +665,6 @@
 				</nav>
 			</div>
 			<h1>Dashboard</h1>
-			<div id="welcomeBanner" class="welcome-banner"></div>
 			<p class="subtitle">Overview of registered users and learner records.</p>
 			<div id="message" class="message" role="status" aria-live="polite"></div>
 			<section id="resourceAlerts" class="resource-alerts" hidden aria-live="polite"><div class="resource-alert-dialog" role="dialog" aria-modal="true" aria-labelledby="resourceAlertTitle"><h2 id="resourceAlertTitle">🔔 Student Answer Notifications</h2><div id="resourceAlertList" class="resource-alert-list"><div class="resource-alert-empty">Checking student activity…</div></div></div></section>
@@ -1035,17 +1011,7 @@
 					currentUserDistrict = String((payload.user || {}).district || "").trim();
 					const fn = String((payload.user || {}).firstname || "").trim();
 					const navGreeting = document.getElementById("navGreeting");
-					const welcomeBanner = document.getElementById("welcomeBanner");
 					if (navGreeting && fn) navGreeting.textContent = "\uD83D\uDC64 " + fn;
-					if (welcomeBanner && fn) {
-						welcomeBanner.textContent = "Welcome to ADM Site, " + fn + "!";
-						welcomeBanner.style.display = "flex";
-						requestAnimationFrame(function () { welcomeBanner.style.opacity = "1"; });
-						setTimeout(function () {
-							welcomeBanner.style.opacity = "0";
-							setTimeout(function () { welcomeBanner.style.display = "none"; }, 250);
-						}, 1750);
-					}
 					if (role !== "admin" && role !== "supervisor") {
 						window.location.href = "learner.html";
 						return false;
