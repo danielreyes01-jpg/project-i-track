@@ -3108,11 +3108,80 @@ app.get("/api/student/profile", requireLogin, async (req, res) => {
       module_title: resource.title,
       resource_type: resource.resource_type,
       status: resource.status === "done" ? "answered" : resource.status === "ongoing" ? "ongoing" : "not_answered",
-      answered_at: resource.submitted_at || null
+      answered_at: resource.submitted_at || null,
+      started_at: resource.started_at || null,
+      assigned_at: resource.created_at || null,
+      subject: resource.subject || "",
+      description: resource.description || ""
     }));
     const attendance = await db("student_attendance").where({ student_user_id: user.id }).orderBy("school_year", "desc");
-    const learner = await db("learners").where({ learner_code: String(user.lrn || "").trim() }).first();
-    return res.json({ user: sanitizeUser(user), adviser: (learner && learner.teacher_adviser) || "", modules, attendance });
+    const learnerHistory = await db("learners")
+      .where({ learner_code: String(user.lrn || "").trim() })
+      .orderBy([{ column: "date_started", order: "desc" }, { column: "created_at", order: "desc" }]);
+    const learner = learnerHistory[0] || null;
+    const schoolYearFromDate = (value) => {
+      const date = new Date(value || "");
+      if (Number.isNaN(date.getTime())) return "Not specified";
+      const year = date.getFullYear();
+      return `${year}-${year + 1}`;
+    };
+    const enrollment = learnerHistory.map((record, index) => ({
+      id: record.id,
+      school_year: schoolYearFromDate(record.date_started),
+      grade: record.grade || "",
+      district: record.district || "",
+      school: record.school || "",
+      school_address: record.school_address || "",
+      modality: record.modality || "Modular Distance Learning",
+      type_of_instruction: record.type_of_instruction || "",
+      date_started: record.date_started || record.created_at || null,
+      teacher_adviser: record.teacher_adviser || "",
+      status: index === 0 ? "Current" : "Previous"
+    }));
+    const schedule = assignedResources.map((resource) => ({
+      id: resource.id,
+      term: Number(resource.term || 1),
+      module_number: Number(resource.module_number || 1),
+      resource_type: resource.resource_type,
+      title: resource.title,
+      subject: resource.subject || "General",
+      assigned_at: resource.created_at || null,
+      started_at: resource.started_at || null,
+      submitted_at: resource.submitted_at || null,
+      status: resource.status || "assigned"
+    }));
+    const grades = learner ? [
+      { term: "Term 1 Grade", grade: learner.first_grading_grade, descriptor: learner.first_grading_verbal || "", interpretation: learner.first_grading_interpretation || "" },
+      { term: "Term 2 Grade", grade: learner.second_quarter_grade, descriptor: learner.second_quarter_verbal || "", interpretation: learner.second_quarter_interpretation || "" },
+      { term: "Term 3 Grade", grade: learner.third_quarter_grade, descriptor: learner.third_quarter_verbal || "", interpretation: learner.third_quarter_interpretation || "" }
+    ] : [];
+    const anecdotal = learnerHistory.flatMap((record) => {
+      const entries = [
+        ["Teacher intervention", record.intervention],
+        ["Phil-IRI result", record.phil_iri_result],
+        ["RMA result", record.rma_result],
+        ["CRLA result", record.ellna_result],
+        ["Academic recovery and reintegration", record.academic_recovery_reintegration],
+        ["Parent and community engagement", record.parent_community_engagement]
+      ];
+      return entries.filter((entry) => String(entry[1] || "").trim()).map((entry) => ({
+        category: entry[0],
+        note: String(entry[1]).trim(),
+        recorded_at: record.updated_at || record.created_at || null,
+        recorded_by: record.teacher_adviser || "Teacher adviser"
+      }));
+    });
+    return res.json({
+      user: sanitizeUser(user),
+      adviser: (learner && learner.teacher_adviser) || "",
+      enrollment,
+      schedule,
+      modules,
+      grades,
+      attendance,
+      prospectus: schedule,
+      anecdotal
+    });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load student profile.", detail: error.message });
   }
