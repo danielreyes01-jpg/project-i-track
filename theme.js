@@ -251,6 +251,43 @@ function dockNavigationInHeader(menuDock) {
 	return true;
 }
 
+function renderSidebarAccountProfile(user) {
+	if (!user) return;
+	const compactBar = document.querySelector('.deped-fixed-header .deped-compact-bar');
+	const menuDock = document.querySelector('.deped-fixed-header .deped-compact-menu-dock');
+	if (!compactBar || !menuDock) return;
+	let card = document.getElementById('itrack-sidebar-account');
+	if (!card) {
+		card = document.createElement('section');
+		card.id = 'itrack-sidebar-account';
+		card.className = 'itrack-sidebar-account';
+		card.setAttribute('aria-label', 'Signed-in account');
+		card.innerHTML = '<div class="itrack-sidebar-avatar"><span></span></div><strong class="itrack-sidebar-account-name"></strong><small class="itrack-sidebar-account-role"></small><span class="itrack-sidebar-account-school"></span>';
+		compactBar.insertBefore(card, menuDock);
+	}
+	const name = [user.firstname, user.middlename, user.lastname].map((value) => String(value || '').trim()).filter(Boolean).join(' ') || user.school || 'Project i-Track User';
+	const initials = [user.firstname, user.lastname].map((value) => String(value || '').trim().charAt(0)).filter(Boolean).join('').toUpperCase() || 'IT';
+	const role = String(user.role || '').trim().toLowerCase();
+	const roleLabel = role === 'teacher' ? 'School / Teacher Account' : role === 'admin' ? 'Administrator Account' : role === 'student' ? 'Student Account' : 'Authorized Account';
+	const avatar = card.querySelector('.itrack-sidebar-avatar');
+	avatar.replaceChildren();
+	const initialsNode = document.createElement('span');
+	initialsNode.textContent = initials;
+	avatar.appendChild(initialsNode);
+	if (String(user.profile_image || '').trim()) {
+		const image = document.createElement('img');
+		image.src = String(user.profile_image).trim();
+		image.alt = `${name} profile picture`;
+		image.addEventListener('error', () => image.remove(), { once:true });
+		avatar.appendChild(image);
+	}
+	card.querySelector('.itrack-sidebar-account-name').textContent = name;
+	card.querySelector('.itrack-sidebar-account-role').textContent = roleLabel;
+	const school = card.querySelector('.itrack-sidebar-account-school');
+	school.textContent = String(user.school || '').trim();
+	school.hidden = !school.textContent;
+}
+
 function simplifyNavigation(navMenu) {
 	const currentPage = String(window.location.pathname || '').split('/').pop().toLowerCase() || 'dashboard.html';
 	const iconByLabel = [
@@ -317,7 +354,9 @@ function simplifyNavigation(navMenu) {
 	const accountGreeting = navMenu.querySelector('.nav-greeting');
 	if (accountGreeting) accountGreeting.hidden = true;
 	fetch('/api/auth/me', { credentials: 'include' }).then((response) => response.ok ? response.json() : null).then((payload) => {
-			const role = String((payload && payload.user && payload.user.role) || '').trim().toLowerCase();
+			const user = payload && payload.user;
+			renderSidebarAccountProfile(user);
+			const role = String((user && user.role) || '').trim().toLowerCase();
 			if (role === 'student' && !navMenu.dataset.studentNavigationLoaded) {
 				navMenu.dataset.studentNavigationLoaded = 'true';
 				const studentItems = [
