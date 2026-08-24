@@ -3126,6 +3126,44 @@ app.get("/api/admin/student-monitoring", requireAdmin, async (req, res) => {
   }
 });
 
+app.get("/api/admin/modular-tracking-summary", requireAdmin, async (req, res) => {
+  try {
+    const [students, resources] = await Promise.all([
+      db("users").where({ role: "student", approved: true }).select("id", "firstname", "middlename", "lastname", "lrn", "district", "school"),
+      db("learning_resources").select("id", "student_user_id", "term", "module_number", "title", "status", "created_at", "started_at", "submitted_at").orderBy("created_at", "desc")
+    ]);
+    const studentById = new Map(students.map((student) => [String(student.id), student]));
+    const summarize = (term) => {
+      const scoped = term ? resources.filter((resource) => Number(resource.term || 1) === term) : resources;
+      const assigned = scoped.filter((resource) => String(resource.status || "assigned") === "assigned").length;
+      const ongoing = scoped.filter((resource) => String(resource.status || "") === "ongoing").length;
+      const completed = scoped.filter((resource) => String(resource.status || "") === "done").length;
+      const participating = new Set(scoped.map((resource) => String(resource.student_user_id))).size;
+      const studentsWithProgress = new Set(scoped.filter((resource) => ["ongoing", "done"].includes(String(resource.status || ""))).map((resource) => String(resource.student_user_id)));
+      const studentsWithAssigned = new Set(scoped.filter((resource) => String(resource.status || "assigned") === "assigned").map((resource) => String(resource.student_user_id)));
+      const needsFollowUp = Array.from(studentsWithAssigned).filter((id) => !studentsWithProgress.has(id)).length;
+      return { total: scoped.length, assigned, ongoing, completed, participating, needsFollowUp, completionRate: scoped.length ? Math.round((completed / scoped.length) * 1000) / 10 : 0 };
+    };
+    const activity = resources.slice(0, 12).map((resource) => {
+      const student = studentById.get(String(resource.student_user_id)) || {};
+      return {
+        id: resource.id,
+        student: [student.firstname, student.middlename, student.lastname].filter(Boolean).join(" ") || "Student",
+        lrn: student.lrn || "",
+        school: student.school || "",
+        term: Number(resource.term || 1),
+        moduleNumber: Number(resource.module_number || 1),
+        title: resource.title || "Module",
+        status: resource.status || "assigned",
+        activityAt: resource.submitted_at || resource.started_at || resource.created_at
+      };
+    });
+    return res.json({ all: summarize(0), terms: { 1: summarize(1), 2: summarize(2), 3: summarize(3) }, activity });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load modular learning tracker.", detail: error.message });
+  }
+});
+
 // Treat the API base URL as a friendly entry point. Hostinger preview links or
 // saved browser bookmarks may open /api directly, which should lead users back
 // to the website instead of displaying the JSON 404 fallback.

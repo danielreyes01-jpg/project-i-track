@@ -488,6 +488,55 @@ function initializeMobileNavigation(header, menuToggle, menuDock) {
 	}, { passive: true });
 }
 
+function initializeModularLearningTracker() {
+	if (ITRACK_PAGE_KEY !== 'admin-students' || document.getElementById('modularTracker')) return;
+	const hero = document.querySelector('main .hero');
+	if (!hero) return;
+	const style = document.createElement('style');
+	style.textContent = '.modular-tracker{margin:16px 0;padding:18px;border:1px solid #cfe0e5;border-radius:16px;background:linear-gradient(145deg,#fff,#f3f9fb);box-shadow:0 9px 25px rgba(16,47,73,.06)}.modular-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px}.modular-head h2{margin:0 0 4px;color:#123b58}.modular-head p{margin:0;color:#687c82;font-size:.82rem}.term-filter{display:flex;gap:6px;flex-wrap:wrap}.term-filter button{min-height:35px;padding:6px 11px;border:1px solid #b8d2df;border-radius:999px;background:#fff;color:#275b77;font:600 .75rem Poppins,sans-serif;cursor:pointer}.term-filter button.active{border-color:#176f9d;background:#176f9d;color:#fff}.modular-metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}.modular-stat{padding:12px;border:1px solid #dbe8eb;border-radius:12px;background:#fff}.modular-stat span{display:block;color:#687c82;font-size:.67rem;text-transform:uppercase}.modular-stat strong{display:block;margin-top:4px;color:#113d5a;font-size:1.35rem}.modular-stat.followup{border-left:4px solid #e3aa2f}.completion-track{height:8px;margin-top:10px;border-radius:999px;background:#e4eeed;overflow:hidden}.completion-track i{display:block;height:100%;width:0;background:#268d6d;transition:width .35s ease}.modular-completion-text{margin-top:5px;color:#687c82;font-size:.7rem}.modular-activity{margin-top:14px;border-top:1px solid #dce8ea;padding-top:12px}.modular-activity h3{margin:0 0 8px;font-size:.86rem}.modular-activity-list{display:grid;gap:7px;max-height:190px;overflow:auto}.modular-event{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;padding:9px 11px;border-radius:10px;background:#fff;border:1px solid #e0eaec;font-size:.74rem}.modular-event small{display:block;color:#71817c}.module-status{font-weight:600}.module-status.done{color:#147556}.module-status.ongoing{color:#936600}.module-status.assigned{color:#536a77}@media(max-width:980px){.modular-metrics{grid-template-columns:repeat(3,1fr)}}@media(max-width:650px){.modular-head{flex-direction:column}.modular-metrics{grid-template-columns:repeat(2,1fr)}}';
+	document.head.appendChild(style);
+	const tracker = document.createElement('section');
+	tracker.id = 'modularTracker';
+	tracker.className = 'modular-tracker';
+	tracker.setAttribute('aria-labelledby', 'modularTrackerTitle');
+	tracker.innerHTML = '<div class="modular-head"><div><h2 id="modularTrackerTitle">📘 Modular Learning Tracker</h2><p>Monitor student module participation and completion by school term.</p></div><div id="modularTermFilter" class="term-filter"><button type="button" class="active" data-term="all">All Terms</button><button type="button" data-term="1">Term 1</button><button type="button" data-term="2">Term 2</button><button type="button" data-term="3">Term 3</button></div></div><div class="modular-metrics"><article class="modular-stat"><span>Total Modules</span><strong id="modularTotal">0</strong></article><article class="modular-stat"><span>Assigned</span><strong id="modularAssigned">0</strong></article><article class="modular-stat"><span>Ongoing</span><strong id="modularOngoing">0</strong></article><article class="modular-stat"><span>Completed</span><strong id="modularCompleted">0</strong></article><article class="modular-stat"><span>Active Students</span><strong id="modularStudents">0</strong></article><article class="modular-stat followup"><span>Need Follow-up</span><strong id="modularFollowup">0</strong></article></div><div class="completion-track" aria-label="Module completion rate"><i id="modularCompletionBar"></i></div><div id="modularCompletionText" class="modular-completion-text">0% module completion</div><div class="modular-activity"><h3>Recent Modular Activity</h3><div id="modularActivityList" class="modular-activity-list"><div class="empty">Loading modular activity…</div></div></div>';
+	hero.insertAdjacentElement('afterend', tracker);
+	const byId = (id) => document.getElementById(id);
+	const escapeHtml = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (character) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[character]));
+	let data = null;
+	let activeTerm = 'all';
+	const render = () => {
+		if (!data) return;
+		const item = activeTerm === 'all' ? data.all : ((data.terms || {})[activeTerm] || {});
+		[['modularTotal','total'],['modularAssigned','assigned'],['modularOngoing','ongoing'],['modularCompleted','completed'],['modularStudents','participating'],['modularFollowup','needsFollowUp']].forEach(([id,key]) => { byId(id).textContent = Number(item[key] || 0); });
+		const rate = Number(item.completionRate || 0);
+		byId('modularCompletionBar').style.width = Math.max(0, Math.min(100, rate)) + '%';
+		byId('modularCompletionText').textContent = rate.toFixed(1) + '% module completion';
+		const activity = (data.activity || []).filter((entry) => activeTerm === 'all' || String(entry.term) === activeTerm);
+		byId('modularActivityList').innerHTML = activity.length ? activity.slice(0, 8).map((entry) => '<div class="modular-event"><span><strong>' + escapeHtml(entry.student) + '</strong> · Term ' + Number(entry.term) + ' · Module ' + Number(entry.moduleNumber) + '<small>' + escapeHtml(entry.title) + (entry.school ? ' · ' + escapeHtml(entry.school) : '') + '</small></span><span class="module-status ' + escapeHtml(entry.status) + '">' + (entry.status === 'done' ? '✓ Completed' : entry.status === 'ongoing' ? '● Ongoing' : 'Assigned') + '</span></div>').join('') : '<div class="empty">No modular activity for this term.</div>';
+	};
+	const load = async () => {
+		try {
+			const response = await fetch('/api/admin/modular-tracking-summary', { credentials:'include' });
+			const payload = await response.json().catch(() => ({}));
+			if (!response.ok) throw new Error(payload.message || 'Unable to load modular tracker.');
+			data = payload;
+			render();
+		} catch (error) {
+			byId('modularActivityList').innerHTML = '<div class="empty">' + escapeHtml(error.message) + '</div>';
+		}
+	};
+	byId('modularTermFilter').addEventListener('click', (event) => {
+		const button = event.target.closest('[data-term]');
+		if (!button) return;
+		activeTerm = button.dataset.term;
+		byId('modularTermFilter').querySelectorAll('button').forEach((item) => item.classList.toggle('active', item === button));
+		render();
+	});
+	load();
+	setInterval(load, 60000);
+}
+
 function initializeCreateAccountPopover() {
 	if (new URLSearchParams(window.location.search).get('embed') === '1') return;
 	if (document.getElementById('itrack-account-popover')) return;
@@ -715,6 +764,7 @@ if (document.readyState === 'loading') {
 		createITrackFooter();
 		initializeRequiredFields();
 		initializeCreateAccountPopover();
+		initializeModularLearningTracker();
 		window.themeManager = new ThemeManager();
 		document.documentElement.classList.remove('itrack-dashboard-boot');
 	});
@@ -725,6 +775,7 @@ if (document.readyState === 'loading') {
 	createITrackFooter();
 	initializeRequiredFields();
 	initializeCreateAccountPopover();
+	initializeModularLearningTracker();
 	window.themeManager = new ThemeManager();
 	document.documentElement.classList.remove('itrack-dashboard-boot');
 }
