@@ -1942,6 +1942,53 @@ html body .deped-fixed-header button.itrack-management-toggle.nav-current::after
 	box-shadow:0 -1px 5px rgba(245,197,43,.3) !important;
 }
 
+/* Solid abstract header artwork for the main administrator dashboards. */
+.itrack-abstract-hero,
+html.itrack-page-admin-students body .hero {
+	position:relative !important;
+	isolation:isolate !important;
+	overflow:hidden !important;
+	background-color:#edf7fb !important;
+	background-image:
+		radial-gradient(circle at 92% 18%,var(--abstract-purple,#d9c8f1) 0 54px,transparent 55px),
+		radial-gradient(circle at 84% 112%,var(--abstract-blue,#82c5e8) 0 118px,transparent 119px),
+		linear-gradient(150deg,transparent 0 76%,var(--abstract-yellow,#ffe08a) 76% 84%,transparent 84%) !important;
+	background-repeat:no-repeat !important;
+}
+
+.itrack-abstract-hero::before,
+html.itrack-page-admin-students body .hero::before {
+	content:"";
+	position:absolute;
+	z-index:0;
+	right:clamp(118px,13vw,205px);
+	top:-45px;
+	width:95px;
+	height:150px;
+	border-radius:24px;
+	background:var(--abstract-royal,#397ec4);
+	transform:rotate(28deg);
+	opacity:.9;
+	pointer-events:none;
+}
+
+.itrack-abstract-hero h1,.itrack-abstract-hero p,.itrack-abstract-hero .management-badge,.itrack-abstract-hero .hero-icon,.itrack-abstract-hero .welcome-banner,
+html.itrack-page-admin-students body .hero h1,html.itrack-page-admin-students body .hero p {
+	position:relative;
+	z-index:1;
+}
+
+.itrack-abstract-users { --abstract-blue:#98d9c7; --abstract-purple:#d7c8ef; --abstract-royal:#2b79b8; --abstract-yellow:#ffe39a; }
+.itrack-abstract-resources { --abstract-blue:#83c9e8; --abstract-purple:#cfc4ef; --abstract-royal:#357fc6; --abstract-yellow:#ffdf7b; }
+.itrack-abstract-students,html.itrack-page-admin-students { --abstract-blue:#91d6cc; --abstract-purple:#d9c7ed; --abstract-royal:#337dbf; --abstract-yellow:#ffe28c; }
+
+@media(max-width:700px) {
+	.itrack-abstract-hero,
+	html.itrack-page-admin-students body .hero { background-position:center !important; }
+	.itrack-abstract-hero::before,
+	html.itrack-page-admin-students body .hero::before { right:-36px; top:-68px; opacity:.34; }
+}
+
 html.has-deped-fixed-header body > .page,
 html.has-deped-fixed-header body > .shell,
 html.has-deped-fixed-header main.page,

@@ -2,6 +2,8 @@
 
 const ITRACK_BRAND_LOGO = 'assets/project-itrack-logo.png';
 const ITRACK_SITE_ICON = 'assets/project-itrack-icon.png';
+const ITRACK_PAGE_KEY = String(window.location.pathname || '/').split('/').pop().replace(/\.html$/i, '').replace(/[^a-z0-9-]/gi, '-').toLowerCase() || 'home';
+document.documentElement.classList.add('itrack-page-' + ITRACK_PAGE_KEY);
 
 function initializeITrackBrandAssets() {
 	if (!document.head.querySelector('link[data-itrack-font]')) {
