@@ -3,6 +3,7 @@ const path = require("path");
 const knex = require("knex");
 
 const DB_CLIENT = String(process.env.DB_CLIENT || "sqlite3").toLowerCase();
+const DB_POOL_MAX = Math.max(2, Number(process.env.DB_POOL_MAX || 20));
 
 function resolveKnexConfig() {
   if (DB_CLIENT === "mysql2") {
@@ -13,7 +14,7 @@ function resolveKnexConfig() {
     return {
       client: "mysql2",
       connection: process.env.DB_CONNECTION_STRING,
-      pool: { min: 0, max: 10 }
+      pool: { min: 0, max: DB_POOL_MAX }
     };
   }
 
@@ -25,7 +26,7 @@ function resolveKnexConfig() {
     return {
       client: "pg",
       connection: process.env.DB_CONNECTION_STRING,
-      pool: { min: 0, max: 10 }
+      pool: { min: 0, max: DB_POOL_MAX }
     };
   }
 
@@ -35,7 +36,15 @@ function resolveKnexConfig() {
     connection: {
       filename: sqliteFile
     },
-    useNullAsDefault: true
+    useNullAsDefault: true,
+    pool: {
+      min: 1,
+      max: 1,
+      afterCreate(connection, done) {
+        connection.run("PRAGMA busy_timeout = 5000");
+        connection.run("PRAGMA journal_mode = WAL", (error) => done(error, connection));
+      }
+    }
   };
 }
 
@@ -131,6 +140,16 @@ async function ensureSchema() {
 	if (!columns.active_session_id) {
 	  await db.schema.alterTable("users", (table) => table.string("active_session_id", 128).nullable());
 	}
+	try {
+	  if (DB_CLIENT === "mysql2") {
+		await db.raw("CREATE UNIQUE INDEX uq_users_username ON users (username)");
+	  } else {
+		await db.raw("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username ON users (username) WHERE username IS NOT NULL");
+	  }
+	} catch (error) {
+	  const message = String((error && error.message) || "").toLowerCase();
+	  if (!message.includes("already exists") && !message.includes("duplicate key name")) throw error;
+	}
 	const studentProfileColumns = {
 	  profile_image: 500, extension_name: 40, gender: 30, birth_date: 40,
 	  current_residence: 500, religion: 120, mother_tongue: 120, ethnicity: 120,
@@ -146,6 +165,16 @@ async function ensureSchema() {
 		}
 	  }
 	}
+
+  const sessionsExists = await db.schema.hasTable("sessions");
+  if (!sessionsExists) {
+    await db.schema.createTable("sessions", (table) => {
+      table.string("sid", 160).primary();
+      table.text("data").notNullable();
+      table.bigInteger("expires_at").notNullable();
+      table.index(["expires_at"], "idx_sessions_expires_at");
+    });
+  }
 
   const learnersExists = await db.schema.hasTable("learners");
   if (!learnersExists) {

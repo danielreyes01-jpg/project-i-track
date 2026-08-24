@@ -19,8 +19,11 @@ dotenv.config();
 const { db, DB_CLIENT, ensureSchema } = require("./db");
 
 const app = express();
+app.disable("x-powered-by");
 const PORT = Number(process.env.PORT || 3000);
 const APP_BASE_URL = process.env.APP_BASE_URL || `http://localhost:${PORT}`;
+const USE_SECURE_COOKIES = process.env.NODE_ENV === "production" || /^https:\/\//i.test(APP_BASE_URL);
+if (USE_SECURE_COOKIES) app.set("trust proxy", 1);
 
 const VERIFY_TOKEN_TTL_MS = Number(process.env.VERIFY_TOKEN_TTL_MS || 1000 * 60 * 30);
 const RESEND_MIN_INTERVAL_MS = Number(process.env.RESEND_MIN_INTERVAL_MS || 1000 * 60);
@@ -563,6 +566,12 @@ async function createAdmApprovalPdf({ requestId, requestDate, approvedAt, reques
   if (!fs.existsSync(ADM_APPROVAL_TEMPLATE_PATH)) {
     throw new Error("ADM approval template PDF not found.");
   }
+
+  if (String(error && error.code) === "23505" || String(error && error.code) === "ER_DUP_ENTRY" || /duplicate key|unique constraint/i.test(raw)) {
+	if (/username|uq_users_username/i.test(raw)) return "Username is already registered.";
+	if (/email|users_email/i.test(raw)) return "Email is already registered.";
+	return "An account with these details is already registered.";
+  }
   if (!fs.existsSync(ADM_APPROVAL_FONT_PATH)) {
     throw new Error("Bookman Old Style font file not found.");
   }
@@ -636,17 +645,63 @@ function getVerificationResendState(user) {
   };
 }
 
+class KnexSessionStore extends session.Store {
+  get(sid, callback) {
+    db("sessions").where({ sid }).first().then(async (row) => {
+      if (!row) return callback(null, null);
+      if (Number(row.expires_at || 0) <= Date.now()) {
+        await db("sessions").where({ sid }).delete();
+        return callback(null, null);
+      }
+      try {
+        return callback(null, JSON.parse(row.data));
+      } catch (error) {
+        await db("sessions").where({ sid }).delete();
+        return callback(null, null);
+      }
+    }).catch(callback);
+  }
+
+  set(sid, value, callback) {
+    const expiresAt = value && value.cookie && value.cookie.expires
+      ? new Date(value.cookie.expires).getTime()
+      : Date.now() + 24 * 60 * 60 * 1000;
+    const data = JSON.stringify(value);
+    db("sessions").insert({ sid, data, expires_at: expiresAt }).onConflict("sid").merge({ data, expires_at: expiresAt })
+      .then(() => callback && callback(null)).catch((error) => callback && callback(error));
+  }
+
+  destroy(sid, callback) {
+    db("sessions").where({ sid }).delete().then(() => callback && callback(null)).catch((error) => callback && callback(error));
+  }
+
+  touch(sid, value, callback) {
+    const expiresAt = value && value.cookie && value.cookie.expires
+      ? new Date(value.cookie.expires).getTime()
+      : Date.now() + 24 * 60 * 60 * 1000;
+    db("sessions").where({ sid }).update({ expires_at: expiresAt })
+      .then(() => callback && callback(null)).catch((error) => callback && callback(error));
+  }
+}
+
+const sessionStore = new KnexSessionStore();
+const expiredSessionCleanup = setInterval(() => {
+  db("sessions").where("expires_at", "<=", Date.now()).delete().catch(() => {});
+}, 60 * 60 * 1000);
+expiredSessionCleanup.unref();
+
 app.use(express.json({ limit: "10mb" }));
 app.use(
   session({
     name: "adm.sid",
     secret: process.env.SESSION_SECRET || "dev-session-secret-change-me",
+	store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
       sameSite: "lax",
-      secure: false,
+      secure: USE_SECURE_COOKIES,
       maxAge: 1000 * 60 * 60 * 24
     }
   })
@@ -696,7 +751,33 @@ app.get("/api/reference/district-schools", (req, res) => {
   }
 });
 
-app.post("/api/auth/register", async (req, res) => {
+const registrationWindows = new Map();
+const registrationWindowCleanup = setInterval(() => {
+  const cutoff = Date.now() - 15 * 60 * 1000;
+  registrationWindows.forEach((value, key) => {
+    if (Number(value.startedAt || 0) < cutoff) registrationWindows.delete(key);
+  });
+}, 15 * 60 * 1000);
+registrationWindowCleanup.unref();
+function limitRegistrationTraffic(req, res, next) {
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  const maximumAttempts = 300;
+  const key = String(req.ip || req.socket.remoteAddress || "unknown");
+  const current = registrationWindows.get(key);
+  if (!current || now - current.startedAt >= windowMs) {
+    registrationWindows.set(key, { startedAt: now, count: 1 });
+    return next();
+  }
+  current.count += 1;
+  if (current.count > maximumAttempts) {
+    res.setHeader("Retry-After", String(Math.max(1, Math.ceil((current.startedAt + windowMs - now) / 1000))));
+    return res.status(429).json({ message: "Too many registration attempts. Please wait a few minutes and try again." });
+  }
+  return next();
+}
+
+app.post("/api/auth/register", limitRegistrationTraffic, async (req, res) => {
   try {
     const {
       email,
@@ -3052,6 +3133,15 @@ app.get(["/api", "/api/"], (req, res) => {
   return res.redirect(302, "/");
 });
 
+app.get("/api/health", async (req, res) => {
+  try {
+    await db.raw("SELECT 1");
+    return res.json({ status: "ok", database: "connected", time: new Date().toISOString() });
+  } catch (error) {
+    return res.status(503).json({ status: "unavailable", database: "disconnected" });
+  }
+});
+
 app.use("/api", (req, res) => {
   return res.status(404).json({ message: "API route not found." });
 });
@@ -3079,7 +3169,12 @@ app.use((err, req, res, next) => {
   return res.status(500).json({ message: "Internal server error." });
 });
 
-app.use(express.static(__dirname));
+app.use(express.static(__dirname, {
+  maxAge: "1h",
+  setHeaders(res, filePath) {
+    if (/\.(?:html|css|js)$/i.test(filePath)) res.setHeader("Cache-Control", "no-cache, must-revalidate");
+  }
+}));
 
 async function startServer() {
   try {
