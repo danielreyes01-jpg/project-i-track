@@ -179,6 +179,17 @@
 		.live-users-panel .card-label { font-size:.72rem; }
 		.live-users-panel .card-value { margin-top:3px; font-size:1.75rem; line-height:1; }
 		.live-users-panel .card-note { font-size:.66rem; }
+		.district-summary-layout { display:grid; grid-template-columns:minmax(0,1fr) 250px; gap:18px; align-items:stretch; }
+		.district-coverage-card { display:grid; place-items:center; align-content:center; gap:9px; min-height:210px; padding:16px; border:1px solid var(--stroke); border-radius:14px; background:linear-gradient(145deg,#fff,#f5faf9); text-align:center; }
+		.district-coverage-card h3 { margin:0; color:var(--navy); font-size:.82rem; text-transform:uppercase; letter-spacing:.045em; }
+		.district-donut-wrap { position:relative; display:grid; place-items:center; width:142px; aspect-ratio:1; }
+		.district-donut { width:100%; height:100%; border-radius:50%; background:conic-gradient(#7bbbe4 0%,#e2eee8 0 100%); transform:rotate(-90deg); transition:background .55s ease; box-shadow:inset 0 0 0 1px rgba(16,47,73,.04); }
+		.district-donut::after { content:""; position:absolute; inset:24px; border-radius:50%; background:#fff; box-shadow:0 3px 14px rgba(16,47,73,.08); }
+		.district-donut-center { position:absolute; z-index:1; display:grid; gap:1px; color:var(--navy); }
+		.district-donut-center strong { font-size:1.42rem; line-height:1; }
+		.district-donut-center span { color:var(--muted); font-size:.66rem; }
+		.district-coverage-count { color:var(--navy); font-size:.9rem; font-weight:800; }
+		.district-coverage-note { margin-top:-7px; color:var(--muted); font-size:.67rem; }
 
 		.dashboard-tile-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
 		.dashboard-tile-grid > .panel { min-width:0; margin:0; padding:18px; box-shadow:0 12px 32px rgba(16,47,73,.09); animation:dashboard-tile-in .6s cubic-bezier(.22,1,.36,1) both; transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease; }
@@ -439,6 +450,8 @@
 			.tables {
 				grid-template-columns: 1fr;
 			}
+			.district-summary-layout { grid-template-columns:1fr; }
+			.district-coverage-card { min-height:190px; }
 
 			.pie-layout {
 				grid-template-columns: 1fr;
@@ -699,6 +712,7 @@
 
 		<section class="panel">
 			<div class="section-title">Summary of District (Top 30)</div>
+			<div class="district-summary-layout">
 			<div class="table-wrap">
 				<table>
 					<thead>
@@ -711,6 +725,16 @@
 						<tr><td class="empty" colspan="2">No data yet.</td></tr>
 					</tbody>
 				</table>
+			</div>
+			<article class="district-coverage-card" aria-labelledby="districtCoverageTitle">
+				<h3 id="districtCoverageTitle">Registered Districts</h3>
+				<div class="district-donut-wrap" role="img" aria-label="District registration coverage">
+					<div id="districtCoverageDonut" class="district-donut"></div>
+					<div class="district-donut-center"><strong id="districtCoveragePercent">0%</strong><span>Districts</span></div>
+				</div>
+				<div id="districtCoverageCount" class="district-coverage-count">0 / 58</div>
+				<div class="district-coverage-note">registered districts</div>
+			</article>
 			</div>
 		</section>
 
@@ -897,6 +921,9 @@
 				requestAnimationFrame(frame);
 			}
 			const districtTableBody = document.getElementById("districtTableBody");
+			const districtCoverageDonut = document.getElementById("districtCoverageDonut");
+			const districtCoveragePercent = document.getElementById("districtCoveragePercent");
+			const districtCoverageCount = document.getElementById("districtCoverageCount");
 			const schoolTableBody = document.getElementById("schoolTableBody");
 			const districtGraphFilter = document.getElementById("districtGraphFilter");
 			const admPercentGraph = document.getElementById("admPercentGraph");
@@ -1176,6 +1203,21 @@
 					tr.appendChild(countTd);
 					tableBody.appendChild(tr);
 				});
+			}
+
+			function renderDistrictCoverage(districtMap) {
+				const totalDistricts = 58;
+				const registeredDistricts = Array.from(districtMap.entries()).filter(function (entry) {
+					const label = String(entry[0] || "").trim().toLowerCase();
+					return label && label !== "n/a" && Number(entry[1] || 0) > 0;
+				}).length;
+				const boundedRegistered = Math.min(totalDistricts, registeredDistricts);
+				const percentage = totalDistricts ? (boundedRegistered / totalDistricts) * 100 : 0;
+				const percentageLabel = percentage.toFixed(1) + "%";
+				districtCoverageDonut.style.background = "conic-gradient(#77b9e5 0 " + percentage.toFixed(2) + "%,#e2eee8 " + percentage.toFixed(2) + "% 100%)";
+				districtCoveragePercent.textContent = percentageLabel;
+				districtCoverageCount.textContent = boundedRegistered + " / " + totalDistricts;
+				districtCoverageDonut.parentElement.setAttribute("aria-label", percentageLabel + " district coverage, " + boundedRegistered + " of " + totalDistricts + " districts registered");
 			}
 
 			function renderAdmPercentageGraph(summaryRows, selectedDistrict) {
@@ -1854,6 +1896,7 @@
 					});
 
 					renderSimpleSummary(districtTableBody, districtMap, "District");
+					renderDistrictCoverage(districtMap);
 					renderSimpleSummary(schoolTableBody, schoolMap, "School");
 					renderDistrictFilter(summaryRowsCache);
 					renderAdmPercentageGraph(summaryRowsCache, districtGraphFilter.value);
