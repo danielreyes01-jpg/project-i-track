@@ -567,11 +567,6 @@ async function createAdmApprovalPdf({ requestId, requestDate, approvedAt, reques
     throw new Error("ADM approval template PDF not found.");
   }
 
-  if (String(error && error.code) === "23505" || String(error && error.code) === "ER_DUP_ENTRY" || /duplicate key|unique constraint/i.test(raw)) {
-	if (/username|uq_users_username/i.test(raw)) return "Username is already registered.";
-	if (/email|users_email/i.test(raw)) return "Email is already registered.";
-	return "An account with these details is already registered.";
-  }
   if (!fs.existsSync(ADM_APPROVAL_FONT_PATH)) {
     throw new Error("Bookman Old Style font file not found.");
   }
@@ -2107,6 +2102,55 @@ app.get("/api/adm-requests", requireTeacher, async (req, res) => {
     return res.json({ requests });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch ADM requests.", detail: error.message });
+  }
+});
+
+app.get("/api/adm-requests/:id/approval-pdf", requireTeacher, async (req, res) => {
+  try {
+    const requestId = String(req.params.id || "").trim();
+    if (!requestId) {
+      return res.status(400).json({ message: "ADM request id is required." });
+    }
+
+    const admRequest = await db("adm_requests")
+      .where({ id: requestId, requestor_user_id: req.session.userId })
+      .first(
+        "id",
+        "status",
+        "request_date",
+        "district",
+        "school",
+        "adm_focal",
+        "requestor_name",
+        "reviewed_at"
+      );
+
+    if (!admRequest) {
+      return res.status(404).json({ message: "ADM request not found." });
+    }
+
+    if (String(admRequest.status || "").trim().toLowerCase() !== "approved") {
+      return res.status(409).json({ message: "The approval PDF is available only after this request is approved." });
+    }
+
+    const approvalPdfPath = await createAdmApprovalPdf({
+      requestId: admRequest.id,
+      requestDate: admRequest.request_date,
+      approvedAt: admRequest.reviewed_at || new Date().toISOString(),
+      requestorName: admRequest.requestor_name,
+      district: admRequest.district,
+      school: admRequest.school,
+      admFocal: admRequest.adm_focal
+    });
+
+    await db("adm_requests")
+      .where({ id: requestId, requestor_user_id: req.session.userId })
+      .update({ approval_pdf_path: approvalPdfPath });
+
+    const outputFsPath = path.join(__dirname, ...approvalPdfPath.split("/"));
+    return res.download(outputFsPath, `Project-i-Track-ADM-Approval-${requestId}.pdf`);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to prepare the approval PDF.", detail: error.message });
   }
 });
 
