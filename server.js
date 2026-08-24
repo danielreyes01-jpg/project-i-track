@@ -2773,7 +2773,55 @@ app.post("/api/admin/approval-requests/:id/status", requireAdmin, async (req, re
   }
 });
 
+function getLearningResourceElapsedSeconds(startedAt, endedAt) {
+  const started = new Date(startedAt || "").getTime();
+  const ended = new Date(endedAt || "").getTime();
+  if (!Number.isFinite(started) || !Number.isFinite(ended) || ended < started) return null;
+  return Math.floor((ended - started) / 1000);
+}
+
+function formatLearningResourceElapsed(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "Not started";
+  const totalMinutes = Math.floor(seconds / 60);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  if (days) return `${days}d ${hours}h ${minutes}m`;
+  if (hours) return `${hours}h ${minutes}m`;
+  if (minutes) return `${minutes}m`;
+  return `${seconds}s`;
+}
+
+function safeTrackingFilenamePart(value, fallback) {
+  const normalized = String(value || "").trim().replace(/[^A-Za-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+  return normalized || fallback;
+}
+
+function buildAnswerTrackingFilename(row, learner) {
+  const originalExtension = path.extname(String(row.answer_original_name || "")) || ".pdf";
+  const completed = new Date(row.submitted_at || "");
+  let completedStamp = "Pending";
+  if (!Number.isNaN(completed.getTime())) {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Manila",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23"
+    }).formatToParts(completed).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+    completedStamp = `${parts.year}${parts.month}${parts.day}-${parts.hour}${parts.minute}`;
+  }
+  const elapsedSeconds = getLearningResourceElapsedSeconds(row.started_at, row.submitted_at);
+  const elapsed = formatLearningResourceElapsed(elapsedSeconds).replace(/\s+/g, "-");
+  const learnerCode = safeTrackingFilenamePart(learner && learner.learner_code, "Student");
+  const type = safeTrackingFilenamePart(row.resource_type, "Resource");
+  return `${learnerCode}_T${Number(row.term || 1)}_${type}-${Number(row.module_number || 1)}_Completed-${completedStamp}_Elapsed-${elapsed}${originalExtension.toLowerCase()}`;
+}
+
 function serializeLearningResource(row, learner) {
+  const elapsedSeconds = getLearningResourceElapsedSeconds(row.started_at, row.submitted_at || (row.status === "ongoing" ? new Date().toISOString() : null));
   return {
     id: row.id,
     resource_type: row.resource_type,
@@ -2785,7 +2833,10 @@ function serializeLearningResource(row, learner) {
     status: String(row.status || "assigned"),
     started_at: row.started_at || null,
     submitted_at: row.submitted_at || null,
+    elapsed_seconds: elapsedSeconds,
+    elapsed_label: formatLearningResourceElapsed(elapsedSeconds),
     answer_original_name: row.answer_original_name || "",
+    answer_tracking_name: row.answer_stored_path ? buildAnswerTrackingFilename(row, learner) : "",
     answer_file_size: Number(row.answer_file_size || 0),
     original_name: row.original_name,
     mime_type: row.mime_type || "application/octet-stream",
@@ -2995,9 +3046,11 @@ app.get("/api/learning-resources/:id/answer-file", requireLogin, async (req, res
     if (!allowed) return res.status(403).json({ message: "You do not have access to this submitted answer." });
     const absolutePath = path.resolve(__dirname, String(resource.answer_stored_path || ""));
     if (!resource.answer_stored_path || !absolutePath.startsWith(path.resolve(LEARNING_RESOURCE_UPLOAD_DIR)) || !fs.existsSync(absolutePath)) return res.status(404).json({ message: "Submitted answer file not found." });
-    if (String(req.query.mode || "preview") === "download") return res.download(absolutePath, resource.answer_original_name);
+    const learner = await db("learners").where({ id: resource.learner_id }).first("learner_code");
+    const trackingFilename = buildAnswerTrackingFilename(resource, learner);
+    if (String(req.query.mode || "preview") === "download") return res.download(absolutePath, trackingFilename);
     res.type(resource.answer_mime_type || "application/octet-stream");
-    res.setHeader("Content-Disposition", `inline; filename="${String(resource.answer_original_name || "answer").replace(/["\r\n]/g, "")}"`);
+    res.setHeader("Content-Disposition", `inline; filename="${trackingFilename.replace(/["\r\n]/g, "")}"`);
     return res.sendFile(absolutePath);
   } catch (error) {
     return res.status(500).json({ message: "Unable to open the submitted answer.", detail: error.message });
