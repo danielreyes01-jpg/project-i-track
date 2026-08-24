@@ -33,6 +33,10 @@ html:not(.has-deped-fixed-header) body:has(.nav-menu) {
 }
 html.has-deped-fixed-header body { opacity:1; animation:none; }
 @keyframes itrack-layout-failsafe { to { opacity:1; } }
+html.has-deped-fixed-header:not(.itrack-nav-role-ready) .deped-fixed-header .nav-menu {
+	opacity:0 !important;
+	pointer-events:none !important;
+}
 
 html[data-theme="dark"] {
 	/* Dark Mode */

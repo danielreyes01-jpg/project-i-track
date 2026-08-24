@@ -318,6 +318,33 @@ function simplifyNavigation(navMenu) {
 	if (accountGreeting) accountGreeting.hidden = true;
 	fetch('/api/auth/me', { credentials: 'include' }).then((response) => response.ok ? response.json() : null).then((payload) => {
 			const role = String((payload && payload.user && payload.user.role) || '').trim().toLowerCase();
+			if (role === 'student' && !navMenu.dataset.studentNavigationLoaded) {
+				navMenu.dataset.studentNavigationLoaded = 'true';
+				const studentItems = [
+					['Student Profile', 'student-profile.html'],
+					['Learning Resources', 'learning-resources.html']
+				];
+				const allowed = new Set(studentItems.map(([label]) => label.toLowerCase()));
+				Array.from(navMenu.querySelectorAll('.nav-item')).forEach((item) => {
+					const label = String(item.dataset.navLabel || item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase();
+					if (!allowed.has(label)) item.remove();
+				});
+				const existing = () => Array.from(navMenu.querySelectorAll('.nav-item')).map((item) =>
+					String(item.dataset.navLabel || item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase()
+				);
+				studentItems.forEach(([label, target]) => {
+					if (existing().includes(label.toLowerCase())) return;
+					const item = document.createElement('button');
+					item.type = 'button';
+					item.className = 'nav-item';
+					item.textContent = label;
+					item.setAttribute('onclick', `window.location.href='${target}'`);
+					navMenu.appendChild(item);
+				});
+				navMenu.querySelectorAll('.nav-dropdown,.itrack-management-menu').forEach((group) => { if (!group.querySelector('.nav-item')) group.remove(); });
+				simplifyNavigation(navMenu);
+				return;
+			}
 			if (role === 'teacher' && !navMenu.dataset.teacherNavigationLoaded) {
 				navMenu.dataset.teacherNavigationLoaded = 'true';
 				const teacherItems = [
@@ -373,7 +400,7 @@ function simplifyNavigation(navMenu) {
 				}
 				simplifyNavigation(navMenu);
 			}
-		}).catch(() => {});
+		}).catch(() => {}).finally(() => document.documentElement.classList.add('itrack-nav-role-ready'));
 
 	Array.from(navMenu.querySelectorAll('.nav-item')).filter((item) => /sign out/i.test(String(item.textContent || ''))).forEach((item) => item.remove());
 	navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
