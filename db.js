@@ -140,6 +140,9 @@ async function ensureSchema() {
 	if (!columns.active_session_id) {
 	  await db.schema.alterTable("users", (table) => table.string("active_session_id", 128).nullable());
 	}
+	if (!columns.last_seen_at) {
+	  await db.schema.alterTable("users", (table) => table.string("last_seen_at", 40).nullable());
+	}
 	try {
 	  if (DB_CLIENT === "mysql2") {
 		await db.raw("CREATE UNIQUE INDEX uq_users_username ON users (username)");

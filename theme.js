@@ -873,6 +873,120 @@ class ThemeManager {
 	}
 }
 
+async function initializeStudentPresenceHeartbeat() {
+	try {
+		const response = await fetch('/api/auth/me', { credentials: 'include' });
+		if (!response.ok) return;
+		const payload = await response.json();
+		if (String(payload && payload.user && payload.user.role || '').toLowerCase() !== 'student') return;
+		const heartbeat = () => fetch('/api/presence/heartbeat', { method: 'POST', credentials: 'include', keepalive: true }).catch(() => {});
+		heartbeat();
+		window.setInterval(heartbeat, 25000);
+		document.addEventListener('visibilitychange', () => { if (!document.hidden) heartbeat(); });
+	} catch (_) {
+		// Presence tracking must never interrupt the student's page.
+	}
+}
+
+function injectStudentPresenceStyles() {
+	if (document.getElementById('itrack-presence-styles')) return;
+	const style = document.createElement('style');
+	style.id = 'itrack-presence-styles';
+	style.textContent = '.itrack-presence-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;font:700 .7rem Manrope,Arial,sans-serif}.itrack-presence-badge.online{background:#d9f5e6;color:#087347;border:1px solid #9edebb}.itrack-presence-badge.offline{background:#edf2f4;color:#657982;border:1px solid #d5e0e3}.itrack-presence-dot{width:8px;height:8px;border-radius:50%;background:currentColor}.itrack-presence-time{display:block;margin-top:4px;color:#71817c;font-size:.62rem}.itrack-online-metric{background:#eaf9f1!important;border-color:#9edabb!important;color:#0c7448!important}.itrack-adviser-presence{margin:0 0 18px;padding:16px;border:1px solid #cfe3df;border-radius:16px;background:linear-gradient(145deg,#fff,#f1faf7);box-shadow:0 9px 24px rgba(16,47,73,.06)}.itrack-adviser-presence h2{margin:0 0 4px;font-size:1rem}.itrack-adviser-presence>p{margin:0 0 12px;color:#647a86;font-size:.76rem}.itrack-presence-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:9px}.itrack-presence-student{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 11px;border:1px solid #dbe8e5;border-radius:12px;background:#fff}.itrack-presence-student strong{display:block;font-size:.78rem}.itrack-presence-student small{color:#71817c;font-size:.65rem}@media(max-width:900px){.metrics:has(.itrack-online-metric){grid-template-columns:repeat(3,1fr)!important}}@media(max-width:460px){.metrics:has(.itrack-online-metric){grid-template-columns:1fr!important}}';
+	document.head.appendChild(style);
+}
+
+function formatPresenceLastSeen(value) {
+	if (!value) return 'Not seen recently';
+	const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000));
+	if (seconds < 60) return `${seconds}s ago`;
+	if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+	return new Date(value).toLocaleString();
+}
+
+function escapePresenceText(value) {
+	return String(value == null ? '' : value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
+}
+
+function presenceBadge(presence) {
+	const online = Boolean(presence && presence.online);
+	return `<span class="itrack-presence-badge ${online ? 'online' : 'offline'}"><span class="itrack-presence-dot"></span>${online ? 'Online now' : 'Offline'}</span><span class="itrack-presence-time">${formatPresenceLastSeen(presence && presence.last_seen_at)}</span>`;
+}
+
+function initializeAdministratorStudentPresence() {
+	if (!/admin-students\.html$/i.test(location.pathname)) return;
+	injectStudentPresenceStyles();
+	const refresh = async () => {
+		try {
+			const response = await fetch('/api/admin/student-monitoring', { credentials: 'include' });
+			if (!response.ok) return;
+			const data = await response.json();
+			const metrics = document.querySelector('.metrics');
+			if (metrics && !document.getElementById('onlineStudents')) {
+				const card = document.createElement('article');
+				card.className = 'metric itrack-online-metric';
+				card.innerHTML = '<span>Online students</span><strong id="onlineStudents">0</strong>';
+				metrics.firstElementChild.insertAdjacentElement('afterend', card);
+			}
+			const total = document.getElementById('onlineStudents');
+			if (total) total.textContent = String((data.totals && data.totals.online) || 0);
+			const byLrn = new Map((data.records || []).map((record) => [String(record.lrn || ''), record]));
+			const table = document.querySelector('.student-table');
+			if (table && !table.querySelector('[data-presence-heading]')) {
+				const heading = document.createElement('th');
+				heading.dataset.presenceHeading = 'true';
+				heading.textContent = 'Presence';
+				table.querySelector('thead tr').children[0].insertAdjacentElement('afterend', heading);
+			}
+			document.querySelectorAll('#studentBody tr').forEach((row) => {
+				const match = String(row.cells[0] && row.cells[0].textContent || '').match(/LRN:\s*([^\s]+)/i);
+				const record = match && byLrn.get(match[1]);
+				if (!record) return;
+				let cell = row.querySelector('[data-presence-cell]');
+				if (!cell) {
+					cell = document.createElement('td');
+					cell.dataset.presenceCell = 'true';
+					row.cells[0].insertAdjacentElement('afterend', cell);
+				}
+				cell.innerHTML = presenceBadge(record.presence);
+			});
+		} catch (_) {}
+	};
+	window.setTimeout(refresh, 650);
+	window.setInterval(refresh, 30000);
+}
+
+function initializeAdviserStudentPresence() {
+	if (!/learning-resources\.html$/i.test(location.pathname)) return;
+	injectStudentPresenceStyles();
+	const refresh = async () => {
+		try {
+			const response = await fetch('/api/learning-resources', { credentials: 'include' });
+			if (!response.ok) return;
+			const data = await response.json();
+			if (String(data.role || '').toLowerCase() !== 'teacher') return;
+			const students = new Map();
+			(data.resources || []).forEach((resource) => {
+				const key = String(resource.learner_lrn || resource.learner_id || '');
+				if (key && !students.has(key)) students.set(key, resource);
+			});
+			let panel = document.getElementById('itrack-adviser-presence');
+			if (!panel) {
+				panel = document.createElement('section');
+				panel.id = 'itrack-adviser-presence';
+				panel.className = 'itrack-adviser-presence';
+				const teacherPanel = document.getElementById('teacherPanel');
+				if (teacherPanel) teacherPanel.insertAdjacentElement('afterend', panel);
+			}
+			if (!panel) return;
+			const rows = Array.from(students.values());
+			panel.innerHTML = '<h2>Student Online Status</h2><p>Live presence for student accounts assigned to you as teacher/adviser.</p><div class="itrack-presence-list">' + (rows.length ? rows.map((resource) => `<div class="itrack-presence-student"><div><strong>${escapePresenceText(resource.learner_name || 'Student')}</strong><small>LRN: ${escapePresenceText(resource.learner_lrn || '—')}</small></div><div>${presenceBadge(resource.student_presence)}</div></div>`).join('') : '<div class="itrack-presence-student"><small>No assigned student account yet.</small></div>') + '</div>';
+		} catch (_) {}
+	};
+	window.setTimeout(refresh, 650);
+	window.setInterval(refresh, 30000);
+}
+
 // Initialize theme manager when DOM is ready
 if (document.readyState === 'loading') {
 	document.addEventListener('DOMContentLoaded', () => {
@@ -884,6 +998,9 @@ if (document.readyState === 'loading') {
 		initializeCreateAccountPopover();
 		initializeModularLearningTracker();
 		initializeStudentModularTracker();
+		initializeStudentPresenceHeartbeat();
+		initializeAdministratorStudentPresence();
+		initializeAdviserStudentPresence();
 		window.themeManager = new ThemeManager();
 		document.documentElement.classList.remove('itrack-dashboard-boot');
 	});
@@ -896,6 +1013,9 @@ if (document.readyState === 'loading') {
 	initializeCreateAccountPopover();
 	initializeModularLearningTracker();
 	initializeStudentModularTracker();
+	initializeStudentPresenceHeartbeat();
+	initializeAdministratorStudentPresence();
+	initializeAdviserStudentPresence();
 	window.themeManager = new ThemeManager();
 	document.documentElement.classList.remove('itrack-dashboard-boot');
 }

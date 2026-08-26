@@ -640,6 +640,15 @@ function getVerificationResendState(user) {
   };
 }
 
+const STUDENT_ONLINE_WINDOW_MS = 75 * 1000;
+
+function getStudentPresence(user, now = Date.now()) {
+  const lastSeenAt = String((user && user.last_seen_at) || "").trim();
+  const lastSeenTime = Date.parse(lastSeenAt);
+  const online = Boolean(lastSeenAt && Number.isFinite(lastSeenTime) && now - lastSeenTime <= STUDENT_ONLINE_WINDOW_MS);
+  return { online, last_seen_at: lastSeenAt || null };
+}
+
 class KnexSessionStore extends session.Store {
   get(sid, callback) {
     db("sessions").where({ sid }).first().then(async (row) => {
@@ -991,6 +1000,18 @@ app.get("/api/auth/me", async (req, res) => {
   }
 
   return res.json({ user: sanitizeUser(user) });
+});
+
+app.post("/api/presence/heartbeat", requireLogin, async (req, res) => {
+  try {
+    const user = await db("users").where({ id: req.session.userId }).first("id", "role");
+    if (!user || String(user.role || "").toLowerCase() !== "student") return res.json({ tracked: false });
+    const lastSeenAt = new Date().toISOString();
+    await db("users").where({ id: user.id }).update({ last_seen_at: lastSeenAt });
+    return res.json({ tracked: true, online: true, last_seen_at: lastSeenAt });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to update student presence." });
+  }
 });
 
 app.post("/api/auth/logout", async (req, res) => {
@@ -2833,7 +2854,7 @@ function sendLegacyMissingUploadNotice(res, fileLabel) {
   return res.send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>File needs to be uploaded again</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:#eef5f6;color:#123047;font:16px Manrope,Arial,sans-serif}.card{width:min(520px,100%);padding:28px;border:1px solid #d5e4e6;border-radius:18px;background:#fff;box-shadow:0 18px 45px rgba(18,48,71,.12);text-align:center}.icon{display:grid;place-items:center;width:58px;height:58px;margin:0 auto 14px;border-radius:50%;background:#fff1cf;font-size:26px}h1{margin:0 0 9px;font-size:1.35rem}p{margin:0;color:#607681;line-height:1.55}.note{margin-top:15px;padding:11px;border-radius:10px;background:#f4f8f8;color:#365766;font-size:.84rem}</style></head><body><main class="card"><div class="icon">↥</div><h1>${String(fileLabel)} needs to be uploaded again</h1><p>This file was uploaded before Project i-Track enabled persistent file storage. Its record remains, but the temporary file was removed by an earlier deployment restart.</p><div class="note">Please upload this file one more time. New Resource and Answer uploads are now stored persistently and will remain available after deployments.</div></main></body></html>`);
 }
 
-function serializeLearningResource(row, learner) {
+function serializeLearningResource(row, learner, student) {
   const elapsedSeconds = getLearningResourceElapsedSeconds(row.started_at, row.submitted_at || (row.status === "ongoing" ? new Date().toISOString() : null));
   return {
     id: row.id,
@@ -2858,6 +2879,7 @@ function serializeLearningResource(row, learner) {
     learner_id: row.learner_id,
     learner_lrn: learner ? learner.learner_code : "",
     learner_name: learner ? [learner.firstname, learner.middlename, learner.family_name].filter(Boolean).join(" ") : "",
+    student_presence: getStudentPresence(student),
     preview_url: `/api/learning-resources/${encodeURIComponent(row.id)}/file?mode=preview`,
     download_url: `/api/learning-resources/${encodeURIComponent(row.id)}/file?mode=download`,
     answer_preview_url: row.answer_stored_path ? `/api/learning-resources/${encodeURIComponent(row.id)}/answer-file?mode=preview` : "",
@@ -2876,8 +2898,11 @@ app.get("/api/learning-resources", requireLogin, async (req, res) => {
     const rows = await query.orderBy("created_at", "desc");
     const learnerIds = [...new Set(rows.map((row) => row.learner_id).filter(Boolean))];
     const learners = learnerIds.length ? await db("learners").whereIn("id", learnerIds) : [];
+    const studentIds = [...new Set(rows.map((row) => row.student_user_id).filter(Boolean))];
+    const students = studentIds.length ? await db("users").whereIn("id", studentIds).select("id", "last_seen_at") : [];
     const learnerById = new Map(learners.map((learner) => [String(learner.id), learner]));
-    return res.json({ resources: rows.map((row) => serializeLearningResource(row, learnerById.get(String(row.learner_id)))), role });
+    const studentById = new Map(students.map((student) => [String(student.id), student]));
+    return res.json({ resources: rows.map((row) => serializeLearningResource(row, learnerById.get(String(row.learner_id)), studentById.get(String(row.student_user_id)))), role });
   } catch (error) {
     return res.status(500).json({ message: "Unable to load learning resources.", detail: error.message });
   }
@@ -2901,7 +2926,7 @@ app.get("/api/admin/learning-resources-overview", requireAdmin, async (req, res)
       const teacher = teacherById.get(String(resource.teacher_user_id)) || {};
       const student = studentById.get(String(resource.student_user_id)) || {};
       return {
-        ...serializeLearningResource(resource, learner),
+        ...serializeLearningResource(resource, learner, student),
         teacher_name: fullName(teacher),
         teacher_school: teacher.school || "",
         student_name: fullName(student),
@@ -2914,7 +2939,7 @@ app.get("/api/admin/learning-resources-overview", requireAdmin, async (req, res)
     });
     const studentSummary = students.map((student) => {
       const assigned = resources.filter((resource) => String(resource.student_user_id) === String(student.id));
-      return { id: student.id, name: fullName(student), lrn: student.lrn || "", school: student.school || "", district: student.district || "", assigned: assigned.length, ongoing: assigned.filter((item) => item.status === "ongoing").length, completed: assigned.filter((item) => item.status === "done").length };
+      return { id: student.id, name: fullName(student), lrn: student.lrn || "", school: student.school || "", district: student.district || "", assigned: assigned.length, ongoing: assigned.filter((item) => item.status === "ongoing").length, completed: assigned.filter((item) => item.status === "done").length, presence: getStudentPresence(student) };
     });
     const districtReference = loadDistrictSchoolReference();
     const districtNames = Array.from(new Set([
@@ -3312,10 +3337,10 @@ app.get("/api/admin/student-monitoring", requireAdmin, async (req, res) => {
       if (averageGrade !== null && averageGrade < 75) reasons.push("Failing grade");
       const teacher = teacherBySchool.get(`${student.district || ""}|${student.school || ""}`.toLowerCase()) || null;
       const learningStatus = module.ongoing > 0 ? "ongoing" : (completedAll ? "done" : (module.done > 0 ? "started" : "not_started"));
-      return { id: student.id, name: [student.firstname, student.middlename, student.lastname].filter(Boolean).join(" "), lrn: student.lrn || "", district: student.district || "", school: student.school || "", gradeLevel: learner.grade || "", answeredModules: module.done, ongoingModules: module.ongoing, totalModules: module.total, progressPercent: module.total ? Math.round((module.done / module.total) * 100) : 0, progressTarget, onTrack, learningStatus, averageGrade, urgent: !onTrack && reasons.length > 0, alertReasons: reasons, studentEmail: student.email || "", studentContact: student.guardian_contact || "", teacher: teacher ? { name: [teacher.firstname, teacher.lastname].filter(Boolean).join(" "), email: teacher.email || "", role: teacher.role } : null };
+      return { id: student.id, name: [student.firstname, student.middlename, student.lastname].filter(Boolean).join(" "), lrn: student.lrn || "", district: student.district || "", school: student.school || "", gradeLevel: learner.grade || "", answeredModules: module.done, ongoingModules: module.ongoing, totalModules: module.total, progressPercent: module.total ? Math.round((module.done / module.total) * 100) : 0, progressTarget, onTrack, learningStatus, averageGrade, urgent: !onTrack && reasons.length > 0, alertReasons: reasons, studentEmail: student.email || "", studentContact: student.guardian_contact || "", presence: getStudentPresence(student), teacher: teacher ? { name: [teacher.firstname, teacher.lastname].filter(Boolean).join(" "), email: teacher.email || "", role: teacher.role } : null };
     });
     const districtSummary = Array.from(records.reduce((map, record) => { const item = map.get(record.district) || { district: record.district || "Unassigned", students: 0, urgent: 0 }; item.students += 1; if (record.urgent) item.urgent += 1; map.set(record.district, item); return map; }, new Map()).values());
-    return res.json({ records, districtSummary, totals: { students: records.length, urgent: records.filter((record) => record.urgent).length, noModules: records.filter((record) => record.answeredModules === 0 && record.ongoingModules === 0).length, failing: records.filter((record) => record.averageGrade !== null && record.averageGrade < 75).length } });
+    return res.json({ records, districtSummary, totals: { students: records.length, online: records.filter((record) => record.presence.online).length, urgent: records.filter((record) => record.urgent).length, noModules: records.filter((record) => record.answeredModules === 0 && record.ongoingModules === 0).length, failing: records.filter((record) => record.averageGrade !== null && record.averageGrade < 75).length } });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load student monitoring dashboard.", detail: error.message });
   }
