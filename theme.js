@@ -418,10 +418,9 @@ function simplifyNavigation(navMenu) {
 				navMenu.dataset.teacherNavigationLoaded = 'true';
 				const teacherItems = [
 					['Learner Record', 'learner.html'],
-					['FLP Request Form', 'adm-request.html'],
 					['Student Dashboard', 'admin-students.html'],
-					['My Account', 'account.html'],
-					['Learning Resources', 'learning-resources.html']
+					['Learning Resources', 'learning-resources.html'],
+					['My Account', 'account.html']
 				];
 				const allowed = new Set(teacherItems.map(([label]) => label.toLowerCase()));
 				Array.from(navMenu.querySelectorAll('.nav-item')).forEach((item) => {
@@ -439,6 +438,10 @@ function simplifyNavigation(navMenu) {
 					item.textContent = label;
 					item.setAttribute('onclick', `window.location.href='${target}'`);
 					navMenu.appendChild(item);
+				});
+				teacherItems.forEach(([, target]) => {
+					const item = Array.from(navMenu.querySelectorAll('.nav-item')).find((candidate) => String(candidate.getAttribute('onclick') || candidate.getAttribute('href') || '').toLowerCase().includes(target));
+					if (item) navMenu.appendChild(item);
 				});
 				navMenu.querySelectorAll('.nav-dropdown,.itrack-management-menu').forEach((group) => { if (!group.querySelector('.nav-item')) group.remove(); });
 				simplifyNavigation(navMenu);
