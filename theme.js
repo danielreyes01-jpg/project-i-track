@@ -465,6 +465,11 @@ function simplifyNavigation(navMenu) {
 					const signOut = Array.from(navMenu.querySelectorAll('.nav-item')).find((candidate) => /sign out/i.test(String(candidate.textContent || '')));
 					navMenu.insertBefore(item, signOut || null);
 				});
+				const leadershipAnchor = Array.from(navMenu.querySelectorAll('.nav-item')).find((item) => /sign out/i.test(String(item.textContent || ''))) || null;
+				leadershipItems.forEach(([, target]) => {
+					const item = Array.from(navMenu.querySelectorAll('.nav-item')).find((candidate) => String(candidate.getAttribute('onclick') || candidate.getAttribute('href') || '').toLowerCase().includes(target));
+					if (item) navMenu.insertBefore(item, leadershipAnchor);
+				});
 				navMenu.querySelectorAll('.nav-dropdown,.itrack-management-menu').forEach((group) => group.remove());
 				simplifyNavigation(navMenu);
 				return;
