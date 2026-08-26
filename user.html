@@ -314,6 +314,8 @@
 			color: #78350f;
 		}
 
+		.role-principal { background:#e0f2fe; color:#075985; }
+
 		.role-teacher {
 			background: #dcfce7;
 			color: #14532d;
@@ -420,7 +422,7 @@
 		<div class="management-controls">
 			<input id="userSearch" type="search" placeholder="Search name, email, district, or school" aria-label="Search users">
 			<select id="statusFilter" aria-label="Filter by approval status"><option value="all">All statuses</option><option value="pending">Pending approval</option><option value="approved">Approved</option></select>
-			<select id="roleFilter" aria-label="Filter by role"><option value="all">All roles</option><option value="teacher">Teacher</option><option value="student">Student</option><option value="supervisor">Supervisor</option><option value="admin">Admin</option></select>
+			<select id="roleFilter" aria-label="Filter by role"><option value="all">All roles</option><option value="teacher">Teacher</option><option value="student">Student</option><option value="principal">School Principal</option><option value="supervisor">District Supervisor</option><option value="admin">Admin</option></select>
 			<details class="access-panel"><summary>🔐 Access key</summary><input id="adminKey" type="password" placeholder="Optional admin access key"></details>
 		</div>
 
@@ -531,7 +533,8 @@
 						'<select class="role-select" data-action="setRole" data-id="' + user.id + '">' +
 							'<option value="teacher"' + (role === 'teacher' ? ' selected' : '') + '>Teacher</option>' +
 							'<option value="student"' + (role === 'student' ? ' selected' : '') + '>Student</option>' +
-							'<option value="supervisor"' + (role === 'supervisor' ? ' selected' : '') + '>Supervisor</option>' +
+							'<option value="principal"' + (role === 'principal' ? ' selected' : '') + '>School Principal</option>' +
+							'<option value="supervisor"' + (role === 'supervisor' ? ' selected' : '') + '>District Supervisor</option>' +
 							'<option value="admin"' + (role === 'admin' ? ' selected' : '') + '>Admin</option>' +
 						'</select>';
 					const actionButtons =

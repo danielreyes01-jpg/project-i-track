@@ -398,7 +398,7 @@
 						const payload = await response.json();
 						const role = String((payload.user || {}).role || "teacher").toLowerCase();
 						if (window.showITrackLoader) window.showITrackLoader();
-						window.location.href = role === "student" ? "student-profile.html" : ((role === "admin" || role === "supervisor") ? "dashboard.html" : "learner.html");
+						window.location.href = role === "student" ? "student-profile.html" : (role === "principal" ? "reports.html" : ((role === "admin" || role === "supervisor") ? "dashboard.html" : "learner.html"));
 					}
 				} catch (error) {
 					// Ignore session check errors and stay on login page.
@@ -440,7 +440,7 @@
 					setLoginMessage("Login successful. Redirecting...", "success");
 					const role = String((payload.user || {}).role || "teacher").toLowerCase();
 					if (window.showITrackLoader) window.showITrackLoader();
-					window.location.href = role === "student" ? "student-profile.html" : ((role === "admin" || role === "supervisor") ? "dashboard.html" : "learner.html");
+					window.location.href = role === "student" ? "student-profile.html" : (role === "principal" ? "reports.html" : ((role === "admin" || role === "supervisor") ? "dashboard.html" : "learner.html"));
 				} catch (error) {
 					setLoginMessage(error.message || "Login failed.", "error");
 				}

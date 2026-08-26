@@ -1130,6 +1130,21 @@ async function requireSupervisorOrAdmin(req, res, next) {
   return next();
 }
 
+async function requireReportAccess(req, res, next) {
+  try {
+    const sessionUser = await hasActiveAccountSession(req);
+    const role = String((sessionUser || {}).role || "").trim().toLowerCase();
+    if (!sessionUser || !["admin", "supervisor", "principal"].includes(role)) {
+      return res.status(403).json({ message: "Reports are available only to administrators, district supervisors, and school principals." });
+    }
+    req.session.role = role;
+    req.reportUser = sessionUser;
+    return next();
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to verify report access.", detail: error.message });
+  }
+}
+
 app.get("/api/admin/pending-users", requireAdmin, async (req, res) => {
   const users = await db("users")
     .where({ approved: false })
@@ -1707,18 +1722,26 @@ app.get("/api/admin/export/graph-report", requireSupervisorOrAdmin, async (req, 
   }
 });
 
-app.get("/api/admin/adm-reports", requireAdmin, async (req, res) => {
+app.get("/api/admin/adm-reports", requireReportAccess, async (req, res) => {
   try {
+    const role = String((req.reportUser || {}).role || "").trim().toLowerCase();
+    const district = String((req.reportUser || {}).district || "").trim();
+    const school = String((req.reportUser || {}).school || "").trim();
+    const applyScope = (query) => {
+      if (role === "supervisor") return query.where("district", district);
+      if (role === "principal") return query.where("district", district).andWhere("school", school);
+      return query;
+    };
     const [groupedRows, totalRow, districtRow, schoolRow] = await Promise.all([
-      db("learners")
+      applyScope(db("learners"))
         .select("district", "modality")
         .count({ learner_count: "id" })
         .groupBy("district", "modality")
         .orderBy("district", "asc")
         .orderBy("modality", "asc"),
-      db("learners").count({ total: "id" }).first(),
-      db("learners").countDistinct({ total: "district" }).first(),
-      db("learners").countDistinct({ total: "school" }).first()
+      applyScope(db("learners")).count({ total: "id" }).first(),
+      applyScope(db("learners")).countDistinct({ total: "district" }).first(),
+      applyScope(db("learners")).countDistinct({ total: "school" }).first()
     ]);
 
     const breakdown = groupedRows.map((row) => ({
@@ -1734,6 +1757,8 @@ app.get("/api/admin/adm-reports", requireAdmin, async (req, res) => {
 
     return res.json({
       generated_at: new Date().toISOString(),
+      scope: role === "admin" ? "division" : role === "supervisor" ? "district" : "school",
+      scope_label: role === "admin" ? "Division of Cebu Province" : role === "supervisor" ? district : school,
       total_adm_students: Number((totalRow && totalRow.total) || 0),
       total_districts: Number((districtRow && districtRow.total) || 0),
       total_schools: Number((schoolRow && schoolRow.total) || 0),
@@ -1830,7 +1855,7 @@ app.delete("/api/admin/delete-user", requireAdmin, async (req, res) => {
 app.put("/api/admin/set-user-role", requireAdmin, async (req, res) => {
   const userId = String((req.body || {}).userId || "").trim();
   const role = String((req.body || {}).role || "").trim().toLowerCase();
-  const validRoles = ["admin", "supervisor", "teacher", "student"];
+  const validRoles = ["admin", "supervisor", "principal", "teacher", "student"];
 
   if (!userId || !validRoles.includes(role)) {
     return res.status(400).json({ message: "Invalid userId or role." });

@@ -32,12 +32,12 @@
   </nav></div>
   <main class="page">
     <section class="panel hero">
-      <div class="hero-copy"><p class="eyebrow">Division of Cebu Province</p><h1>ADM Reports</h1><p>Division-wide student participation by district and Flexible Learning Option.</p></div>
+      <div class="hero-copy"><p id="scopeHeading" class="eyebrow">Division of Cebu Province</p><h1>ADM Reports</h1><p id="scopeDescription">Student participation by district and Flexible Learning Option.</p></div>
       <button class="print-btn" type="button" onclick="window.print()">🖨 Print Report</button>
     </section>
     <div id="reportMessage" class="message" role="alert"></div>
     <section class="metrics" aria-label="ADM report totals">
-      <article class="metric"><span>Total ADM Students</span><strong id="totalStudents">0</strong><small>Entire Division of Cebu Province</small></article>
+      <article class="metric"><span>Total ADM Students</span><strong id="totalStudents">0</strong><small id="studentScopeLabel">Entire Division of Cebu Province</small></article>
       <article class="metric"><span>Districts with Students</span><strong id="totalDistricts">0</strong><small>Registered ADM learner locations</small></article>
       <article class="metric"><span>Schools Represented</span><strong id="totalSchools">0</strong><small>Schools in learner records</small></article>
       <article class="metric"><span>Flexible Learning Options</span><strong id="totalPrograms">0</strong><small>Programs currently used</small></article>
@@ -60,10 +60,17 @@
           const auth=await fetch('/api/auth/me',{credentials:'include'});
           if(!auth.ok){location.href='index.html';return;}
           const authData=await auth.json();
-          if(String(authData.user&&authData.user.role||'').toLowerCase()!=='admin'){location.href='dashboard.html';return;}
+          const role=String(authData.user&&authData.user.role||'').toLowerCase();
+          if(!['admin','supervisor','principal'].includes(role)){location.href='dashboard.html';return;}
+          if(role!=='admin'){
+            document.querySelectorAll('.nav-menu .nav-item').forEach((item)=>{const label=String(item.textContent||'');if(!/Dashboard|Reports|Sign Out/i.test(label)||role==='principal'&&/Dashboard/i.test(label))item.remove();});
+          }
           const response=await fetch('/api/admin/adm-reports',{credentials:'include'});
           const data=await response.json().catch(()=>({}));
           if(!response.ok)throw new Error(data.message||'Unable to load ADM reports.');
+          document.getElementById('scopeHeading').textContent=data.scope_label||'ADM Reports';
+          document.getElementById('scopeDescription').textContent=data.scope==='division'?'Division-wide student participation by district and Flexible Learning Option.':data.scope==='district'?'District-level student participation across schools and Flexible Learning Options.':'School-level student participation by Flexible Learning Option.';
+          document.getElementById('studentScopeLabel').textContent=data.scope==='division'?'Entire Division of Cebu Province':data.scope==='district'?'Assigned district only':'Assigned school only';
           document.getElementById('totalStudents').textContent=number(data.total_adm_students);
           document.getElementById('totalDistricts').textContent=number(data.total_districts);
           document.getElementById('totalSchools').textContent=number(data.total_schools);

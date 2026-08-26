@@ -208,7 +208,8 @@ function initializeAdministratorReportsNavigation() {
 			const response = await fetch('/api/auth/me', { credentials: 'include' });
 			if (!response.ok) return;
 			const payload = await response.json();
-			if (String(payload && payload.user && payload.user.role || '').toLowerCase() !== 'admin') return;
+		const reportRole = String(payload && payload.user && payload.user.role || '').toLowerCase();
+		if (!['admin', 'supervisor', 'principal'].includes(reportRole)) return;
 			document.querySelectorAll('.nav-menu').forEach((menu) => {
 				if (menu.querySelector('[data-itrack-reports-nav], [onclick*="reports.html"]')) return;
 				const button = document.createElement('button');
@@ -293,7 +294,7 @@ function renderSidebarAccountProfile(user) {
 	const name = [user.firstname, user.middlename, user.lastname, user.extension_name].map((value) => String(value || '').trim()).filter(Boolean).join(' ') || user.school || 'Project i-Track User';
 	const initials = [user.firstname, user.lastname].map((value) => String(value || '').trim().charAt(0)).filter(Boolean).join('').toUpperCase() || 'IT';
 	const role = String(user.role || '').trim().toLowerCase();
-	const roleLabel = role === 'teacher' ? 'School / Teacher Account' : role === 'admin' ? 'Administrator Account' : role === 'student' ? 'Student Account' : 'Authorized Account';
+	const roleLabel = role === 'teacher' ? 'School / Teacher Account' : role === 'admin' ? 'Administrator Account' : role === 'supervisor' ? 'District Supervisor Account' : role === 'principal' ? 'School Principal Account' : role === 'student' ? 'Student Account' : 'Authorized Account';
 	const avatar = card.querySelector('.itrack-sidebar-avatar');
 	avatar.replaceChildren();
 	const initialsNode = document.createElement('span');
@@ -320,7 +321,7 @@ window.addEventListener('itrack:user-updated', (event) => {
 function simplifyNavigation(navMenu) {
 	const currentPage = String(window.location.pathname || '').split('/').pop().toLowerCase() || 'dashboard.html';
 	const iconByLabel = [
-		[/learner/i, '📋'], [/dashboard/i, '📊'], [/account/i, '👤'], [/(adm|flp) request/i, '📄'],
+		[/learner/i, '📋'], [/reports?/i, '📑'], [/dashboard/i, '📊'], [/account/i, '👤'], [/(adm|flp) request/i, '📄'],
 		[/learning resource|module|activity sheet/i, '📚'], [/approval/i, '✅'], [/user/i, '👥'], [/create/i, '➕'], [/login/i, '🔐'], [/sign out/i, '↪']
 	];
 	let navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
@@ -345,7 +346,7 @@ function simplifyNavigation(navMenu) {
 	if (hasAdministratorNavigation) {
 		const requiredAdministratorItems = [
 			['Learner Record', 'learner.html'], ['Dashboard', 'dashboard.html'], ['FLP Request Form', 'adm-request.html'], ['ADM Approval', 'approval-request.html'],
-			['Student Dashboard', 'admin-students.html'], ['Student Profile', 'student-profile.html'], ['Learning Resources', 'learning-resources.html'], ['User Management', 'user.html']
+			['Student Dashboard', 'admin-students.html'], ['Student Profile', 'student-profile.html'], ['Learning Resources', 'learning-resources.html'], ['Reports', 'reports.html'], ['User Management', 'user.html']
 		];
 		const currentLabels = () => Array.from(navMenu.querySelectorAll('.nav-item')).map((item) => String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase());
 		requiredAdministratorItems.forEach(([label, target]) => {
@@ -371,7 +372,7 @@ function simplifyNavigation(navMenu) {
 			signOut.setAttribute('onclick', "window.location.href='signout.html'");
 			navMenu.appendChild(signOut);
 		}
-		const administratorOrder = ['Learner Record', 'Dashboard', 'FLP Request Form', 'ADM Approval', 'Student Dashboard', 'Student Profile', 'Learning Resources', 'User Management'];
+		const administratorOrder = ['Learner Record', 'Dashboard', 'FLP Request Form', 'ADM Approval', 'Student Dashboard', 'Student Profile', 'Learning Resources', 'Reports', 'User Management'];
 		const orderAnchor = navMenu.querySelector('.nav-greeting, .nav-item-signout');
 		administratorOrder.forEach((label) => {
 			const item = Array.from(navMenu.querySelectorAll('.nav-item')).find((candidate) => String(candidate.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase() === label.toLowerCase());
@@ -447,7 +448,7 @@ function simplifyNavigation(navMenu) {
 				navMenu.dataset.adminNavigationLoaded = 'true';
 				const adminItems = [
 					['Learner Record', 'learner.html'], ['Dashboard', 'dashboard.html'], ['FLP Request Form', 'adm-request.html'], ['ADM Approval', 'approval-request.html'],
-					['Student Dashboard', 'admin-students.html'], ['Student Profile', 'student-profile.html'], ['Learning Resources', 'learning-resources.html'], ['User Management', 'user.html']
+					['Student Dashboard', 'admin-students.html'], ['Student Profile', 'student-profile.html'], ['Learning Resources', 'learning-resources.html'], ['Reports', 'reports.html'], ['User Management', 'user.html']
 				];
 				const existing = () => Array.from(navMenu.querySelectorAll('.nav-item')).map((item) =>
 					String(item.dataset.navLabel || item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase()
