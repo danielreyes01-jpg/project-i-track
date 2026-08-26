@@ -645,7 +645,8 @@ const STUDENT_ONLINE_WINDOW_MS = 75 * 1000;
 function getStudentPresence(user, now = Date.now()) {
   const lastSeenAt = String((user && user.last_seen_at) || "").trim();
   const lastSeenTime = Date.parse(lastSeenAt);
-  const online = Boolean(lastSeenAt && Number.isFinite(lastSeenTime) && now - lastSeenTime <= STUDENT_ONLINE_WINDOW_MS);
+  const hasActiveLogin = Boolean(String((user && user.active_session_id) || "").trim());
+  const online = Boolean(hasActiveLogin && lastSeenAt && Number.isFinite(lastSeenTime) && now - lastSeenTime <= STUDENT_ONLINE_WINDOW_MS);
   return { online, last_seen_at: lastSeenAt || null };
 }
 
@@ -2888,7 +2889,7 @@ app.get("/api/learning-resources", requireLogin, async (req, res) => {
     const learnerIds = [...new Set(rows.map((row) => row.learner_id).filter(Boolean))];
     const learners = learnerIds.length ? await db("learners").whereIn("id", learnerIds) : [];
     const studentIds = [...new Set(rows.map((row) => row.student_user_id).filter(Boolean))];
-    const students = studentIds.length ? await db("users").whereIn("id", studentIds).select("id", "last_seen_at") : [];
+    const students = studentIds.length ? await db("users").whereIn("id", studentIds).select("id", "last_seen_at", "active_session_id") : [];
     const learnerById = new Map(learners.map((learner) => [String(learner.id), learner]));
     const studentById = new Map(students.map((student) => [String(student.id), student]));
     return res.json({ resources: rows.map((row) => serializeLearningResource(row, learnerById.get(String(row.learner_id)), studentById.get(String(row.student_user_id)))), role });
@@ -3357,7 +3358,7 @@ app.get("/api/admin/student-monitoring", requireTeacher, async (req, res) => {
 app.get("/api/admin/modular-tracking-summary", requireTeacher, async (req, res) => {
   try {
     let [students, resources] = await Promise.all([
-      db("users").where({ role: "student", approved: true }).select("id", "firstname", "middlename", "lastname", "lrn", "district", "school", "last_seen_at"),
+      db("users").where({ role: "student", approved: true }).select("id", "firstname", "middlename", "lastname", "lrn", "district", "school", "last_seen_at", "active_session_id"),
       db("learning_resources").select("id", "student_user_id", "term", "module_number", "title", "status", "created_at", "started_at", "submitted_at").orderBy("created_at", "desc")
     ]);
     if (String(req.session.role || "").toLowerCase() === "teacher") {
