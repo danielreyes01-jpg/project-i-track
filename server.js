@@ -12,6 +12,7 @@ const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
 const fontkit = require("@pdf-lib/fontkit");
 const xlsx = require("xlsx");
 const ExcelJS = require("exceljs");
+const { PDFParse } = require("pdf-parse");
 const { createTemplatedDocxBuffer } = require("./report-docx");
 
 dotenv.config();
@@ -3527,34 +3528,21 @@ function parsePdfQuizQuestions(rawText) {
   return questions.slice(0, 100);
 }
 
-async function extractPdfText(buffer) {
-  const pdfjs = require("pdfjs-dist/legacy/build/pdf.js");
-  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(buffer), disableFontFace: true, useSystemFonts: true });
-  const document = await loadingTask.promise;
-  try {
-    const pages = [];
-    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
-      const page = await document.getPage(pageNumber);
-      const content = await page.getTextContent();
-      pages.push(content.items.map((item) => String(item.str || "")).join("\n"));
-      page.cleanup();
-    }
-    return pages.join("\n");
-  } finally {
-    await document.destroy();
-  }
-}
-
 app.post("/api/quizzes/convert-pdf", requireTeacher, quizPdfUpload.single("quiz_pdf"), async (req, res) => {
+  let parser;
   try {
     if (!req.file || !req.file.buffer || req.file.buffer.subarray(0, 4).toString() !== "%PDF") return res.status(400).json({ message: "Select a valid PDF quiz or test file." });
-    const text = String(await extractPdfText(req.file.buffer)).trim();
+    parser = new PDFParse({ data: req.file.buffer });
+    const result = await parser.getText();
+    const text = String((result && result.text) || "").trim();
     if (text.length < 20) return res.status(422).json({ message: "No readable text was found. Use a searchable/text-based PDF rather than a scanned image PDF." });
     const questions = parsePdfQuizQuestions(text);
     if (!questions.length) return res.status(422).json({ message: "No numbered questions were detected. Use question numbers such as 1. or 1) and review the PDF formatting." });
     return res.json({ message: `${questions.length} question${questions.length === 1 ? "" : "s"} imported. Review every question and correct answer before assignment.`, questions, needs_review: true, missing_answers: questions.filter((item) => item.needs_answer).length });
   } catch (error) {
     return res.status(500).json({ message: "Unable to convert this PDF into an online quiz.", detail: error.message });
+  } finally {
+    if (parser) await parser.destroy().catch(() => {});
   }
 });
 
