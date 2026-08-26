@@ -444,6 +444,31 @@ function simplifyNavigation(navMenu) {
 				simplifyNavigation(navMenu);
 				return;
 			}
+			if ((role === 'supervisor' || role === 'principal') && !navMenu.dataset.leadershipNavigationLoaded) {
+				navMenu.dataset.leadershipNavigationLoaded = 'true';
+				const leadershipItems = role === 'supervisor'
+					? [['District Dashboard', 'dashboard.html'], ['District Reports', 'reports.html'], ['My Account', 'account.html']]
+					: [['School Reports', 'reports.html'], ['My Account', 'account.html']];
+				const allowedTargets = new Set(leadershipItems.map(([, target]) => target.toLowerCase()));
+				Array.from(navMenu.querySelectorAll('.nav-item')).forEach((item) => {
+					const action = String(item.getAttribute('onclick') || item.getAttribute('href') || '').toLowerCase();
+					const target = (action.match(/([a-z0-9-]+\.html)/i) || [])[1] || '';
+					if (!allowedTargets.has(target) && !/sign out/i.test(String(item.textContent || ''))) item.remove();
+				});
+				leadershipItems.forEach(([label, target]) => {
+					if (Array.from(navMenu.querySelectorAll('.nav-item')).some((item) => String(item.getAttribute('onclick') || '').toLowerCase().includes(target))) return;
+					const item = document.createElement('button');
+					item.type = 'button';
+					item.className = 'nav-item';
+					item.textContent = label;
+					item.setAttribute('onclick', `window.location.href='${target}'`);
+					const signOut = Array.from(navMenu.querySelectorAll('.nav-item')).find((candidate) => /sign out/i.test(String(candidate.textContent || '')));
+					navMenu.insertBefore(item, signOut || null);
+				});
+				navMenu.querySelectorAll('.nav-dropdown,.itrack-management-menu').forEach((group) => group.remove());
+				simplifyNavigation(navMenu);
+				return;
+			}
 			if (role === 'admin' && !navMenu.dataset.adminNavigationLoaded) {
 				navMenu.dataset.adminNavigationLoaded = 'true';
 				const adminItems = [

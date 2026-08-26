@@ -63,7 +63,7 @@
           const role=String(authData.user&&authData.user.role||'').toLowerCase();
           if(!['admin','supervisor','principal'].includes(role)){location.href='dashboard.html';return;}
           if(role!=='admin'){
-            document.querySelectorAll('.nav-menu .nav-item').forEach((item)=>{const label=String(item.textContent||'');if(!/Dashboard|Reports|Sign Out/i.test(label)||role==='principal'&&/Dashboard/i.test(label))item.remove();});
+            document.querySelectorAll('.nav-menu .nav-item').forEach((item)=>{const label=String(item.textContent||'');if(!/Dashboard|Reports|My Account|Sign Out/i.test(label)||role==='principal'&&/Dashboard/i.test(label))item.remove();});
           }
           const response=await fetch('/api/admin/adm-reports',{credentials:'include'});
           const data=await response.json().catch(()=>({}));
