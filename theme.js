@@ -448,7 +448,7 @@ function simplifyNavigation(navMenu) {
 				navMenu.dataset.leadershipNavigationLoaded = 'true';
 				const leadershipItems = role === 'supervisor'
 					? [['District Dashboard', 'dashboard.html'], ['District Reports', 'reports.html'], ['My Account', 'account.html']]
-					: [['School Reports', 'reports.html'], ['My Account', 'account.html']];
+					: [['Learner Record', 'learner.html'], ['FLP Request Form', 'adm-request.html'], ['Student Dashboard', 'admin-students.html'], ['School Reports', 'reports.html'], ['My Account', 'account.html']];
 				const allowedTargets = new Set(leadershipItems.map(([, target]) => target.toLowerCase()));
 				Array.from(navMenu.querySelectorAll('.nav-item')).forEach((item) => {
 					const action = String(item.getAttribute('onclick') || item.getAttribute('href') || '').toLowerCase();

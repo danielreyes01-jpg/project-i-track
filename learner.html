@@ -1410,7 +1410,7 @@
 							setTimeout(function () { welcomeBanner.style.display = "none"; }, 250);
 						}, 1750);
 					}
-					const validRoles = ["teacher", "admin", "supervisor"];
+					const validRoles = ["teacher", "admin", "supervisor", "principal"];
 					if (!validRoles.includes(userRole)) {
 						window.location.href = "index.html";
 						return;
@@ -1419,11 +1419,15 @@
 						teacherAccountBtn.style.display = "none";
 					}
 					if (navAdmRequest) {
-						navAdmRequest.style.display = (userRole === "teacher" || userRole === "admin") ? "inline-flex" : "none";
+						navAdmRequest.style.display = (userRole === "teacher" || userRole === "admin" || userRole === "principal") ? "inline-flex" : "none";
 					}
 					const navDashboard = document.getElementById("navDashboard");
 					if (navDashboard && userRole === "teacher") {
 						navDashboard.style.display = "none";
+					}
+					if (navDashboard && userRole === "principal") {
+						navDashboard.textContent = "Student Dashboard";
+						navDashboard.setAttribute("onclick", "window.location.href='admin-students.html'");
 					}
 					if (userRole === "supervisor") {
 						window.location.href = "dashboard.html";

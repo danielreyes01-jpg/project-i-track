@@ -1903,6 +1903,20 @@ async function requireTeacher(req, res, next) {
   }
 }
 
+async function requireTeacherOrPrincipal(req, res, next) {
+  try {
+    const sessionUser = await hasActiveAccountSession(req);
+    if (!sessionUser) return res.status(401).json({ message: "Session expired or this account was signed in on another device." });
+    const role = String(sessionUser.role || "").trim().toLowerCase();
+    if (!["teacher", "principal", "admin"].includes(role)) return res.status(403).json({ message: "School staff account access only." });
+    req.session.role = role;
+    req.schoolStaffUser = sessionUser;
+    return next();
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to validate school staff access.", detail: error.message });
+  }
+}
+
 function getStatusLabel(status) {
   const normalizedStatus = String(status || "pending").trim().toLowerCase() || "pending";
   const statusLabels = {
@@ -1914,7 +1928,7 @@ function getStatusLabel(status) {
   return statusLabels[normalizedStatus] || (normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1));
 }
 
-app.post("/api/learners", requireTeacher, async (req, res) => {
+app.post("/api/learners", requireTeacherOrPrincipal, async (req, res) => {
   try {
     const {
       learner_code,
@@ -1962,6 +1976,9 @@ app.post("/api/learners", requireTeacher, async (req, res) => {
 	}
 	if (!String(family_name || "").trim() || !String(firstname || "").trim() || !String(grade || "").trim() || !String(district || "").trim() || !String(school || "").trim()) {
 	  return res.status(400).json({ message: "LRN, learner name, grade, district, and school are required." });
+	}
+	if (String(req.session.role || "").toLowerCase() === "principal" && (String(district).trim() !== String(req.schoolStaffUser.district || "").trim() || String(school).trim() !== String(req.schoolStaffUser.school || "").trim())) {
+	  return res.status(403).json({ message: "School principals can add learner records only for their assigned school." });
 	}
 
 	const existingStudentAccount = await db("users")
@@ -2053,7 +2070,12 @@ app.post("/api/learners", requireTeacher, async (req, res) => {
 app.put("/api/learners/:id", requireLogin, async (req, res) => {
   try {
     const learnerId = String(req.params.id || "").trim();
-    const existing = await db("learners").where({ id: learnerId, user_id: req.session.userId }).first();
+    const account = await db("users").where({ id: req.session.userId }).first("role", "district", "school");
+    const isPrincipal = String((account || {}).role || "").toLowerCase() === "principal";
+    let existingQuery = db("learners").where({ id: learnerId });
+    if (isPrincipal) existingQuery = existingQuery.andWhere({ district: account.district, school: account.school });
+    else existingQuery = existingQuery.andWhere({ user_id: req.session.userId });
+    const existing = await existingQuery.first();
     if (!existing) {
       return res.status(404).json({ message: "Learner record not found." });
     }
@@ -2077,8 +2099,11 @@ app.put("/api/learners/:id", requireLogin, async (req, res) => {
 	if (String(learner_code || "").trim() !== String(existing.learner_code || "").trim()) {
 	  return res.status(400).json({ message: "LRN cannot be changed because it is linked to the student's login account." });
 	}
+	if (isPrincipal && (String(district || "").trim() !== String(account.district || "").trim() || String(school || "").trim() !== String(account.school || "").trim())) {
+	  return res.status(403).json({ message: "School principals can update learner records only within their assigned school." });
+	}
 
-    await db("learners").where({ id: learnerId, user_id: req.session.userId }).update({
+    await db("learners").where({ id: learnerId }).update({
       learner_code: String(learner_code).trim(),
       family_name: String(family_name || "").trim(),
       firstname: String(firstname || "").trim(),
@@ -2114,8 +2139,11 @@ app.put("/api/learners/:id", requireLogin, async (req, res) => {
 
 app.get("/api/learners", requireLogin, async (req, res) => {
   try {
-    const learners = await db("learners")
-      .where({ user_id: req.session.userId })
+    const user = await db("users").where({ id: req.session.userId }).first("role", "district", "school");
+    let query = db("learners");
+    if (String((user || {}).role || "").toLowerCase() === "principal") query = query.where({ district: user.district, school: user.school });
+    else query = query.where({ user_id: req.session.userId });
+    const learners = await query
       .select("*")
       .orderBy("created_at", "desc");
     return res.json({ learners });
@@ -2126,8 +2154,11 @@ app.get("/api/learners", requireLogin, async (req, res) => {
 
 app.get("/api/learners/export", requireLogin, async (req, res) => {
   try {
-    const learners = await db("learners")
-      .where({ user_id: req.session.userId })
+    const user = await db("users").where({ id: req.session.userId }).first("role", "district", "school");
+    let query = db("learners");
+    if (String((user || {}).role || "").toLowerCase() === "principal") query = query.where({ district: user.district, school: user.school });
+    else query = query.where({ user_id: req.session.userId });
+    const learners = await query
       .select("*")
       .orderBy("created_at", "desc");
 
@@ -2169,7 +2200,7 @@ app.get("/api/learners/export", requireLogin, async (req, res) => {
   }
 });
 
-app.get("/api/adm-requests", requireTeacher, async (req, res) => {
+app.get("/api/adm-requests", requireTeacherOrPrincipal, async (req, res) => {
   try {
     const requests = await db("adm_requests")
       .where({ requestor_user_id: req.session.userId })
@@ -2251,7 +2282,7 @@ app.get("/api/adm-deadline-alerts", requireLogin, async (req, res) => {
   }
 });
 
-app.get("/api/adm-requests/:id/approval-pdf", requireTeacher, async (req, res) => {
+app.get("/api/adm-requests/:id/approval-pdf", requireTeacherOrPrincipal, async (req, res) => {
   try {
     const requestId = String(req.params.id || "").trim();
     if (!requestId) {
@@ -2305,7 +2336,7 @@ app.get("/api/adm-requests/:id/approval-pdf", requireTeacher, async (req, res) =
 
 app.post(
   "/api/adm-requests",
-  requireTeacher,
+  requireTeacherOrPrincipal,
   approvalRequestUpload.fields([
     { name: "psdsEndorsement", maxCount: 1 },
     { name: "secondarySupportingDocument", maxCount: 1 }
@@ -2519,7 +2550,7 @@ app.get("/api/admin/adm-requests/stream", requireAdmin, (req, res) => {
   });
 });
 
-app.get("/api/adm-requests/stream", requireTeacher, (req, res) => {
+app.get("/api/adm-requests/stream", requireTeacherOrPrincipal, (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
@@ -3465,7 +3496,7 @@ app.post("/api/student/reset-password", requireLogin, async (req, res) => {
   }
 });
 
-app.get("/api/admin/student-monitoring", requireTeacher, async (req, res) => {
+app.get("/api/admin/student-monitoring", requireTeacherOrPrincipal, async (req, res) => {
   try {
     let students = await db("users").where({ role: "student", approved: true }).select("*").orderBy(["district", "school", "lastname", "firstname"]);
     if (String(req.session.role || "").toLowerCase() === "teacher") {
@@ -3476,6 +3507,8 @@ app.get("/api/admin/student-monitoring", requireTeacher, async (req, res) => {
       const adviserLrns = new Set(adviserLearners.map((learner) => String(learner.learner_code || "").trim()).filter(Boolean));
       const resourceStudentIds = new Set(teacherResources.map((resource) => String(resource.student_user_id || "")).filter(Boolean));
       students = students.filter((student) => adviserLrns.has(String(student.lrn || "").trim()) || resourceStudentIds.has(String(student.id)));
+    } else if (String(req.session.role || "").toLowerCase() === "principal") {
+      students = students.filter((student) => String(student.district || "") === String(req.schoolStaffUser.district || "") && String(student.school || "") === String(req.schoolStaffUser.school || ""));
     }
     const studentIds = students.map((student) => student.id);
     const lrns = students.map((student) => String(student.lrn || "").trim()).filter(Boolean);
@@ -3523,7 +3556,7 @@ app.get("/api/admin/student-monitoring", requireTeacher, async (req, res) => {
   }
 });
 
-app.get("/api/admin/modular-tracking-summary", requireTeacher, async (req, res) => {
+app.get("/api/admin/modular-tracking-summary", requireTeacherOrPrincipal, async (req, res) => {
   try {
     let [students, resources] = await Promise.all([
       db("users").where({ role: "student", approved: true }).select("id", "firstname", "middlename", "lastname", "lrn", "district", "school", "last_seen_at", "active_session_id"),
@@ -3539,6 +3572,10 @@ app.get("/api/admin/modular-tracking-summary", requireTeacher, async (req, res) 
       students = students.filter((student) => adviserLrns.has(String(student.lrn || "").trim()) || resourceStudentIds.has(String(student.id)));
       const allowedStudentIds = new Set(students.map((student) => String(student.id)));
       resources = teacherResources.filter((resource) => allowedStudentIds.has(String(resource.student_user_id)));
+    } else if (String(req.session.role || "").toLowerCase() === "principal") {
+      students = students.filter((student) => String(student.district || "") === String(req.schoolStaffUser.district || "") && String(student.school || "") === String(req.schoolStaffUser.school || ""));
+      const allowedStudentIds = new Set(students.map((student) => String(student.id)));
+      resources = resources.filter((resource) => allowedStudentIds.has(String(resource.student_user_id)));
     }
     const studentById = new Map(students.map((student) => [String(student.id), student]));
     const summarize = (term) => {
