@@ -12,6 +12,7 @@ const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
 const fontkit = require("@pdf-lib/fontkit");
 const xlsx = require("xlsx");
 const ExcelJS = require("exceljs");
+const { PDFParse } = require("pdf-parse");
 const { createTemplatedDocxBuffer } = require("./report-docx");
 
 dotenv.config();
@@ -992,6 +993,16 @@ const learningResourceUpload = multer({
     const allowed = [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".png", ".jpg", ".jpeg", ".zip"];
     const extension = path.extname(String(file.originalname || "")).toLowerCase();
     if (!allowed.includes(extension)) return cb(new Error("Upload a PDF, Office document, image, or ZIP file."));
+    cb(null, true);
+  }
+});
+
+const quizPdfUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const extension = path.extname(String(file.originalname || "")).toLowerCase();
+    if (extension !== ".pdf" || String(file.mimetype || "").toLowerCase() !== "application/pdf") return cb(new Error("Invalid file type. Upload a PDF file."));
     cb(null, true);
   }
 });
@@ -3468,6 +3479,72 @@ function serializeOnlineQuiz(quiz, attempt, learner) {
     take_url: `/quiz.html?id=${encodeURIComponent(quiz.id)}`
   };
 }
+
+function parsePdfQuizQuestions(rawText) {
+  const cleaned = String(rawText || "").replace(/\r/g, "").replace(/\u00a0/g, " ");
+  const sections = cleaned.split(/^\s*(?:answer\s*key|answers?)\s*:?[ \t]*$/im);
+  const questionText = sections[0] || "";
+  const answerText = sections.slice(1).join("\n");
+  const answerKey = new Map();
+  for (const line of answerText.split("\n")) {
+    const match = line.trim().match(/^(\d{1,3})[.)\-:]\s*(?:answer\s*[:\-]\s*)?(.+)$/i);
+    if (match) answerKey.set(Number(match[1]), match[2].trim());
+  }
+  const questions = [];
+  let current = null;
+  const finishCurrent = () => {
+    if (!current || !current.prompt.trim()) return;
+    const inlineAnswer = current.answer.trim();
+    let correctAnswer = inlineAnswer || String(answerKey.get(current.number) || "").trim();
+    if (current.options.length) {
+      const letterMatch = correctAnswer.match(/^([A-H])(?:[.)])?$/i);
+      if (letterMatch) {
+        const option = current.options[letterMatch[1].toUpperCase().charCodeAt(0) - 65];
+        if (option) correctAnswer = option;
+      }
+    }
+    const normalizedAnswer = normalizeQuizAnswer(correctAnswer);
+    const type = current.options.length ? "multiple_choice" : ["true", "false"].includes(normalizedAnswer) ? "true_false" : "identification";
+    questions.push({ type, prompt: current.prompt.trim(), options: type === "true_false" ? ["True", "False"] : current.options, correct_answer: correctAnswer, points: 1, needs_answer: !correctAnswer });
+  };
+  for (const rawLine of questionText.split("\n")) {
+    const line = rawLine.replace(/\s+/g, " ").trim();
+    if (!line) continue;
+    const questionMatch = line.match(/^(?:question\s*)?(\d{1,3})[.)\-:]\s*(.+)$/i);
+    const optionMatch = line.match(/^([A-H])[.)]\s*(.+)$/i);
+    const answerMatch = line.match(/^(?:correct\s+answer|answer|key)\s*[:\-]\s*(.+)$/i);
+    if (questionMatch) {
+      finishCurrent();
+      current = { number: Number(questionMatch[1]), prompt: questionMatch[2], options: [], answer: "" };
+    } else if (current && optionMatch) {
+      current.options.push(optionMatch[2].trim());
+    } else if (current && answerMatch) {
+      current.answer = answerMatch[1].trim();
+    } else if (current) {
+      current.prompt += ` ${line}`;
+    }
+  }
+  finishCurrent();
+  return questions.slice(0, 100);
+}
+
+app.post("/api/quizzes/convert-pdf", requireTeacher, quizPdfUpload.single("quiz_pdf"), async (req, res) => {
+  let parser;
+  try {
+    if (!req.file || !req.file.buffer || req.file.buffer.subarray(0, 4).toString() !== "%PDF") return res.status(400).json({ message: "Select a valid PDF quiz or test file." });
+    parser = new PDFParse({ data: req.file.buffer });
+    const result = await parser.getText();
+    const text = String((result && result.text) || "").trim();
+    if (text.length < 20) return res.status(422).json({ message: "No readable text was found. Use a searchable/text-based PDF rather than a scanned image PDF." });
+    const questions = parsePdfQuizQuestions(text);
+    if (!questions.length) return res.status(422).json({ message: "No numbered questions were detected. Use question numbers such as 1. or 1) and review the PDF formatting." });
+    return res.json({ message: `${questions.length} question${questions.length === 1 ? "" : "s"} imported. Review every question and correct answer before assignment.`, questions, needs_review: true, missing_answers: questions.filter((item) => item.needs_answer).length });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to convert this PDF into an online quiz.", detail: error.message });
+  } finally {
+    if (parser) await parser.destroy().catch(() => {});
+  }
+});
 
 app.post("/api/quizzes", requireTeacher, async (req, res) => {
   try {
