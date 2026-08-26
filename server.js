@@ -189,6 +189,15 @@ function resolveApprovalUploadPath(documentPath) {
   return absolute;
 }
 
+function getActiveSchoolYear(referenceDate = new Date()) {
+  const date = referenceDate instanceof Date ? referenceDate : new Date(referenceDate);
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Manila", year: "numeric", month: "numeric" }).formatToParts(date);
+  const year = Number(parts.find((part) => part.type === "year").value);
+  const month = Number(parts.find((part) => part.type === "month").value);
+  const startYear = month >= 6 ? year : year - 1;
+  return `${startYear}-${startYear + 1}`;
+}
+
 function sanitizeUser(user) {
   return {
     id: user.id,
@@ -205,6 +214,7 @@ function sanitizeUser(user) {
 	school_id: user.school_id || "",
 	position: user.position || "",
 	profile_image: user.profile_image || "",
+	active_school_year: getActiveSchoolYear(),
 	extension_name: user.extension_name || "",
 	gender: user.gender || "",
 	birth_date: user.birth_date || "",

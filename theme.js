@@ -254,8 +254,13 @@ function createITrackPageTitlebar() {
 	const titlebar = document.createElement('div');
 	titlebar.id = 'itrack-page-titlebar';
 	titlebar.className = 'itrack-page-titlebar';
-	titlebar.innerHTML = '<span class="itrack-page-titlebar-marker" aria-hidden="true"></span><strong></strong><button class="itrack-header-signout" type="button">Sign Out <span aria-hidden="true">↪</span></button>';
+	titlebar.innerHTML = '<span class="itrack-page-titlebar-marker" aria-hidden="true"></span><strong></strong><span class="itrack-school-year" aria-label="Active school year"></span><button class="itrack-header-signout" type="button">Sign Out <span aria-hidden="true">↪</span></button>';
 	titlebar.querySelector('strong').textContent = title;
+	const schoolYearParts = new Intl.DateTimeFormat('en-US', { timeZone:'Asia/Manila', year:'numeric', month:'numeric' }).formatToParts(new Date());
+	const schoolYear = Number(schoolYearParts.find((part) => part.type === 'year').value);
+	const schoolMonth = Number(schoolYearParts.find((part) => part.type === 'month').value);
+	const startYear = schoolMonth >= 6 ? schoolYear : schoolYear - 1;
+	titlebar.querySelector('.itrack-school-year').textContent = `SY ${startYear}-${startYear + 1}`;
 	titlebar.querySelector('.itrack-header-signout').addEventListener('click', () => {
 		window.location.href = 'signout.html';
 	});
