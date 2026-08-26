@@ -3348,7 +3348,7 @@ app.get("/api/admin/student-monitoring", requireAdmin, async (req, res) => {
 app.get("/api/admin/modular-tracking-summary", requireAdmin, async (req, res) => {
   try {
     const [students, resources] = await Promise.all([
-      db("users").where({ role: "student", approved: true }).select("id", "firstname", "middlename", "lastname", "lrn", "district", "school"),
+      db("users").where({ role: "student", approved: true }).select("id", "firstname", "middlename", "lastname", "lrn", "district", "school", "last_seen_at"),
       db("learning_resources").select("id", "student_user_id", "term", "module_number", "title", "status", "created_at", "started_at", "submitted_at").orderBy("created_at", "desc")
     ]);
     const studentById = new Map(students.map((student) => [String(student.id), student]));
@@ -3377,7 +3377,28 @@ app.get("/api/admin/modular-tracking-summary", requireAdmin, async (req, res) =>
         activityAt: resource.submitted_at || resource.started_at || resource.created_at
       };
     });
-    return res.json({ all: summarize(0), terms: { 1: summarize(1), 2: summarize(2), 3: summarize(3) }, activity });
+    const studentContainers = students.map((student) => {
+      const studentResources = resources.filter((resource) => String(resource.student_user_id) === String(student.id));
+      const summarizeResources = (items) => ({
+        total: items.length,
+        assigned: items.filter((item) => String(item.status || "assigned") === "assigned").length,
+        ongoing: items.filter((item) => String(item.status || "") === "ongoing").length,
+        completed: items.filter((item) => String(item.status || "") === "done").length,
+        completionRate: items.length ? Math.round((items.filter((item) => String(item.status || "") === "done").length / items.length) * 1000) / 10 : 0
+      });
+      return {
+        id: student.id,
+        name: [student.firstname, student.middlename, student.lastname].filter(Boolean).join(" ") || "Student",
+        lrn: student.lrn || "",
+        district: student.district || "",
+        school: student.school || "",
+        presence: getStudentPresence(student),
+        all: summarizeResources(studentResources),
+        terms: { 1: summarizeResources(studentResources.filter((item) => Number(item.term || 1) === 1)), 2: summarizeResources(studentResources.filter((item) => Number(item.term || 1) === 2)), 3: summarizeResources(studentResources.filter((item) => Number(item.term || 1) === 3)) },
+        activities: studentResources.map((resource) => ({ id: resource.id, term: Number(resource.term || 1), moduleNumber: Number(resource.module_number || 1), title: resource.title || "Module", status: resource.status || "assigned", activityAt: resource.submitted_at || resource.started_at || resource.created_at }))
+      };
+    });
+    return res.json({ all: summarize(0), terms: { 1: summarize(1), 2: summarize(2), 3: summarize(3) }, activity, students: studentContainers });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load modular learning tracker.", detail: error.message });
   }
