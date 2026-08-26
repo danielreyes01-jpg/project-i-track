@@ -3057,16 +3057,26 @@ function hasAvailableAnswerFile(row) {
   return absolutePath.startsWith(uploadRoot + path.sep) && fs.existsSync(absolutePath);
 }
 
+function hasAvailableResourceFile(row) {
+  if (Boolean(row && row.resource_file_durable) || getStoredFileBuffer(row && row.resource_file_data)) return true;
+  const storedPath = String((row && row.stored_path) || "");
+  if (!storedPath) return false;
+  const absolutePath = path.resolve(__dirname, storedPath);
+  const uploadRoot = path.resolve(LEARNING_RESOURCE_UPLOAD_DIR);
+  return absolutePath.startsWith(uploadRoot + path.sep) && fs.existsSync(absolutePath);
+}
+
 const LEARNING_RESOURCE_LIST_COLUMNS = [
   "id", "teacher_user_id", "student_user_id", "learner_id", "resource_type", "title", "subject", "description",
   "term", "module_number", "status", "started_at", "answer_original_name", "answer_stored_path", "answer_mime_type",
   "answer_file_size", "answer_file_durable", "submitted_at", "final_grade", "graded_at", "graded_by_user_id",
-  "original_name", "stored_path", "mime_type", "file_size", "created_at"
+  "original_name", "stored_path", "mime_type", "file_size", "resource_file_durable", "created_at"
 ];
 
 function serializeLearningResource(row, learner, student) {
   const elapsedSeconds = getLearningResourceElapsedSeconds(row.started_at, row.submitted_at || (row.status === "ongoing" ? new Date().toISOString() : null));
   const answerFileAvailable = hasAvailableAnswerFile(row);
+  const resourceFileAvailable = hasAvailableResourceFile(row);
   return {
     id: row.id,
     resource_type: row.resource_type,
@@ -3089,13 +3099,14 @@ function serializeLearningResource(row, learner, student) {
     original_name: row.original_name,
     mime_type: row.mime_type || "application/octet-stream",
     file_size: Number(row.file_size || 0),
+    resource_file_available: resourceFileAvailable,
     created_at: row.created_at,
     learner_id: row.learner_id,
     learner_lrn: learner ? learner.learner_code : "",
     learner_name: learner ? [learner.firstname, learner.middlename, learner.family_name].filter(Boolean).join(" ") : "",
     student_presence: getStudentPresence(student),
-    preview_url: `/api/learning-resources/${encodeURIComponent(row.id)}/file?mode=preview`,
-    download_url: `/api/learning-resources/${encodeURIComponent(row.id)}/file?mode=download`,
+    preview_url: resourceFileAvailable ? `/api/learning-resources/${encodeURIComponent(row.id)}/file?mode=preview` : "",
+    download_url: resourceFileAvailable ? `/api/learning-resources/${encodeURIComponent(row.id)}/file?mode=download` : "",
     answer_preview_url: answerFileAvailable ? `/api/learning-resources/${encodeURIComponent(row.id)}/answer-file?mode=preview` : "",
     answer_download_url: answerFileAvailable ? `/api/learning-resources/${encodeURIComponent(row.id)}/answer-file?mode=download` : ""
   };
@@ -3215,6 +3226,7 @@ app.post("/api/learning-resources", requireTeacher, learningResourceUpload.singl
       return res.status(409).json({ message: "The selected learner does not have a student account yet." });
     }
     const id = crypto.randomUUID();
+    const resourceFileData = await fs.promises.readFile(req.file.path);
     const row = {
       id,
       teacher_user_id: req.session.userId,
@@ -3231,6 +3243,8 @@ app.post("/api/learning-resources", requireTeacher, learningResourceUpload.singl
       stored_path: path.relative(__dirname, req.file.path).replace(/\\/g, "/"),
       mime_type: String(req.file.mimetype || "application/octet-stream"),
       file_size: Number(req.file.size || 0),
+      resource_file_data: resourceFileData,
+      resource_file_durable: true,
       created_at: new Date().toISOString()
     };
     await db("learning_resources").insert(row);
@@ -3345,6 +3359,35 @@ app.get("/api/learning-resources/:id/answer-file", requireLogin, async (req, res
   }
 });
 
+app.put("/api/learning-resources/:id/resource-file", requireTeacher, learningResourceUpload.single("resource_file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "Select the replacement learning resource file." });
+    let query = db("learning_resources").where({ id: String(req.params.id || "") });
+    if (String(req.session.role || "").toLowerCase() !== "admin") query = query.andWhere({ teacher_user_id: req.session.userId });
+    const resource = await query.first();
+    if (!resource) {
+      deleteFileIfExists(req.file.path);
+      return res.status(404).json({ message: "Learning resource not found for this teacher/adviser." });
+    }
+    const previousPath = path.resolve(__dirname, String(resource.stored_path || ""));
+    const uploadRoot = path.resolve(LEARNING_RESOURCE_UPLOAD_DIR);
+    if (previousPath.startsWith(uploadRoot + path.sep)) deleteFileIfExists(previousPath);
+    const resourceFileData = await fs.promises.readFile(req.file.path);
+    await db("learning_resources").where({ id: resource.id }).update({
+      original_name: path.basename(String(req.file.originalname || "learning-resource")),
+      stored_path: path.relative(__dirname, req.file.path).replace(/\\/g, "/"),
+      mime_type: String(req.file.mimetype || "application/octet-stream"),
+      file_size: Number(req.file.size || 0),
+      resource_file_data: resourceFileData,
+      resource_file_durable: true
+    });
+    return res.json({ message: "Learning resource file restored successfully." });
+  } catch (error) {
+    if (req.file) deleteFileIfExists(req.file.path);
+    return res.status(500).json({ message: "Unable to restore the learning resource file.", detail: error.message });
+  }
+});
+
 app.get("/api/learning-resources/:id/file", requireLogin, async (req, res) => {
   try {
     const resource = await db("learning_resources").where({ id: String(req.params.id || "") }).first();
@@ -3355,11 +3398,23 @@ app.get("/api/learning-resources/:id/file", requireLogin, async (req, res) => {
     if (!allowed) return res.status(403).json({ message: "You do not have access to this learning resource." });
     const absolutePath = path.resolve(__dirname, String(resource.stored_path || ""));
     const resourceRoot = path.resolve(LEARNING_RESOURCE_UPLOAD_DIR);
-    if (!absolutePath.startsWith(resourceRoot) || !fs.existsSync(absolutePath)) return res.status(404).json({ message: "The uploaded file is unavailable." });
-    if (String(req.query.mode || "preview") === "download") return res.download(absolutePath, resource.original_name);
+    const diskFileAvailable = Boolean(resource.stored_path) && absolutePath.startsWith(resourceRoot + path.sep) && fs.existsSync(absolutePath);
+    const storedFileData = getStoredFileBuffer(resource.resource_file_data);
+    if (!diskFileAvailable && !storedFileData) {
+      return res.status(410).type("html").send('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Resource file unavailable</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:#f2f7f5;color:#123b58;font:16px Manrope,Arial,sans-serif}.notice{max-width:560px;padding:28px;border:1px solid #cfe0df;border-radius:18px;background:#fff;text-align:center;box-shadow:0 12px 32px rgba(16,47,73,.1)}h1{margin:0 0 10px;font-size:1.4rem}p{color:#607789;line-height:1.55}a{display:inline-block;margin-top:8px;padding:11px 16px;border-radius:10px;background:#176f98;color:#fff;font-weight:800;text-decoration:none}</style></head><body><main class="notice"><h1>Earlier resource file is unavailable</h1><p>This resource was uploaded before durable file storage was enabled. The teacher/adviser must restore the file once. New and restored files will remain available after future deployments.</p><a href="/learning-resources.html">Back to Learning Resources</a></main></body></html>');
+    }
+    const safeOriginalName = String(resource.original_name || "resource").replace(/["\r\n]/g, "");
+    const isDownload = String(req.query.mode || "preview") === "download";
+    if (diskFileAvailable) {
+      if (isDownload) return res.download(absolutePath, safeOriginalName);
+      res.type(resource.mime_type || "application/octet-stream");
+      res.setHeader("Content-Disposition", `inline; filename="${safeOriginalName}"`);
+      return res.sendFile(absolutePath);
+    }
     res.type(resource.mime_type || "application/octet-stream");
-    res.setHeader("Content-Disposition", `inline; filename="${String(resource.original_name || "resource").replace(/["\r\n]/g, "")}"`);
-    return res.sendFile(absolutePath);
+    res.setHeader("Content-Disposition", `${isDownload ? "attachment" : "inline"}; filename="${safeOriginalName}"`);
+    res.setHeader("Content-Length", String(storedFileData.length));
+    return res.send(storedFileData);
   } catch (error) {
     return res.status(500).json({ message: "Unable to open the learning resource.", detail: error.message });
   }
@@ -3749,6 +3804,34 @@ app.use(express.static(__dirname, {
   }
 }));
 
+async function persistExistingLearningResourceFiles() {
+  const rows = await db("learning_resources").select(
+    "id", "stored_path", "resource_file_durable", "answer_stored_path", "answer_file_durable"
+  );
+  const uploadRoot = path.resolve(LEARNING_RESOURCE_UPLOAD_DIR);
+  let restoredResources = 0;
+  let restoredAnswers = 0;
+  for (const row of rows) {
+    const update = {};
+    const resourcePath = path.resolve(__dirname, String(row.stored_path || ""));
+    if (!row.resource_file_durable && row.stored_path && resourcePath.startsWith(uploadRoot + path.sep) && fs.existsSync(resourcePath)) {
+      update.resource_file_data = await fs.promises.readFile(resourcePath);
+      update.resource_file_durable = true;
+      restoredResources += 1;
+    }
+    const answerPath = path.resolve(__dirname, String(row.answer_stored_path || ""));
+    if (!row.answer_file_durable && row.answer_stored_path && answerPath.startsWith(uploadRoot + path.sep) && fs.existsSync(answerPath)) {
+      update.answer_file_data = await fs.promises.readFile(answerPath);
+      update.answer_file_durable = true;
+      restoredAnswers += 1;
+    }
+    if (Object.keys(update).length) await db("learning_resources").where({ id: row.id }).update(update);
+  }
+  if (restoredResources || restoredAnswers) {
+    console.log(`Persisted ${restoredResources} existing learning resource file(s) and ${restoredAnswers} submitted answer file(s).`);
+  }
+}
+
 async function startServer() {
   try {
     if (!ADMIN_ACCESS_KEY) {
@@ -3756,6 +3839,7 @@ async function startServer() {
     }
 
     await ensureSchema();
+    await persistExistingLearningResourceFiles();
     await ensureAdminAccount();
     await resetDatabaseRetainingAdministratorOnce();
     await removePlaceholderLearners();
