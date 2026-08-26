@@ -3453,6 +3453,23 @@ const profileImageUpload = multer({
   }
 });
 
+app.post("/api/account/profile-image", requireLogin, profileImageUpload.single("profileImage"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "Select a profile image to upload." });
+    const user = await db("users").where({ id: req.session.userId }).first();
+    if (!user) return res.status(404).json({ message: "Account not found." });
+    const previousPath = String(user.profile_image || "").replace(/^\//, "");
+    const previousAbsolutePath = previousPath ? path.resolve(__dirname, previousPath) : "";
+    const profileImage = `/uploads/profile-images/${req.file.filename}`;
+    await db("users").where({ id: user.id }).update({ profile_image: profileImage, updated_at: new Date().toISOString() });
+    if (previousAbsolutePath && previousAbsolutePath.startsWith(path.resolve(PROFILE_IMAGE_UPLOAD_DIR)) && previousAbsolutePath !== req.file.path) deleteFileIfExists(previousAbsolutePath);
+    return res.json({ message: "Profile picture updated successfully.", user: sanitizeUser(await db("users").where({ id: user.id }).first()) });
+  } catch (error) {
+    if (req.file) deleteFileIfExists(req.file.path);
+    return res.status(500).json({ message: "Failed to upload profile picture.", detail: error.message });
+  }
+});
+
 app.put("/api/student/profile", requireLogin, async (req, res) => {
   try {
     const user = await db("users").where({ id: req.session.userId }).first();

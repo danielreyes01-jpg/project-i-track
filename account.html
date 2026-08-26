@@ -79,6 +79,16 @@
 			margin-bottom: 18px;
 		}
 
+		.account-profile { display:flex;align-items:center;gap:16px;margin:0 0 18px;padding:16px;border:1px solid var(--stroke);border-radius:16px;background:linear-gradient(145deg,#fff,#eef8f2); }
+		.account-avatar { width:92px;height:92px;flex:0 0 92px;display:grid;place-items:center;overflow:hidden;border:4px solid #fff;border-radius:50%;background:#dceee3;color:#176342;box-shadow:0 8px 22px rgba(20,70,48,.16);font-size:1.6rem;font-weight:800; }
+		.account-avatar img { width:100%;height:100%;object-fit:cover; }
+		.account-profile-copy { flex:1;min-width:0; }
+		.account-profile-copy h2 { margin:0 0 4px;font-size:1.15rem; }
+		.account-profile-copy p { margin:0 0 10px;color:var(--muted);font-size:.78rem; }
+		.upload-profile-btn { border:0;border-radius:10px;padding:9px 13px;background:#167654;color:#fff;font:700 .78rem Manrope,sans-serif;cursor:pointer; }
+		.profile-message { display:block;margin-top:7px;color:#176342;font-size:.72rem;font-weight:700; }
+		.profile-message.error { color:#a52c20; }
+
 		.grid {
 			display: grid;
 			grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -280,6 +290,8 @@
 			.account-shell {
 				padding: 24px 18px 20px;
 			}
+			.account-profile { align-items:flex-start; }
+			.account-avatar { width:72px;height:72px;flex-basis:72px; }
 
 			.brand-logo {
 				width: min(100%, 230px);
@@ -332,6 +344,10 @@
 
 		<h1 class="title">You Are Logged In</h1>
 		<p class="subtitle">Your account has been verified successfully.</p>
+		<section class="account-profile" aria-label="Account profile picture">
+			<div id="accountAvatar" class="account-avatar" aria-hidden="true">IT</div>
+			<div class="account-profile-copy"><h2 id="accountProfileName">My Account</h2><p>Your picture is displayed here and in the side panel.</p><button id="uploadProfileButton" class="upload-profile-btn" type="button">📷 Upload Profile Picture</button><input id="profileImageInput" type="file" accept="image/jpeg,image/png,image/webp" hidden><span id="profileMessage" class="profile-message" role="status" aria-live="polite"></span></div>
+		</section>
 
 		<div class="grid" id="accountGrid"></div>
 
@@ -353,6 +369,22 @@
 	<script>
 		(function () {
 			const accountGrid = document.getElementById("accountGrid");
+			const accountAvatar = document.getElementById("accountAvatar");
+			const accountProfileName = document.getElementById("accountProfileName");
+			const profileInput = document.getElementById("profileImageInput");
+			const profileMessage = document.getElementById("profileMessage");
+			let currentAccount = null;
+
+			function renderAccountProfile(account) {
+				currentAccount = account;
+				const fullName = [account.firstname, account.middlename, account.lastname].filter(Boolean).join(" ") || "My Account";
+				const initials = [account.firstname, account.lastname].map(function (value) { return String(value || "").trim().charAt(0); }).filter(Boolean).join("").toUpperCase() || "IT";
+				accountProfileName.textContent = fullName;
+				accountAvatar.replaceChildren();
+				if (account.profile_image) {
+					const image = document.createElement("img"); image.src = account.profile_image; image.alt = fullName + " profile picture"; accountAvatar.appendChild(image);
+				} else { accountAvatar.textContent = initials; }
+			}
 
 			async function loadAccount() {
 				try {
@@ -365,6 +397,7 @@
 					const payload = await response.json();
 					const account = payload.user;
 					const role = String((account || {}).role || "teacher").toLowerCase();
+					renderAccountProfile(account);
 
 					const fields = [
 						["Role", account.role || "teacher"],
@@ -384,6 +417,18 @@
 					window.location.href = "index.html";
 				}
 			}
+
+			document.getElementById("uploadProfileButton").addEventListener("click", function () { profileInput.click(); });
+			profileInput.addEventListener("change", async function () {
+				const file = profileInput.files && profileInput.files[0]; if (!file) return;
+				const formData = new FormData(); formData.append("profileImage", file); profileMessage.className = "profile-message"; profileMessage.textContent = "Uploading…";
+				try {
+					const response = await fetch("/api/account/profile-image", { method:"POST", credentials:"include", body:formData });
+					const data = await response.json().catch(function () { return {}; }); if (!response.ok) throw new Error(data.message || "Upload failed.");
+					currentAccount = data.user; renderAccountProfile(currentAccount); window.dispatchEvent(new CustomEvent("itrack:user-updated", { detail:currentAccount })); profileMessage.textContent = data.message || "Profile picture updated.";
+				} catch (error) { profileMessage.className = "profile-message error"; profileMessage.textContent = error.message || "Upload failed."; }
+				finally { profileInput.value = ""; }
+			});
 
 			loadAccount();
 		})();
