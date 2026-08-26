@@ -1649,7 +1649,7 @@ html body .deped-fixed-header .nav-greeting { color:#d9efff !important; border-c
 .itrack-page-titlebar-marker { width:5px; height:28px; flex:0 0 5px; border-radius:999px; background:var(--itrack-side-yellow); box-shadow:0 0 0 4px rgba(245,197,43,.14); }
 .itrack-page-titlebar strong { color:#123047; font-size:clamp(1rem,1.7vw,1.28rem); font-weight:850; letter-spacing:.01em; }
 .itrack-school-year { margin-left:auto; padding:7px 12px; border:1px solid #b9ddd0; border-radius:999px; background:#e9f8f1; color:#126c50; font-size:.72rem; font-weight:850; white-space:nowrap; }
-.itrack-school-year-field { display:grid; grid-template-columns:auto minmax(150px,220px); align-items:center; justify-content:end; gap:5px 10px; width:100%; margin:0 0 14px; padding:11px 14px; border:1px solid #cfe1db; border-radius:13px; background:#f8fcfa; font-family:Manrope,Arial,sans-serif; }
+.itrack-school-year-field { display:grid; grid-template-columns:auto minmax(150px,220px); align-items:center; justify-content:end; gap:5px 10px; width:min(100%,390px); margin:0 0 14px auto; padding:11px 14px; border:1px solid #cfe1db; border-radius:13px; background:#f8fcfa; font-family:Manrope,Arial,sans-serif; }
 .itrack-school-year-field label { color:#294b43; font-size:.78rem; font-weight:850; }
 .itrack-school-year-field input { width:100%; min-height:40px; padding:8px 11px; border:1px solid #9fcbbb; border-radius:9px; background:#fff; color:#123f36; font:800 .82rem Manrope,Arial,sans-serif; }
 .itrack-school-year-field small { grid-column:2; color:#6a7e78; font-size:.64rem; }
@@ -1676,6 +1676,7 @@ html[data-theme="dark"] .itrack-header-signout { background:#20343f; border-colo
 	.itrack-page-titlebar strong { max-width:calc(100vw - 205px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 	.itrack-school-year { padding:6px 9px; font-size:.64rem; }
 	.itrack-school-year-field { grid-template-columns:1fr; justify-content:stretch; }
+	.itrack-school-year-field { width:100%; margin-left:0; }
 	.itrack-school-year-field small { grid-column:1; }
 	.itrack-header-signout { gap:6px; min-height:38px; padding:7px 9px; font-size:.74rem; }
 	.itrack-header-signout span { width:23px; height:23px; }
