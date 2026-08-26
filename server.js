@@ -3700,6 +3700,29 @@ app.get("/api/student/profile", requireLogin, async (req, res) => {
       const finalModuleAverage = Math.round((moduleFinalGrades.reduce((sum, grade) => sum + grade, 0) / moduleFinalGrades.length) * 10) / 10;
       grades.push({ term: "Module Score Average", grade: finalModuleAverage, descriptor: `${moduleFinalGrades.length} scored completed ${moduleFinalGrades.length === 1 ? "activity" : "activities"}`, interpretation: "Teacher-entered Module/LAS scores" });
     }
+    const assignedQuizzes = await db("online_quizzes")
+      .where({ student_user_id: user.id })
+      .orderBy([{ column: "term", order: "asc" }, { column: "activity_number", order: "asc" }]);
+    const quizAttempts = assignedQuizzes.length
+      ? await db("online_quiz_attempts").where({ student_user_id: user.id }).whereIn("quiz_id", assignedQuizzes.map((quiz) => quiz.id))
+      : [];
+    const attemptByQuiz = new Map(quizAttempts.map((attempt) => [String(attempt.quiz_id), attempt]));
+    const quizzes = assignedQuizzes.map((quiz) => {
+      const attempt = attemptByQuiz.get(String(quiz.id));
+      return {
+        id: quiz.id,
+        term: Number(quiz.term || 1),
+        activity_number: Number(quiz.activity_number || 1),
+        title: quiz.title,
+        subject: quiz.subject || "General",
+        total_points: Number(quiz.total_points || 0),
+        status: attempt ? String(attempt.status || "ongoing") : "assigned",
+        score: attempt && attempt.score != null ? Number(attempt.score) : null,
+        percentage: attempt && attempt.percentage != null ? Number(attempt.percentage) : null,
+        started_at: attempt ? attempt.started_at || null : null,
+        submitted_at: attempt ? attempt.submitted_at || null : null
+      };
+    });
     const anecdotal = learnerHistory.flatMap((record) => {
       const entries = [
         ["Teacher intervention", record.intervention],
@@ -3722,6 +3745,7 @@ app.get("/api/student/profile", requireLogin, async (req, res) => {
       enrollment,
       schedule,
       modules,
+      quizzes,
       grades,
       attendance,
       prospectus: schedule,
