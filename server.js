@@ -3163,20 +3163,21 @@ app.post("/api/learning-resources/:id/submit", requireLogin, learningResourceUpl
 
 app.put("/api/learning-resources/:id/final-grade", requireTeacher, async (req, res) => {
   try {
-    const finalGrade = Number((req.body || {}).final_grade);
-    if (!Number.isInteger(finalGrade) || finalGrade < 60 || finalGrade > 100) {
-      return res.status(400).json({ message: "Enter a whole-number final grade from 60 to 100." });
+    const rawScore = String((req.body || {}).final_grade == null ? "" : (req.body || {}).final_grade).trim();
+    const finalGrade = Number(rawScore);
+    if (!rawScore || !Number.isFinite(finalGrade)) {
+      return res.status(400).json({ message: "Enter a valid numeric score." });
     }
     let query = db("learning_resources").where({ id: String(req.params.id || "") });
     if (String(req.session.role || "").toLowerCase() !== "admin") query = query.andWhere({ teacher_user_id: req.session.userId });
     const resource = await query.first();
     if (!resource) return res.status(404).json({ message: "Learning resource not found for this teacher/adviser." });
-    if (String(resource.status || "") !== "done") return res.status(409).json({ message: "A final grade can be entered only after the student submits the completed answer." });
+    if (String(resource.status || "") !== "done") return res.status(409).json({ message: "A score can be entered only after the student submits the completed answer." });
     const gradedAt = new Date().toISOString();
     await db("learning_resources").where({ id: resource.id }).update({ final_grade: finalGrade, graded_at: gradedAt, graded_by_user_id: req.session.userId });
-    return res.json({ message: `Final grade ${finalGrade} saved successfully.`, final_grade: finalGrade, graded_at: gradedAt });
+    return res.json({ message: `Score ${finalGrade} saved successfully.`, final_grade: finalGrade, graded_at: gradedAt });
   } catch (error) {
-    return res.status(500).json({ message: "Unable to save the final grade.", detail: error.message });
+    return res.status(500).json({ message: "Unable to save the score.", detail: error.message });
   }
 });
 
@@ -3303,7 +3304,7 @@ app.get("/api/student/profile", requireLogin, async (req, res) => {
     const moduleFinalGrades = assignedResources.map((resource) => Number(resource.final_grade)).filter((grade) => Number.isFinite(grade));
     if (moduleFinalGrades.length) {
       const finalModuleAverage = Math.round((moduleFinalGrades.reduce((sum, grade) => sum + grade, 0) / moduleFinalGrades.length) * 10) / 10;
-      grades.push({ term: "Final Module Average", grade: finalModuleAverage, descriptor: `${moduleFinalGrades.length} graded completed ${moduleFinalGrades.length === 1 ? "activity" : "activities"}`, interpretation: "Teacher-entered Module/LAS final grades" });
+      grades.push({ term: "Module Score Average", grade: finalModuleAverage, descriptor: `${moduleFinalGrades.length} scored completed ${moduleFinalGrades.length === 1 ? "activity" : "activities"}`, interpretation: "Teacher-entered Module/LAS scores" });
     }
     const anecdotal = learnerHistory.flatMap((record) => {
       const entries = [

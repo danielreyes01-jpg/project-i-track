@@ -1027,9 +1027,9 @@ function initializeLearningResourceFinalGrades() {
 				panel.dataset.gradeValue = gradeKey;
 				const hasGrade = resource.final_grade != null;
 				if (role === 'teacher' || role === 'admin') {
-					panel.innerHTML = `<div class="itrack-final-grade-head"><span class="itrack-final-grade-label">Final Grade</span><strong class="itrack-final-grade-value">${hasGrade ? Number(resource.final_grade) : 'Pending'}</strong></div><form class="itrack-grade-form" data-final-grade-form="${escapePresenceText(resource.id)}"><input name="final_grade" type="number" min="60" max="100" step="1" value="${hasGrade ? Number(resource.final_grade) : ''}" placeholder="60–100" aria-label="Final grade" required><button type="submit">${hasGrade ? 'Update' : 'Save Grade'}</button></form><small class="itrack-grade-note">Available after the student submits the completed answer.</small>`;
+					panel.innerHTML = `<div class="itrack-final-grade-head"><span class="itrack-final-grade-label">Score</span><strong class="itrack-final-grade-value">${hasGrade ? Number(resource.final_grade) : 'Pending'}</strong></div><form class="itrack-grade-form" data-final-grade-form="${escapePresenceText(resource.id)}"><input name="final_grade" type="number" step="any" value="${hasGrade ? Number(resource.final_grade) : ''}" placeholder="Enter score" aria-label="Score" required><button type="submit">${hasGrade ? 'Update' : 'Save Score'}</button></form><small class="itrack-grade-note">Available after the student submits the completed answer.</small>`;
 				} else {
-					panel.innerHTML = hasGrade ? `<div class="itrack-final-grade-head"><span class="itrack-final-grade-label">Final Grade</span><strong class="itrack-final-grade-value">${Number(resource.final_grade)}</strong></div><small class="itrack-grade-note">Graded by your teacher/adviser${resource.graded_at ? ' · ' + formatPresenceLastSeen(resource.graded_at) : ''}</small>` : '<span class="itrack-grade-pending">Final grade pending teacher assessment</span>';
+					panel.innerHTML = hasGrade ? `<div class="itrack-final-grade-head"><span class="itrack-final-grade-label">Score</span><strong class="itrack-final-grade-value">${Number(resource.final_grade)}</strong></div><small class="itrack-grade-note">Entered by your teacher/adviser${resource.graded_at ? ' · ' + formatPresenceLastSeen(resource.graded_at) : ''}</small>` : '<span class="itrack-grade-pending">Score pending teacher assessment</span>';
 				}
 				const actions = card.querySelector('.card-actions');
 				if (actions) actions.insertAdjacentElement('beforebegin', panel); else card.appendChild(panel);
@@ -1047,13 +1047,13 @@ function initializeLearningResourceFinalGrades() {
 		try {
 			const response = await fetch(`/api/learning-resources/${encodeURIComponent(form.dataset.finalGradeForm)}/final-grade`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ final_grade: grade }) });
 			const data = await response.json().catch(() => ({}));
-			if (!response.ok) throw new Error(data.message || 'Unable to save final grade.');
+			if (!response.ok) throw new Error(data.message || 'Unable to save score.');
 			const value = form.closest('.itrack-final-grade').querySelector('.itrack-final-grade-value');
 			value.textContent = String(data.final_grade);
 			button.textContent = 'Update';
 		} catch (error) {
 			window.alert(error.message);
-			button.textContent = 'Save Grade';
+			button.textContent = 'Save Score';
 		} finally {
 			button.disabled = false;
 		}
@@ -1076,7 +1076,7 @@ function initializeStudentProfileFinalGrades() {
 			if (!table.querySelector('[data-final-grade-heading]')) {
 				const heading = document.createElement('th');
 				heading.dataset.finalGradeHeading = 'true';
-				heading.textContent = 'Final Grade';
+				heading.textContent = 'Score';
 				table.querySelector('thead tr').appendChild(heading);
 			}
 			const modules = data.modules || [];
