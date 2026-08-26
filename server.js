@@ -3439,6 +3439,198 @@ app.delete("/api/learning-resources/:id", requireTeacher, async (req, res) => {
   }
 });
 
+function normalizeQuizAnswer(value) {
+  return String(value == null ? "" : value).trim().toLocaleLowerCase("en-PH").replace(/\s+/g, " ");
+}
+
+function parseQuizJson(value, fallback) {
+  try { return JSON.parse(String(value || "")); } catch (error) { return fallback; }
+}
+
+function serializeOnlineQuiz(quiz, attempt, learner) {
+  return {
+    id: quiz.id,
+    title: quiz.title,
+    subject: quiz.subject || "",
+    instructions: quiz.instructions || "",
+    term: Number(quiz.term || 1),
+    activity_number: Number(quiz.activity_number || 1),
+    total_points: Number(quiz.total_points || 0),
+    created_at: quiz.created_at,
+    learner_id: quiz.learner_id,
+    learner_lrn: learner ? learner.learner_code : "",
+    learner_name: learner ? [learner.firstname, learner.middlename, learner.family_name].filter(Boolean).join(" ") : "",
+    status: attempt ? String(attempt.status || "ongoing") : "assigned",
+    started_at: attempt ? attempt.started_at : null,
+    submitted_at: attempt ? attempt.submitted_at : null,
+    score: attempt && attempt.score != null ? Number(attempt.score) : null,
+    percentage: attempt && attempt.percentage != null ? Number(attempt.percentage) : null,
+    take_url: `/quiz.html?id=${encodeURIComponent(quiz.id)}`
+  };
+}
+
+app.post("/api/quizzes", requireTeacher, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const learnerId = String(body.learner_id || "").trim();
+    const title = String(body.title || "").trim();
+    const subject = String(body.subject || "").trim();
+    const instructions = String(body.instructions || "").trim();
+    const term = Number(body.term || 0);
+    const activityNumber = Number(body.activity_number || 0);
+    const rawQuestions = Array.isArray(body.questions) ? body.questions : [];
+    if (!learnerId || !title || ![1, 2, 3].includes(term) || !Number.isInteger(activityNumber) || activityNumber < 1 || activityNumber > 100 || !rawQuestions.length || rawQuestions.length > 100) {
+      return res.status(400).json({ message: "Student, quiz title, term, activity number, and at least one question are required." });
+    }
+    let learnerQuery = db("learners").where({ id: learnerId });
+    if (String(req.session.role || "").toLowerCase() !== "admin") learnerQuery = learnerQuery.andWhere({ user_id: req.session.userId });
+    const learner = await learnerQuery.first();
+    if (!learner) return res.status(404).json({ message: "The selected learner is unavailable for this account." });
+    const student = await db("users").where({ lrn: String(learner.learner_code || "").trim(), role: "student" }).first();
+    if (!student) return res.status(409).json({ message: "The selected learner does not have a student account yet." });
+    const questions = [];
+    for (let index = 0; index < rawQuestions.length; index += 1) {
+      const item = rawQuestions[index] || {};
+      const type = String(item.type || "").trim();
+      const prompt = String(item.prompt || "").trim();
+      const points = Number(item.points || 1);
+      let options = [];
+      let correctAnswer = String(item.correct_answer || "").trim();
+      if (!["multiple_choice", "identification", "true_false"].includes(type) || !prompt || prompt.length > 1500 || !Number.isInteger(points) || points < 1 || points > 100) {
+        return res.status(400).json({ message: `Check question ${index + 1}: type, question text, and points are required.` });
+      }
+      if (type === "multiple_choice") {
+        options = [...new Set((Array.isArray(item.options) ? item.options : []).map((value) => String(value || "").trim()).filter(Boolean))];
+        if (options.length < 2 || options.length > 8 || !options.includes(correctAnswer)) return res.status(400).json({ message: `Question ${index + 1} needs 2–8 choices and a correct answer selected from them.` });
+      } else if (type === "true_false") {
+        correctAnswer = normalizeQuizAnswer(correctAnswer);
+        options = ["True", "False"];
+        if (!["true", "false"].includes(correctAnswer)) return res.status(400).json({ message: `Question ${index + 1} needs True or False as its correct answer.` });
+      } else if (!correctAnswer) {
+        return res.status(400).json({ message: `Question ${index + 1} needs at least one accepted identification answer.` });
+      }
+      questions.push({ id: crypto.randomUUID(), type, prompt, points, options, correctAnswer });
+    }
+    const quizId = crypto.randomUUID();
+    const totalPoints = questions.reduce((sum, item) => sum + item.points, 0);
+    const createdAt = new Date().toISOString();
+    await db.transaction(async (trx) => {
+      await trx("online_quizzes").insert({ id: quizId, teacher_user_id: req.session.userId, student_user_id: student.id, learner_id: learner.id, term, activity_number: activityNumber, title: title.slice(0, 220), subject: subject.slice(0, 120), instructions, total_points: totalPoints, created_at: createdAt });
+      await trx("online_quiz_questions").insert(questions.map((item, index) => ({ id: item.id, quiz_id: quizId, question_order: index + 1, question_type: item.type, prompt: item.prompt, options_json: JSON.stringify(item.options), correct_answer: item.correctAnswer, points: item.points })));
+    });
+    const quiz = await db("online_quizzes").where({ id: quizId }).first();
+    return res.status(201).json({ message: `Online quiz assigned to ${learner.firstname} ${learner.family_name}.`, quiz: serializeOnlineQuiz(quiz, null, learner) });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to create the online quiz.", detail: error.message });
+  }
+});
+
+app.get("/api/quizzes", requireLogin, async (req, res) => {
+  try {
+    const user = await db("users").where({ id: req.session.userId }).first();
+    const role = String((user && user.role) || "").toLowerCase();
+    let query = db("online_quizzes");
+    if (role === "student") query = query.where({ student_user_id: user.id });
+    else if (role === "teacher") query = query.where({ teacher_user_id: user.id });
+    else if (role !== "admin") return res.status(403).json({ message: "Online quiz access is not available for this account." });
+    const quizzes = await query.orderBy("created_at", "desc");
+    const attempts = quizzes.length ? await db("online_quiz_attempts").whereIn("quiz_id", quizzes.map((item) => item.id)) : [];
+    const learners = quizzes.length ? await db("learners").whereIn("id", [...new Set(quizzes.map((item) => item.learner_id))]) : [];
+    const attemptByQuiz = new Map(attempts.map((item) => [String(item.quiz_id), item]));
+    const learnerById = new Map(learners.map((item) => [String(item.id), item]));
+    return res.json({ quizzes: quizzes.map((item) => serializeOnlineQuiz(item, attemptByQuiz.get(String(item.id)), learnerById.get(String(item.learner_id)))), role });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to load online quizzes.", detail: error.message });
+  }
+});
+
+app.get("/api/quizzes/:id", requireLogin, async (req, res) => {
+  try {
+    const quiz = await db("online_quizzes").where({ id: String(req.params.id || "") }).first();
+    const user = await db("users").where({ id: req.session.userId }).first();
+    const role = String((user && user.role) || "").toLowerCase();
+    const allowed = quiz && (role === "admin" || (role === "teacher" && quiz.teacher_user_id === user.id) || (role === "student" && quiz.student_user_id === user.id));
+    if (!allowed) return res.status(403).json({ message: "You do not have access to this online quiz." });
+    const questions = await db("online_quiz_questions").where({ quiz_id: quiz.id }).orderBy("question_order", "asc");
+    const attempt = await db("online_quiz_attempts").where({ quiz_id: quiz.id, student_user_id: quiz.student_user_id }).first();
+    const showAnswers = role !== "student" || (attempt && attempt.status === "submitted");
+    const savedAnswers = parseQuizJson(attempt && attempt.answers_json, {});
+    return res.json({
+      quiz: serializeOnlineQuiz(quiz, attempt), role,
+      questions: questions.map((item) => ({ id: item.id, order: Number(item.question_order), type: item.question_type, prompt: item.prompt, options: parseQuizJson(item.options_json, []), points: Number(item.points || 1), student_answer: savedAnswers[item.id] == null ? "" : savedAnswers[item.id], correct_answer: showAnswers ? item.correct_answer : undefined })),
+      submitted: Boolean(attempt && attempt.status === "submitted")
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to open the online quiz.", detail: error.message });
+  }
+});
+
+app.post("/api/quizzes/:id/start", requireLogin, async (req, res) => {
+  try {
+    const user = await db("users").where({ id: req.session.userId }).first();
+    if (!user || String(user.role || "").toLowerCase() !== "student") return res.status(403).json({ message: "Student account access only." });
+    const quiz = await db("online_quizzes").where({ id: String(req.params.id || ""), student_user_id: user.id }).first();
+    if (!quiz) return res.status(404).json({ message: "Assigned online quiz not found." });
+    let attempt = await db("online_quiz_attempts").where({ quiz_id: quiz.id, student_user_id: user.id }).first();
+    if (!attempt) {
+      attempt = { id: crypto.randomUUID(), quiz_id: quiz.id, student_user_id: user.id, status: "ongoing", started_at: new Date().toISOString() };
+      await db("online_quiz_attempts").insert(attempt);
+    }
+    return res.json({ status: attempt.status, started_at: attempt.started_at, submitted_at: attempt.submitted_at || null });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to start the online quiz.", detail: error.message });
+  }
+});
+
+app.post("/api/quizzes/:id/submit", requireLogin, async (req, res) => {
+  try {
+    const user = await db("users").where({ id: req.session.userId }).first();
+    if (!user || String(user.role || "").toLowerCase() !== "student") return res.status(403).json({ message: "Student account access only." });
+    const quiz = await db("online_quizzes").where({ id: String(req.params.id || ""), student_user_id: user.id }).first();
+    if (!quiz) return res.status(404).json({ message: "Assigned online quiz not found." });
+    const attempt = await db("online_quiz_attempts").where({ quiz_id: quiz.id, student_user_id: user.id }).first();
+    if (attempt && attempt.status === "submitted") return res.status(409).json({ message: "This quiz has already been submitted." });
+    const questions = await db("online_quiz_questions").where({ quiz_id: quiz.id }).orderBy("question_order", "asc");
+    const answers = req.body && typeof req.body.answers === "object" && !Array.isArray(req.body.answers) ? req.body.answers : {};
+    let score = 0;
+    const cleanAnswers = {};
+    for (const question of questions) {
+      const answer = String(answers[question.id] == null ? "" : answers[question.id]).trim();
+      cleanAnswers[question.id] = answer;
+      const normalized = normalizeQuizAnswer(answer);
+      const accepted = String(question.question_type) === "identification"
+        ? String(question.correct_answer || "").split("|").map(normalizeQuizAnswer).filter(Boolean)
+        : [normalizeQuizAnswer(question.correct_answer)];
+      if (normalized && accepted.includes(normalized)) score += Number(question.points || 1);
+    }
+    const totalPoints = questions.reduce((sum, item) => sum + Number(item.points || 1), 0);
+    const percentage = totalPoints ? Math.round((score / totalPoints) * 10000) / 100 : 0;
+    const submittedAt = new Date().toISOString();
+    if (attempt) await db("online_quiz_attempts").where({ id: attempt.id }).update({ status: "submitted", answers_json: JSON.stringify(cleanAnswers), score, total_points: totalPoints, percentage, submitted_at: submittedAt });
+    else await db("online_quiz_attempts").insert({ id: crypto.randomUUID(), quiz_id: quiz.id, student_user_id: user.id, status: "submitted", answers_json: JSON.stringify(cleanAnswers), score, total_points: totalPoints, percentage, started_at: submittedAt, submitted_at: submittedAt });
+    return res.json({ message: `Quiz submitted. Score: ${score}/${totalPoints} (${percentage}%).`, score, total_points: totalPoints, percentage, submitted_at: submittedAt });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to submit the online quiz.", detail: error.message });
+  }
+});
+
+app.delete("/api/quizzes/:id", requireTeacher, async (req, res) => {
+  try {
+    let query = db("online_quizzes").where({ id: String(req.params.id || "") });
+    if (String(req.session.role || "").toLowerCase() !== "admin") query = query.andWhere({ teacher_user_id: req.session.userId });
+    const quiz = await query.first();
+    if (!quiz) return res.status(404).json({ message: "Online quiz not found for this teacher/adviser." });
+    await db.transaction(async (trx) => {
+      await trx("online_quiz_attempts").where({ quiz_id: quiz.id }).del();
+      await trx("online_quiz_questions").where({ quiz_id: quiz.id }).del();
+      await trx("online_quizzes").where({ id: quiz.id }).del();
+    });
+    return res.json({ message: "Online quiz removed." });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to remove the online quiz.", detail: error.message });
+  }
+});
+
 app.get("/api/student/profile", requireLogin, async (req, res) => {
   try {
     const user = await db("users").where({ id: req.session.userId }).first();

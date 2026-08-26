@@ -350,6 +350,55 @@ async function ensureSchema() {
     });
   }
 
+  if (!(await db.schema.hasTable("online_quizzes"))) {
+    await db.schema.createTable("online_quizzes", (table) => {
+      table.string("id", 64).primary();
+      table.string("teacher_user_id", 64).notNullable();
+      table.string("student_user_id", 64).notNullable();
+      table.string("learner_id", 64).notNullable();
+      table.integer("term").notNullable().defaultTo(1);
+      table.integer("activity_number").notNullable().defaultTo(1);
+      table.string("title", 220).notNullable();
+      table.string("subject", 120).nullable();
+      table.text("instructions").nullable();
+      table.integer("total_points").notNullable().defaultTo(0);
+      table.string("created_at", 40).notNullable();
+      table.index(["teacher_user_id"], "idx_online_quiz_teacher");
+      table.index(["student_user_id"], "idx_online_quiz_student");
+    });
+  }
+
+  if (!(await db.schema.hasTable("online_quiz_questions"))) {
+    await db.schema.createTable("online_quiz_questions", (table) => {
+      table.string("id", 64).primary();
+      table.string("quiz_id", 64).notNullable();
+      table.integer("question_order").notNullable();
+      table.string("question_type", 30).notNullable();
+      table.text("prompt").notNullable();
+      table.text("options_json").nullable();
+      table.text("correct_answer").notNullable();
+      table.integer("points").notNullable().defaultTo(1);
+      table.index(["quiz_id"], "idx_online_quiz_question_quiz");
+    });
+  }
+
+  if (!(await db.schema.hasTable("online_quiz_attempts"))) {
+    await db.schema.createTable("online_quiz_attempts", (table) => {
+      table.string("id", 64).primary();
+      table.string("quiz_id", 64).notNullable();
+      table.string("student_user_id", 64).notNullable();
+      table.string("status", 30).notNullable().defaultTo("ongoing");
+      table.text("answers_json").nullable();
+      table.integer("score").nullable();
+      table.integer("total_points").nullable();
+      table.float("percentage").nullable();
+      table.string("started_at", 40).notNullable();
+      table.string("submitted_at", 40).nullable();
+      table.unique(["quiz_id", "student_user_id"], "uq_online_quiz_attempt_student");
+      table.index(["student_user_id"], "idx_online_quiz_attempt_student");
+    });
+  }
+
   const approvalRequestsExists = await db.schema.hasTable("approval_requests");
   if (!approvalRequestsExists) {
     await db.schema.createTable("approval_requests", (table) => {
