@@ -154,7 +154,7 @@
 			font-weight: 700;
 		}
 
-		input {
+		input, textarea {
 			width: 100%;
 			border: 1px solid var(--stroke);
 			border-radius: 10px;
@@ -162,6 +162,15 @@
 			font: inherit;
 			background: #fff;
 		}
+
+		textarea { min-height: 112px; resize: vertical; line-height: 1.5; }
+		input:focus, textarea:focus { outline: 3px solid rgba(20,83,45,.12); border-color: #5b9d76; }
+		.duration-card { grid-column: 1 / -1; padding: 16px; border: 1px solid #cfe1db; border-radius: 14px; background: linear-gradient(145deg,#f9fffc,#eef8f4); }
+		.duration-title { display:flex;align-items:center;gap:8px;margin:0 0 4px;font-weight:800;color:#123047; }
+		.duration-help { margin:0 0 12px;color:var(--muted);font-size:.8rem; }
+		.duration-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px; }
+		.detail-copy { max-width:260px;white-space:normal;line-height:1.45; }
+		.duration-copy { display:grid;gap:3px;min-width:150px; }
 
 		.docs-label {
 			font-size: 0.82rem;
@@ -174,7 +183,7 @@
 
 		.req { color: #c0392b; margin-left: 2px; }
 
-		input.field-invalid {
+		input.field-invalid, textarea.field-invalid {
 			border-color: #e74c3c;
 			background: #fff8f8;
 		}
@@ -259,6 +268,7 @@
 			.form-grid {
 				grid-template-columns: 1fr;
 			}
+			.duration-grid { grid-template-columns:1fr; }
 		}
 	</style>
 </head>
@@ -299,6 +309,24 @@
 						<input id="school" name="school" type="text" readonly>
 					</div>
 					<div class="field full">
+						<label for="reasonForAdm">Reason for ADM</label>
+						<textarea id="reasonForAdm" name="reasonForAdm" maxlength="1200" placeholder="Explain why the learner needs the Alternative Delivery Mode" required></textarea>
+					</div>
+					<div class="duration-card">
+						<div class="duration-title"><span aria-hidden="true">📅</span> Duration Period</div>
+						<p class="duration-help">Select the approved ADM coverage dates. A warning will appear seven days before the To date.</p>
+						<div class="duration-grid">
+							<div class="field">
+								<label for="durationFrom">From</label>
+								<input id="durationFrom" name="durationFrom" type="date" required>
+							</div>
+							<div class="field">
+								<label for="durationTo">To</label>
+								<input id="durationTo" name="durationTo" type="date" required>
+							</div>
+						</div>
+					</div>
+					<div class="field full">
 						<div class="docs-label">Documents</div>
 					</div>
 					<div class="field">
@@ -331,13 +359,15 @@
 							<th>District</th>
 							<th>School</th>
 							<th>ADM Focal</th>
+							<th>Reason for ADM</th>
+							<th>Duration Period</th>
 							<th>Documents</th>
 							<th>Result</th>
 							<th>Status</th>
 						</tr>
 					</thead>
 					<tbody id="requestTableBody">
-						<tr><td class="empty" colspan="7">No ADM requests yet.</td></tr>
+						<tr><td class="empty" colspan="9">No ADM requests yet.</td></tr>
 					</tbody>
 				</table>
 			</div>
@@ -360,6 +390,9 @@
 			const requestDateInput = document.getElementById("requestDate");
 			const districtInput = document.getElementById("district");
 			const schoolInput = document.getElementById("school");
+			const reasonInput = document.getElementById("reasonForAdm");
+			const durationFromInput = document.getElementById("durationFrom");
+			const durationToInput = document.getElementById("durationTo");
 			const approvalNotice = document.getElementById("approvalNotice");
 			let requestRefreshTimer = null;
 			let requestEventSource = null;
@@ -447,7 +480,7 @@
 			function renderRows(requests) {
 				requestTableBody.innerHTML = "";
 				if (!Array.isArray(requests) || !requests.length) {
-					requestTableBody.innerHTML = '<tr><td class="empty" colspan="7">No ADM requests yet.</td></tr>';
+					requestTableBody.innerHTML = '<tr><td class="empty" colspan="9">No ADM requests yet.</td></tr>';
 					return;
 				}
 
@@ -476,6 +509,8 @@
 						'<td>' + escapeHtml(item.district || "N/A") + '</td>' +
 						'<td>' + escapeHtml(item.school || "N/A") + '</td>' +
 						'<td>' + escapeHtml(item.adm_focal || "N/A") + '</td>' +
+						'<td><div class="detail-copy">' + escapeHtml(item.reason_for_adm || "Not provided") + '</div></td>' +
+						'<td><div class="duration-copy"><span><strong>From:</strong> ' + escapeHtml(formatRequestDate(item.duration_from)) + '</span><span><strong>To:</strong> ' + escapeHtml(formatRequestDate(item.duration_to)) + '</span></div></td>' +
 						'<td>' +
 						makeDocLink(item.psds_endorsement_path, "PSDS Endorsement") +
 						makeDocLink(item.secondary_document_path, "Secondary Supporting Document") +
@@ -501,7 +536,7 @@
 					const payload = await parseApiPayload(response);
 					renderRows(Array.isArray(payload.requests) ? payload.requests : []);
 				} catch (error) {
-					requestTableBody.innerHTML = '<tr><td class="empty" colspan="7">Unable to load ADM requests right now.</td></tr>';
+					requestTableBody.innerHTML = '<tr><td class="empty" colspan="9">Unable to load ADM requests right now.</td></tr>';
 					if (!silent) {
 						setMessage(String(error && error.message ? error.message : "Failed to load ADM requests."), "error");
 					}
@@ -569,6 +604,24 @@
 				const secondaryInput = document.getElementById("secondarySupportingDocument");
 				const psdsFile = psdsInput.files[0];
 				const secondaryFile = secondaryInput.files[0];
+				const reason = String(reasonInput.value || "").trim();
+				const durationFrom = String(durationFromInput.value || "").trim();
+				const durationTo = String(durationToInput.value || "").trim();
+
+				[reasonInput, durationFromInput, durationToInput].forEach(function (input) {
+					input.classList.toggle("field-invalid", !String(input.value || "").trim());
+				});
+				if (!reason || !durationFrom || !durationTo) {
+					setMessage("Reason for ADM and the complete From and To duration period are required.", "error");
+					(!reason ? reasonInput : (!durationFrom ? durationFromInput : durationToInput)).focus();
+					return;
+				}
+				if (durationTo < durationFrom) {
+					durationToInput.classList.add("field-invalid");
+					setMessage("The To date cannot be earlier than the From date.", "error");
+					durationToInput.focus();
+					return;
+				}
 
 				psdsInput.classList.toggle("field-invalid", !psdsFile);
 				secondaryInput.classList.toggle("field-invalid", !secondaryFile);
@@ -592,6 +645,9 @@
 				const formData = new FormData();
 				formData.append("requestDate", String(document.getElementById("requestDate").value || "").trim());
 				formData.append("admFocal", String(document.getElementById("admFocal").value || "").trim());
+				formData.append("reasonForAdm", reason);
+				formData.append("durationFrom", durationFrom);
+				formData.append("durationTo", durationTo);
 				formData.append("psdsEndorsement", psdsFile);
 				formData.append("secondarySupportingDocument", secondaryFile);
 
@@ -624,6 +680,13 @@
 			});
 			document.getElementById("secondarySupportingDocument").addEventListener("change", function () {
 				this.classList.remove("field-invalid");
+			});
+			durationFromInput.addEventListener("change", function () {
+				durationToInput.min = this.value;
+				this.classList.remove("field-invalid");
+			});
+			[reasonInput, durationToInput].forEach(function (input) {
+				input.addEventListener("input", function () { this.classList.remove("field-invalid"); });
 			});
 
 			window.addEventListener("storage", function (event) {

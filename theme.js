@@ -1095,6 +1095,53 @@ function initializeStudentProfileFinalGrades() {
 	}, 700);
 }
 
+function initializeAdmDeadlineWarnings() {
+	if (/^(?:\/)?(?:index|signup|signout)\.html$/i.test(location.pathname.replace(/^\//, ''))) return;
+	const injectStyles = () => {
+		if (document.getElementById('itrack-adm-deadline-styles')) return;
+		const style = document.createElement('style');
+		style.id = 'itrack-adm-deadline-styles';
+		style.textContent = '.itrack-adm-warning-stack{position:fixed;top:82px;right:22px;z-index:12500;width:min(430px,calc(100vw - 32px));display:grid;gap:10px}.itrack-adm-warning{position:relative;padding:16px 44px 16px 17px;border:1px solid #e9bd52;border-left:6px solid #e0a318;border-radius:15px;background:#fff8dd;color:#4f3a05;box-shadow:0 16px 38px rgba(34,49,58,.2);font-family:Manrope,Arial,sans-serif}.itrack-adm-warning h2{display:flex;align-items:center;gap:8px;margin:0 0 6px;color:#6c4a00;font-size:.95rem}.itrack-adm-warning p{margin:0;line-height:1.5;font-size:.78rem}.itrack-adm-warning-meta{display:block;margin-top:8px;color:#745b21;font-size:.68rem;font-weight:700}.itrack-adm-warning-close{position:absolute;top:8px;right:8px;width:30px;height:30px;padding:0;border:0;border-radius:50%;background:rgba(116,83,0,.09);color:#654b0a;font-size:1.1rem;cursor:pointer}@media(max-width:650px){.itrack-adm-warning-stack{top:70px;right:16px;left:16px;width:auto}}';
+		document.head.appendChild(style);
+	};
+	const formatDate = (value) => {
+		const parts = String(value || '').split('-').map(Number);
+		if (parts.length !== 3 || parts.some(Number.isNaN)) return String(value || 'the due date');
+		return new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' });
+	};
+	window.setTimeout(async () => {
+		try {
+			const response = await fetch('/api/adm-deadline-alerts', { credentials: 'include' });
+			if (!response.ok) return;
+			const data = await response.json();
+			const role = String(data.role || '').toLowerCase();
+			if (role !== 'student' && role !== 'teacher') return;
+			const alerts = Array.isArray(data.alerts) ? data.alerts : [];
+			if (!alerts.length) return;
+			injectStyles();
+			const stack = document.createElement('aside');
+			stack.className = 'itrack-adm-warning-stack';
+			stack.setAttribute('aria-label', 'ADM deadline warnings');
+			alerts.slice(0, 3).forEach((alert) => {
+				const card = document.createElement('section');
+				card.className = 'itrack-adm-warning';
+				card.setAttribute('role', 'alert');
+				const deadline = formatDate(alert.duration_to);
+				const timeText = Number(alert.days_remaining) === 0 ? 'ends today' : `ends in ${Number(alert.days_remaining)} day${Number(alert.days_remaining) === 1 ? '' : 's'}`;
+				const message = role === 'student'
+					? `Your ADM duration ${timeText}. Answer your assigned learning resources immediately before ${deadline}.`
+					: `The approved ADM duration ${timeText}. Please remind your students to complete their assigned learning resources before ${deadline}.`;
+				card.innerHTML = `<button class="itrack-adm-warning-close" type="button" aria-label="Dismiss warning">×</button><h2><span aria-hidden="true">⚠️</span> ADM Period Almost Done</h2><p>${escapePresenceText(message)}</p><span class="itrack-adm-warning-meta">Reason: ${escapePresenceText(alert.reason_for_adm || 'ADM request')} · To: ${escapePresenceText(deadline)}</span>`;
+				card.querySelector('button').addEventListener('click', () => card.remove());
+				stack.appendChild(card);
+			});
+			document.body.appendChild(stack);
+		} catch (_) {
+			// Deadline warnings must not interrupt access to the page.
+		}
+	}, 900);
+}
+
 // Initialize theme manager when DOM is ready
 if (document.readyState === 'loading') {
 	document.addEventListener('DOMContentLoaded', () => {
@@ -1111,6 +1158,7 @@ if (document.readyState === 'loading') {
 		initializeAdviserStudentPresence();
 		initializeLearningResourceFinalGrades();
 		initializeStudentProfileFinalGrades();
+		initializeAdmDeadlineWarnings();
 		window.themeManager = new ThemeManager();
 		document.documentElement.classList.remove('itrack-dashboard-boot');
 	});
@@ -1128,6 +1176,7 @@ if (document.readyState === 'loading') {
 	initializeAdviserStudentPresence();
 	initializeLearningResourceFinalGrades();
 	initializeStudentProfileFinalGrades();
+	initializeAdmDeadlineWarnings();
 	window.themeManager = new ThemeManager();
 	document.documentElement.classList.remove('itrack-dashboard-boot');
 }

@@ -482,7 +482,7 @@
 						? formatDateOnly(item.request_date || item.created_at)
 						: formatDateTime(item.created_at || item.request_date);
 					const detailMarkup = requestKind === "teacher"
-						? '<div class="result-meta"><div><strong>Focal:</strong> ' + escapeHtml(item.adm_focal || "N/A") + '</div></div>'
+						? '<div class="result-meta"><div><strong>Focal:</strong> ' + escapeHtml(item.adm_focal || "N/A") + '</div><div><strong>Reason:</strong> ' + escapeHtml(item.reason_for_adm || "Not provided") + '</div><div><strong>Duration:</strong> ' + escapeHtml(formatDateOnly(item.duration_from)) + ' to ' + escapeHtml(formatDateOnly(item.duration_to)) + '</div></div>'
 						: '<div class="result-meta"><div><strong>Name:</strong> ' + escapeHtml(item.learner_name || "N/A") + '</div></div>';
 					const documentLinks = requestKind === "teacher"
 						? '<div style="display:grid;gap:4px;">' +

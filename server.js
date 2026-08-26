@@ -2108,6 +2108,9 @@ app.get("/api/adm-requests", requireTeacher, async (req, res) => {
         "district",
         "school",
         "adm_focal",
+        "reason_for_adm",
+        "duration_from",
+        "duration_to",
         "requestor_name",
         "psds_endorsement_path",
         "secondary_document_path",
@@ -2127,6 +2130,56 @@ app.get("/api/adm-requests", requireTeacher, async (req, res) => {
   }
 });
 
+app.get("/api/adm-deadline-alerts", requireLogin, async (req, res) => {
+  try {
+    const user = await db("users").where({ id: req.session.userId }).first("id", "role", "lrn");
+    if (!user) return res.status(404).json({ message: "Account not found." });
+
+    const role = String(user.role || "").trim().toLowerCase();
+    let requestorIds = [];
+    if (role === "student") {
+      const learner = await db("learners")
+        .where({ learner_code: String(user.lrn || "").trim() })
+        .first("adviser_user_id");
+      if (learner && learner.adviser_user_id) requestorIds = [learner.adviser_user_id];
+    } else if (role === "teacher") {
+      requestorIds = [user.id];
+    }
+
+    let query = db("adm_requests")
+      .where({ status: "approved" })
+      .whereNotNull("duration_to")
+      .select("id", "reason_for_adm", "duration_from", "duration_to", "requestor_name", "school");
+    if (role === "student" || role === "teacher") {
+      if (!requestorIds.length) return res.json({ alerts: [] });
+      query = query.whereIn("requestor_user_id", requestorIds);
+    } else if (role !== "admin") {
+      return res.json({ alerts: [] });
+    }
+
+    const today = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "Asia/Manila",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(new Date());
+    const toUtcDay = (value) => {
+      const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      return match ? Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : NaN;
+    };
+    const todayUtc = toUtcDay(today);
+    const requests = await query.orderBy("duration_to", "asc");
+    const alerts = requests.map((item) => ({
+      ...item,
+      days_remaining: Math.round((toUtcDay(item.duration_to) - todayUtc) / 86400000)
+    })).filter((item) => Number.isFinite(item.days_remaining) && item.days_remaining >= 0 && item.days_remaining <= 7);
+
+    return res.json({ alerts, role, warning_window_days: 7 });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to check ADM duration warnings.", detail: error.message });
+  }
+});
+
 app.get("/api/adm-requests/:id/approval-pdf", requireTeacher, async (req, res) => {
   try {
     const requestId = String(req.params.id || "").trim();
@@ -2143,6 +2196,9 @@ app.get("/api/adm-requests/:id/approval-pdf", requireTeacher, async (req, res) =
         "district",
         "school",
         "adm_focal",
+        "reason_for_adm",
+        "duration_from",
+        "duration_to",
         "requestor_name",
         "reviewed_at"
       );
@@ -2194,6 +2250,10 @@ app.post(
     try {
       const requestDate = String((req.body || {}).requestDate || "").trim();
       const admFocal = String((req.body || {}).admFocal || "").trim();
+      const reasonForAdm = String((req.body || {}).reasonForAdm || "").trim();
+      const durationFrom = String((req.body || {}).durationFrom || "").trim();
+      const durationTo = String((req.body || {}).durationTo || "").trim();
+      const validDate = /^\d{4}-\d{2}-\d{2}$/;
 
       if (!requestDate) {
         deleteFileIfExists(uploadedPsdsFile && uploadedPsdsFile.path);
@@ -2205,6 +2265,30 @@ app.post(
         deleteFileIfExists(uploadedPsdsFile && uploadedPsdsFile.path);
         deleteFileIfExists(uploadedSecondaryFile && uploadedSecondaryFile.path);
         return res.status(400).json({ message: "ADM focal is required." });
+      }
+
+      if (!reasonForAdm) {
+        deleteFileIfExists(uploadedPsdsFile && uploadedPsdsFile.path);
+        deleteFileIfExists(uploadedSecondaryFile && uploadedSecondaryFile.path);
+        return res.status(400).json({ message: "Reason for ADM is required." });
+      }
+
+      if (reasonForAdm.length > 1200) {
+        deleteFileIfExists(uploadedPsdsFile && uploadedPsdsFile.path);
+        deleteFileIfExists(uploadedSecondaryFile && uploadedSecondaryFile.path);
+        return res.status(400).json({ message: "Reason for ADM must be 1,200 characters or fewer." });
+      }
+
+      if (!validDate.test(durationFrom) || !validDate.test(durationTo)) {
+        deleteFileIfExists(uploadedPsdsFile && uploadedPsdsFile.path);
+        deleteFileIfExists(uploadedSecondaryFile && uploadedSecondaryFile.path);
+        return res.status(400).json({ message: "Select valid From and To dates for the ADM duration period." });
+      }
+
+      if (durationTo < durationFrom) {
+        deleteFileIfExists(uploadedPsdsFile && uploadedPsdsFile.path);
+        deleteFileIfExists(uploadedSecondaryFile && uploadedSecondaryFile.path);
+        return res.status(400).json({ message: "The To date cannot be earlier than the From date." });
       }
 
       if (!uploadedPsdsFile || !uploadedSecondaryFile) {
@@ -2235,6 +2319,9 @@ app.post(
         district: String((user || {}).district || "N/A").trim() || "N/A",
         school: String((user || {}).school || "N/A").trim() || "N/A",
         adm_focal: admFocal,
+        reason_for_adm: reasonForAdm,
+        duration_from: durationFrom,
+        duration_to: durationTo,
         requestor_name: requestorName,
         psds_endorsement_path: path.posix.join("uploads", "approval-requests", path.basename(String(uploadedPsdsFile.filename || "").trim())),
         secondary_document_path: path.posix.join("uploads", "approval-requests", path.basename(String(uploadedSecondaryFile.filename || "").trim())),
@@ -2264,6 +2351,9 @@ app.get("/api/admin/adm-requests", requireAdmin, async (req, res) => {
         "ar.district",
         "ar.school",
         "ar.adm_focal",
+        "ar.reason_for_adm",
+        "ar.duration_from",
+        "ar.duration_to",
         "ar.requestor_name",
         "ar.psds_endorsement_path",
         "ar.secondary_document_path",
@@ -2310,6 +2400,9 @@ app.get("/api/admin/approval-dashboard-requests", requireAdmin, async (req, res)
           "ar.district",
           "ar.school",
           "ar.adm_focal",
+          "ar.reason_for_adm",
+          "ar.duration_from",
+          "ar.duration_to",
           "ar.requestor_name",
           "ar.psds_endorsement_path",
           "ar.secondary_document_path",
@@ -2498,6 +2591,9 @@ app.post("/api/admin/adm-requests/:id/status", requireAdmin, async (req, res) =>
         "ar.district",
         "ar.school",
         "ar.adm_focal",
+        "ar.reason_for_adm",
+        "ar.duration_from",
+        "ar.duration_to",
         "ar.requestor_name",
         "ar.requestor_user_id",
         "u.email as requestor_email"
