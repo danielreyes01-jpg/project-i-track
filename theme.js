@@ -265,7 +265,7 @@ function renderSidebarAccountProfile(user) {
 		card.innerHTML = '<div class="itrack-sidebar-avatar"><span></span></div><strong class="itrack-sidebar-account-name"></strong><small class="itrack-sidebar-account-role"></small><span class="itrack-sidebar-account-school"></span>';
 		compactBar.insertBefore(card, menuDock);
 	}
-	const name = [user.firstname, user.middlename, user.lastname].map((value) => String(value || '').trim()).filter(Boolean).join(' ') || user.school || 'Project i-Track User';
+	const name = [user.firstname, user.middlename, user.lastname, user.extension_name].map((value) => String(value || '').trim()).filter(Boolean).join(' ') || user.school || 'Project i-Track User';
 	const initials = [user.firstname, user.lastname].map((value) => String(value || '').trim().charAt(0)).filter(Boolean).join('').toUpperCase() || 'IT';
 	const role = String(user.role || '').trim().toLowerCase();
 	const roleLabel = role === 'teacher' ? 'School / Teacher Account' : role === 'admin' ? 'Administrator Account' : role === 'student' ? 'Student Account' : 'Authorized Account';
@@ -287,6 +287,10 @@ function renderSidebarAccountProfile(user) {
 	school.textContent = String(user.school || '').trim();
 	school.hidden = !school.textContent;
 }
+
+window.addEventListener('itrack:user-updated', (event) => {
+	if (event && event.detail) renderSidebarAccountProfile(event.detail);
+});
 
 function simplifyNavigation(navMenu) {
 	const currentPage = String(window.location.pathname || '').split('/').pop().toLowerCase() || 'dashboard.html';
