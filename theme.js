@@ -267,6 +267,25 @@ function createITrackPageTitlebar() {
 	document.body.appendChild(titlebar);
 }
 
+function initializeSchoolYearFields() {
+	const supportedPages = new Set([
+		'account', 'dashboard', 'admin-students', 'learner', 'adm-request', 'approval-request',
+		'approval', 'approved', 'learning-resources', 'reports', 'student-profile'
+	]);
+	if (!supportedPages.has(ITRACK_PAGE_KEY) || document.querySelector('.itrack-school-year-field')) return;
+	const schoolYearParts = new Intl.DateTimeFormat('en-US', { timeZone:'Asia/Manila', year:'numeric', month:'numeric' }).formatToParts(new Date());
+	const year = Number(schoolYearParts.find((part) => part.type === 'year').value);
+	const month = Number(schoolYearParts.find((part) => part.type === 'month').value);
+	const startYear = month >= 6 ? year : year - 1;
+	const field = document.createElement('section');
+	field.className = 'itrack-school-year-field';
+	field.setAttribute('aria-label', 'Current school year');
+	field.innerHTML = '<label for="itrackActiveSchoolYear">School Year</label><input id="itrackActiveSchoolYear" type="text" readonly aria-readonly="true"><small>Automatically changes every June 1.</small>';
+	field.querySelector('input').value = `${startYear}-${startYear + 1}`;
+	const main = document.querySelector('main.shell, main.page, main, .shell, .page');
+	if (main) main.prepend(field);
+}
+
 function dockNavigationInHeader(menuDock) {
 	const navMenu = document.querySelector('.nav-menu');
 	const navPanel = navMenu ? navMenu.closest('.nav-panel') : null;
@@ -1215,6 +1234,7 @@ if (document.readyState === 'loading') {
 		initializeITrackPageLoader();
 		createDepEdFixedHeader();
 		createITrackPageTitlebar();
+		initializeSchoolYearFields();
 		createITrackFooter();
 		initializeRequiredFields();
 		initializeAdministratorReportsNavigation();
@@ -1234,6 +1254,7 @@ if (document.readyState === 'loading') {
 	initializeITrackPageLoader();
 	createDepEdFixedHeader();
 	createITrackPageTitlebar();
+	initializeSchoolYearFields();
 	createITrackFooter();
 	initializeRequiredFields();
 	initializeAdministratorReportsNavigation();
