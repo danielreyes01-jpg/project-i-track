@@ -57,13 +57,18 @@
 		.brand {
 			display: flex;
 			justify-content: center;
-			margin-bottom: 14px;
+			align-items: center;
+			margin-bottom: 12px;
+			min-height: 0;
 		}
 
-		.brand-logo {
-			width: min(100%, 340px);
+		.account-shell .brand-logo {
+			width: 118px !important;
+			max-width: 118px !important;
+			max-height: 118px !important;
 			height: auto;
 			display: block;
+			object-fit: contain;
 		}
 
 		.title {
@@ -293,8 +298,10 @@
 			.account-profile { align-items:flex-start; }
 			.account-avatar { width:72px;height:72px;flex-basis:72px; }
 
-			.brand-logo {
-				width: min(100%, 230px);
+			.account-shell .brand-logo {
+				width: 92px !important;
+				max-width: 92px !important;
+				max-height: 92px !important;
 			}
 
 			.grid {
