@@ -20,7 +20,7 @@
 		h1,h2,p { margin-top:0; }
 		.account-picker h1 { font-size:1.2rem; margin-bottom:6px; }
 		.account-picker p { color:var(--muted); font-size:.88rem; margin-bottom:16px; }
-		.account-types { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+		.account-types { display:grid; grid-template-columns:1fr; gap:12px; }
 		.account-type { display:flex; align-items:center; gap:12px; min-height:72px; padding:12px; text-align:left; color:var(--ink); background:#fbfefd; border:1px solid var(--line); border-radius:14px; cursor:pointer; transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease; }
 		.account-type:hover, .account-type:focus-visible { transform:translateY(-2px); border-color:#55ad8d; background:#f2fbf7; box-shadow:0 10px 25px rgba(15,95,72,.12); outline:none; }
 		.type-icon { width:44px; height:44px; flex:0 0 44px; display:grid; place-items:center; border-radius:12px; background:#e2f1fb; color:#0875ae; font-size:1.25rem; }
@@ -63,10 +63,9 @@
 	<main class="account-shell">
 		<section id="accountPicker" class="account-picker" aria-labelledby="pickerTitle">
 			<h1 id="pickerTitle">Create an account</h1>
-			<p>Select the type of account you want to register.</p>
+			<p>Create an account for authorized school or district personnel.</p>
 			<div class="account-types">
 				<button class="account-type" type="button" data-type="school"><span class="type-icon" aria-hidden="true">▣</span><span class="type-copy"><strong>School Account</strong><small>For teachers and school staff</small></span></button>
-				<button class="account-type" type="button" data-type="student"><span class="type-icon" aria-hidden="true">♙</span><span class="type-copy"><strong>Student Account</strong><small>For registered learners</small></span></button>
 			</div>
 		</section>
 
@@ -108,8 +107,9 @@
 			picker.hidden=true;dialog.classList.add('is-open');clearMessage();setTimeout(()=>district.focus(),50);
 		}
 		function closeForm(){dialog.classList.remove('is-open');picker.hidden=false;form.reset();clearMessage();}
-		document.querySelectorAll('.account-type').forEach(btn=>btn.addEventListener('click',()=>openForm(btn.dataset.type)));document.getElementById('closeDialog').addEventListener('click',closeForm);document.getElementById('cancelDialog').addEventListener('click',closeForm);
-		const requestedType=pageParams.get('type');if(requestedType==='school'||requestedType==='student')openForm(requestedType);
+		function cancelAccount(){if(pageParams.get('embed')==='1'){parent.postMessage('itrack-account-cancelled','*');return;}window.location.href='index.html';}
+		document.querySelectorAll('.account-type').forEach(btn=>btn.addEventListener('click',()=>openForm(btn.dataset.type)));document.getElementById('closeDialog').addEventListener('click',closeForm);document.getElementById('cancelDialog').addEventListener('click',cancelAccount);
+		const requestedType=pageParams.get('type');if(requestedType==='school')openForm('school');
 		lrn.addEventListener('input',()=>{lrn.value=lrn.value.replace(/\D/g,'').slice(0,12);});
 		function showAssignedSchools(){const selected=district.value;if(typeInput.value==='school'&&position.value==='supervisor'){const office=selected?selected+' District Office':'District Office';school.innerHTML='';school.append(new Option(office,office,true,true));school.disabled=true;school.required=false;schoolId.value='DISTRICT-OFFICE';schoolId.disabled=true;schoolId.required=false;return;}school.innerHTML='<option value="">Select School</option>';const assigned=schoolsByDistrict[selected]||[];assigned.forEach(item=>{const option=new Option(String(item.name||'').trim(),String(item.name||'').trim());option.dataset.schoolId=String(item.id||'').trim();school.append(option);});school.disabled=!assigned.length;school.required=true;schoolId.disabled=typeInput.value==='student';schoolId.required=typeInput.value==='school';schoolId.value='';}
 		fetch('/api/reference/district-schools').then(r=>r.ok?r.json():Promise.reject()).then(data=>{schoolsByDistrict=data.schoolsByDistrict||{};(data.districts||Object.keys(schoolsByDistrict)).forEach(name=>district.append(new Option(name,name)));}).catch(()=>{});

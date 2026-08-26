@@ -739,7 +739,10 @@ function initializeCreateAccountPopover() {
 	const openAccountForm = (type) => { frame.src = 'create.html?embed=1&type=' + encodeURIComponent(type); overlay.classList.add('is-open'); };
 	overlay.querySelector('.itrack-account-frame-close').addEventListener('click', closeOverlay);
 	overlay.addEventListener('click', (event) => { if (event.target === overlay) closeOverlay(); });
-	window.addEventListener('message', (event) => { if (event.data === 'itrack-account-created') closeOverlay(); });
+	window.addEventListener('message', (event) => {
+		if (event.data === 'itrack-account-created') closeOverlay();
+		if (event.data === 'itrack-account-cancelled') window.location.href = 'index.html';
+	});
 	function positionPopover(trigger) {
 		const rect = trigger.getBoundingClientRect();
 		const halfWidth = Math.min(340, Math.max(140, (window.innerWidth - 24) / 2));
