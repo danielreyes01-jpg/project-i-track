@@ -182,6 +182,12 @@ async function ensureSchema() {
 		}
 	  }
 	}
+	if (!columns.profile_image_data) {
+	  await db.schema.alterTable("users", (table) => table.binary("profile_image_data").nullable());
+	}
+	if (!columns.profile_image_mime_type) {
+	  await db.schema.alterTable("users", (table) => table.string("profile_image_mime_type", 120).nullable());
+	}
 
   const sessionsExists = await db.schema.hasTable("sessions");
   if (!sessionsExists) {

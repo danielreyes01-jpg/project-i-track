@@ -213,7 +213,7 @@ function sanitizeUser(user) {
 	account_type: user.account_type || "school",
 	school_id: user.school_id || "",
 	position: user.position || "",
-	profile_image: user.profile_image || "",
+	profile_image: user.profile_image_data ? `/api/profile-images/${encodeURIComponent(user.id)}` : (user.profile_image || ""),
 	active_school_year: getActiveSchoolYear(),
 	extension_name: user.extension_name || "",
 	gender: user.gender || "",
@@ -3774,10 +3774,7 @@ app.get("/api/student/profile", requireLogin, async (req, res) => {
 });
 
 const profileImageUpload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, PROFILE_IMAGE_UPLOAD_DIR),
-    filename: (req, file, cb) => cb(null, `${Date.now()}-${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`)
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const accepted = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -3786,19 +3783,28 @@ const profileImageUpload = multer({
   }
 });
 
+app.get("/api/profile-images/:userId", requireLogin, async (req, res) => {
+  try {
+    const user = await db("users").where({ id: String(req.params.userId || "") }).first("profile_image_data", "profile_image_mime_type");
+    const image = user && getStoredFileBuffer(user.profile_image_data);
+    if (!image) return res.status(404).send("Profile picture not found.");
+    res.setHeader("Content-Type", String(user.profile_image_mime_type || "image/jpeg"));
+    res.setHeader("Cache-Control", "private, no-cache, must-revalidate");
+    return res.send(image);
+  } catch (error) {
+    return res.status(500).send("Unable to load profile picture.");
+  }
+});
+
 app.post("/api/account/profile-image", requireLogin, profileImageUpload.single("profileImage"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "Select a profile image to upload." });
     const user = await db("users").where({ id: req.session.userId }).first();
     if (!user) return res.status(404).json({ message: "Account not found." });
-    const previousPath = String(user.profile_image || "").replace(/^\//, "");
-    const previousAbsolutePath = previousPath ? path.resolve(__dirname, previousPath) : "";
-    const profileImage = `/uploads/profile-images/${req.file.filename}`;
-    await db("users").where({ id: user.id }).update({ profile_image: profileImage, updated_at: new Date().toISOString() });
-    if (previousAbsolutePath && previousAbsolutePath.startsWith(path.resolve(PROFILE_IMAGE_UPLOAD_DIR)) && previousAbsolutePath !== req.file.path) deleteFileIfExists(previousAbsolutePath);
+    const profileImage = `/api/profile-images/${encodeURIComponent(user.id)}`;
+    await db("users").where({ id: user.id }).update({ profile_image: profileImage, profile_image_data: req.file.buffer, profile_image_mime_type: req.file.mimetype, updated_at: new Date().toISOString() });
     return res.json({ message: "Profile picture updated successfully.", user: sanitizeUser(await db("users").where({ id: user.id }).first()) });
   } catch (error) {
-    if (req.file) deleteFileIfExists(req.file.path);
     return res.status(500).json({ message: "Failed to upload profile picture.", detail: error.message });
   }
 });
@@ -3823,8 +3829,8 @@ app.post("/api/student/profile-image", requireLogin, profileImageUpload.single("
     const user = await db("users").where({ id: req.session.userId }).first();
     if (!user || String(user.role || "").toLowerCase() !== "student") return res.status(403).json({ message: "Student account access only." });
     if (!req.file) return res.status(400).json({ message: "Select an image to upload." });
-    const profileImage = `/uploads/profile-images/${req.file.filename}`;
-    await db("users").where({ id: user.id }).update({ profile_image: profileImage, updated_at: new Date().toISOString() });
+    const profileImage = `/api/profile-images/${encodeURIComponent(user.id)}`;
+    await db("users").where({ id: user.id }).update({ profile_image: profileImage, profile_image_data: req.file.buffer, profile_image_mime_type: req.file.mimetype, updated_at: new Date().toISOString() });
     return res.json({ message: "Profile image updated.", profile_image: profileImage });
   } catch (error) {
     return res.status(500).json({ message: "Failed to upload profile image.", detail: error.message });
