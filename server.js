@@ -203,6 +203,7 @@ function sanitizeUser(user) {
 	lrn: user.lrn || "",
 	account_type: user.account_type || "school",
 	school_id: user.school_id || "",
+	position: user.position || "",
 	profile_image: user.profile_image || "",
 	extension_name: user.extension_name || "",
 	gender: user.gender || "",
@@ -797,10 +798,12 @@ app.post("/api/auth/register", limitRegistrationTraffic, async (req, res) => {
 	  accountType,
 	  username,
 	  lrn,
-	  schoolId
+	  schoolId,
+	  position
     } = req.body || {};
 
 	const normalizedAccountType = String(accountType || "school").trim().toLowerCase();
+	const normalizedPosition = String(position || (normalizedAccountType === "student" ? "student" : "teacher")).trim().toLowerCase();
 	if (!email || !password || !confirmPassword || !firstname || !lastname || !district || !school || !username) {
       return res.status(400).json({ message: "Missing required fields." });
     }
@@ -812,6 +815,9 @@ app.post("/api/auth/register", limitRegistrationTraffic, async (req, res) => {
 	}
 	if (normalizedAccountType === "school" && !String(schoolId || "").trim()) {
 	  return res.status(400).json({ message: "School ID is required." });
+	}
+	if (normalizedAccountType === "school" && !["teacher", "principal", "supervisor"].includes(normalizedPosition)) {
+	  return res.status(400).json({ message: "Select a valid position: Teacher, School Principal, or District Supervisor." });
 	}
 
     if (password !== confirmPassword) {
@@ -829,7 +835,7 @@ app.post("/api/auth/register", limitRegistrationTraffic, async (req, res) => {
       isSupervisor === true ||
       String(isSupervisor || "").trim().toLowerCase() === "yes" ||
       String(isSupervisor || "").trim().toLowerCase() === "true";
-    const requestedRole = requestedSupervisor ? "supervisor" : "teacher";
+    const requestedRole = normalizedPosition === "principal" ? "principal" : (normalizedPosition === "supervisor" || requestedSupervisor) ? "supervisor" : "teacher";
     const existing = await db("users").where({ email: normalizedEmail }).first();
 	const normalizedUsername = String(username || "").trim().toLowerCase();
 	const usernameOwner = await db("users").whereRaw("LOWER(username) = ?", [normalizedUsername]).first();
@@ -857,6 +863,7 @@ app.post("/api/auth/register", limitRegistrationTraffic, async (req, res) => {
 	  username: normalizedUsername,
 	  lrn: normalizedAccountType === "student" ? String(lrn).trim() : null,
 	  school_id: normalizedAccountType === "school" ? String(schoolId).trim() : null,
+	  position: normalizedAccountType === "student" ? "Student" : requestedRole === "principal" ? "School Principal" : requestedRole === "supervisor" ? "District Supervisor" : "Teacher",
 	  role: normalizedAccountType === "student" ? "student" : requestedRole,
       verified: true,
       approved: false,
@@ -1255,7 +1262,7 @@ app.post("/api/admin/preview-pending-users-from-excel", requireAdmin, async (req
 
 app.get("/api/admin/users", requireAdmin, async (req, res) => {
   const users = await db("users")
-    .select("id", "email", "firstname", "lastname", "middlename", "district", "school", "lrn", "account_type", "approved", "role", "created_at", "updated_at")
+    .select("id", "email", "firstname", "lastname", "middlename", "district", "school", "lrn", "account_type", "position", "approved", "role", "created_at", "updated_at")
     .orderBy("created_at", "asc");
 
   return res.json({ users });

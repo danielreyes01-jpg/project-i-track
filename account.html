@@ -372,6 +372,7 @@
 
 					const fields = [
 						["Role", account.role || "teacher"],
+						["Position", account.position || (role === "principal" ? "School Principal" : role === "supervisor" ? "District Supervisor" : "Teacher")],
 						["Email", account.email],
 						["First Name", account.firstname],
 						["Middle Name", account.middlename || "N/A"],

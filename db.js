@@ -66,6 +66,7 @@ async function ensureSchema() {
 	  table.string("username", 120).nullable();
 	  table.string("lrn", 12).nullable();
 	  table.string("school_id", 30).nullable();
+      table.string("position", 80).nullable();
       table.string("role", 20).notNullable().defaultTo("teacher");
       table.boolean("verified").notNullable().defaultTo(false);
       table.boolean("approved").notNullable().defaultTo(false);
@@ -136,6 +137,9 @@ async function ensureSchema() {
 	}
 	if (!columns.school_id) {
 	  await db.schema.alterTable("users", (table) => table.string("school_id", 30).nullable());
+	}
+	if (!columns.position) {
+	  await db.schema.alterTable("users", (table) => table.string("position", 80).nullable());
 	}
 	if (!columns.active_session_id) {
 	  await db.schema.alterTable("users", (table) => table.string("active_session_id", 128).nullable());
