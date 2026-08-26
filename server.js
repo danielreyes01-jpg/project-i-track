@@ -1707,6 +1707,45 @@ app.get("/api/admin/export/graph-report", requireSupervisorOrAdmin, async (req, 
   }
 });
 
+app.get("/api/admin/adm-reports", requireAdmin, async (req, res) => {
+  try {
+    const [groupedRows, totalRow, districtRow, schoolRow] = await Promise.all([
+      db("learners")
+        .select("district", "modality")
+        .count({ learner_count: "id" })
+        .groupBy("district", "modality")
+        .orderBy("district", "asc")
+        .orderBy("modality", "asc"),
+      db("learners").count({ total: "id" }).first(),
+      db("learners").countDistinct({ total: "district" }).first(),
+      db("learners").countDistinct({ total: "school" }).first()
+    ]);
+
+    const breakdown = groupedRows.map((row) => ({
+      district: String(row.district || "Not specified").trim() || "Not specified",
+      flexible_learning_option: String(row.modality || "Not specified").trim() || "Not specified",
+      student_count: Number(row.learner_count || 0)
+    }));
+    const programs = Array.from(new Set(breakdown.map((row) => row.flexible_learning_option))).sort((a, b) => a.localeCompare(b));
+    const districtTotals = new Map();
+    breakdown.forEach((row) => districtTotals.set(row.district, (districtTotals.get(row.district) || 0) + row.student_count));
+    const districts = Array.from(districtTotals, ([district, student_count]) => ({ district, student_count }))
+      .sort((a, b) => b.student_count - a.student_count || a.district.localeCompare(b.district));
+
+    return res.json({
+      generated_at: new Date().toISOString(),
+      total_adm_students: Number((totalRow && totalRow.total) || 0),
+      total_districts: Number((districtRow && districtRow.total) || 0),
+      total_schools: Number((schoolRow && schoolRow.total) || 0),
+      programs,
+      districts,
+      breakdown
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to prepare ADM reports.", detail: error.message });
+  }
+});
+
 app.post("/api/admin/export/custom-report", requireSupervisorOrAdmin, async (req, res) => {
   try {
     const title = String((req.body || {}).title || "Project i-Track Report").trim().slice(0, 120);

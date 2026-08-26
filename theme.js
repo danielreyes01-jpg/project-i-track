@@ -189,7 +189,7 @@ function createFallbackAdministratorNavigation(pathname) {
 	[
 		['Learner Record', 'learner.html'], ['Dashboard', 'dashboard.html'], ['FLP Request Form', 'adm-request.html'],
 		['ADM Approval', 'approval-request.html'], ['Student Dashboard', 'admin-students.html'], ['Student Profile', 'student-profile.html'], ['Learning Resources', 'learning-resources.html'],
-		['User Management', 'user.html'], ['Sign Out', 'signout.html']
+		['Reports', 'reports.html'], ['User Management', 'user.html'], ['Sign Out', 'signout.html']
 	].forEach(([label, target]) => {
 		const item = document.createElement('button');
 		item.type = 'button';
@@ -200,6 +200,31 @@ function createFallbackAdministratorNavigation(pathname) {
 	});
 	panel.appendChild(menu);
 	document.body.insertBefore(panel, document.body.firstChild);
+}
+
+function initializeAdministratorReportsNavigation() {
+	window.setTimeout(async () => {
+		try {
+			const response = await fetch('/api/auth/me', { credentials: 'include' });
+			if (!response.ok) return;
+			const payload = await response.json();
+			if (String(payload && payload.user && payload.user.role || '').toLowerCase() !== 'admin') return;
+			document.querySelectorAll('.nav-menu').forEach((menu) => {
+				if (menu.querySelector('[data-itrack-reports-nav], [onclick*="reports.html"]')) return;
+				const button = document.createElement('button');
+				button.type = 'button';
+				button.className = 'nav-item' + (/\/reports\.html$/i.test(location.pathname) ? ' nav-current' : '');
+				button.dataset.itrackReportsNav = 'true';
+				button.textContent = '📊 Reports';
+				button.addEventListener('click', () => { window.location.href = 'reports.html'; });
+				const items = Array.from(menu.querySelectorAll('.nav-item'));
+				const userManagement = items.find((item) => /user management/i.test(item.textContent || ''));
+				const signOut = items.find((item) => /sign out/i.test(item.textContent || ''));
+				const anchor = (userManagement && userManagement.closest('.nav-dropdown')) || userManagement || signOut;
+				if (anchor) anchor.insertAdjacentElement('beforebegin', button); else menu.appendChild(button);
+			});
+		} catch (_) {}
+	}, 120);
 }
 
 function createITrackFooter() {
@@ -1150,6 +1175,7 @@ if (document.readyState === 'loading') {
 		createITrackPageTitlebar();
 		createITrackFooter();
 		initializeRequiredFields();
+		initializeAdministratorReportsNavigation();
 		initializeCreateAccountPopover();
 		initializeModularLearningTracker();
 		initializeStudentModularTracker();
@@ -1168,6 +1194,7 @@ if (document.readyState === 'loading') {
 	createITrackPageTitlebar();
 	createITrackFooter();
 	initializeRequiredFields();
+	initializeAdministratorReportsNavigation();
 	initializeCreateAccountPopover();
 	initializeModularLearningTracker();
 	initializeStudentModularTracker();
