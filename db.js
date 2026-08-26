@@ -339,24 +339,6 @@ async function ensureSchema() {
     });
   }
 
-  if (!(await db.schema.hasTable("learning_resource_files"))) {
-    await db.schema.createTable("learning_resource_files", (table) => {
-      table.string("id", 64).primary();
-      table.string("resource_id", 64).notNullable();
-      table.string("file_kind", 20).notNullable();
-      // MySQL's default BLOB is limited to 64 KB, while learning-resource
-      // uploads can be as large as 25 MB. Use a large binary type there and
-      // the native binary types for PostgreSQL/SQLite.
-      table.specificType(
-        "file_data",
-        DB_CLIENT === "mysql2" ? "LONGBLOB" : DB_CLIENT === "pg" ? "BYTEA" : "BLOB"
-      ).notNullable();
-      table.string("created_at", 40).notNullable();
-      table.unique(["resource_id", "file_kind"], "uq_learning_resource_file_kind");
-      table.index(["resource_id"], "idx_learning_resource_file_resource");
-    });
-  }
-
   const approvalRequestsExists = await db.schema.hasTable("approval_requests");
   if (!approvalRequestsExists) {
     await db.schema.createTable("approval_requests", (table) => {

@@ -2841,19 +2841,6 @@ function buildAnswerTrackingFilename(row, learner) {
   return `${learnerCode}_T${Number(row.term || 1)}_${type}-${Number(row.module_number || 1)}_Completed-${completedStamp}_Elapsed-${elapsed}${originalExtension.toLowerCase()}`;
 }
 
-async function getPersistentLearningResourceFile(resourceId, fileKind) {
-  const stored = await db("learning_resource_files")
-    .where({ resource_id: String(resourceId), file_kind: String(fileKind) })
-    .first("file_data");
-  if (!stored || stored.file_data == null) return null;
-  return Buffer.isBuffer(stored.file_data) ? stored.file_data : Buffer.from(stored.file_data);
-}
-
-function sendLegacyMissingUploadNotice(res, fileLabel) {
-  res.status(410).type("html");
-  return res.send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>File needs to be uploaded again</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:#eef5f6;color:#123047;font:16px Manrope,Arial,sans-serif}.card{width:min(520px,100%);padding:28px;border:1px solid #d5e4e6;border-radius:18px;background:#fff;box-shadow:0 18px 45px rgba(18,48,71,.12);text-align:center}.icon{display:grid;place-items:center;width:58px;height:58px;margin:0 auto 14px;border-radius:50%;background:#fff1cf;font-size:26px}h1{margin:0 0 9px;font-size:1.35rem}p{margin:0;color:#607681;line-height:1.55}.note{margin-top:15px;padding:11px;border-radius:10px;background:#f4f8f8;color:#365766;font-size:.84rem}</style></head><body><main class="card"><div class="icon">↥</div><h1>${String(fileLabel)} needs to be uploaded again</h1><p>This file was uploaded before Project i-Track enabled persistent file storage. Its record remains, but the temporary file was removed by an earlier deployment restart.</p><div class="note">Please upload this file one more time. New Resource and Answer uploads are now stored persistently and will remain available after deployments.</div></main></body></html>`);
-}
-
 function serializeLearningResource(row, learner, student) {
   const elapsedSeconds = getLearningResourceElapsedSeconds(row.started_at, row.submitted_at || (row.status === "ongoing" ? new Date().toISOString() : null));
   return {
@@ -3019,11 +3006,7 @@ app.post("/api/learning-resources", requireTeacher, learningResourceUpload.singl
       file_size: Number(req.file.size || 0),
       created_at: new Date().toISOString()
     };
-    await db.transaction(async (trx) => {
-      await trx("learning_resources").insert(row);
-      const fileData = fs.readFileSync(req.file.path);
-      await trx("learning_resource_files").insert({ id: crypto.randomUUID(), resource_id: id, file_kind: "resource", file_data: fileData, created_at: new Date().toISOString() });
-    });
+    await db("learning_resources").insert(row);
     return res.status(201).json({ message: `${resourceType} assigned to ${learner.firstname} ${learner.family_name}.`, resource: serializeLearningResource(row, learner) });
   } catch (error) {
     if (req.file) deleteFileIfExists(req.file.path);
@@ -3063,21 +3046,14 @@ app.post("/api/learning-resources/:id/submit", requireLogin, learningResourceUpl
       if (previous.startsWith(path.resolve(LEARNING_RESOURCE_UPLOAD_DIR))) deleteFileIfExists(previous);
     }
     const submittedAt = new Date().toISOString();
-    await db.transaction(async (trx) => {
-      await trx("learning_resources").where({ id: resource.id }).update({
-        status: "done",
-        started_at: resource.started_at || submittedAt,
-        answer_original_name: path.basename(String(req.file.originalname || "student-answer")),
-        answer_stored_path: path.relative(__dirname, req.file.path).replace(/\\/g, "/"),
-        answer_mime_type: String(req.file.mimetype || "application/octet-stream"),
-        answer_file_size: Number(req.file.size || 0),
-        submitted_at: submittedAt
-      });
-      const fileData = fs.readFileSync(req.file.path);
-      await trx("learning_resource_files")
-        .insert({ id: crypto.randomUUID(), resource_id: resource.id, file_kind: "answer", file_data: fileData, created_at: submittedAt })
-        .onConflict(["resource_id", "file_kind"])
-        .merge({ file_data: fileData, created_at: submittedAt });
+    await db("learning_resources").where({ id: resource.id }).update({
+      status: "done",
+      started_at: resource.started_at || submittedAt,
+      answer_original_name: path.basename(String(req.file.originalname || "student-answer")),
+      answer_stored_path: path.relative(__dirname, req.file.path).replace(/\\/g, "/"),
+      answer_mime_type: String(req.file.mimetype || "application/octet-stream"),
+      answer_file_size: Number(req.file.size || 0),
+      submitted_at: submittedAt
     });
     return res.json({ message: "Answer uploaded successfully. Your teacher adviser has been notified that you are done.", status: "done", submitted_at: submittedAt });
   } catch (error) {
@@ -3094,15 +3070,13 @@ app.get("/api/learning-resources/:id/answer-file", requireLogin, async (req, res
     const allowed = resource && (role === "admin" || (role === "teacher" && resource.teacher_user_id === user.id) || (role === "student" && resource.student_user_id === user.id));
     if (!allowed) return res.status(403).json({ message: "You do not have access to this submitted answer." });
     const absolutePath = path.resolve(__dirname, String(resource.answer_stored_path || ""));
-    const hasLocalFile = Boolean(resource.answer_stored_path && absolutePath.startsWith(path.resolve(LEARNING_RESOURCE_UPLOAD_DIR)) && fs.existsSync(absolutePath));
-    const persistentFile = hasLocalFile ? null : await getPersistentLearningResourceFile(resource.id, "answer");
-    if (!hasLocalFile && !persistentFile) return sendLegacyMissingUploadNotice(res, "Submitted answer");
+    if (!resource.answer_stored_path || !absolutePath.startsWith(path.resolve(LEARNING_RESOURCE_UPLOAD_DIR)) || !fs.existsSync(absolutePath)) return res.status(404).json({ message: "Submitted answer file not found." });
     const learner = await db("learners").where({ id: resource.learner_id }).first("learner_code");
     const trackingFilename = buildAnswerTrackingFilename(resource, learner);
-    if (hasLocalFile && String(req.query.mode || "preview") === "download") return res.download(absolutePath, trackingFilename);
+    if (String(req.query.mode || "preview") === "download") return res.download(absolutePath, trackingFilename);
     res.type(resource.answer_mime_type || "application/octet-stream");
-    res.setHeader("Content-Disposition", `${String(req.query.mode || "preview") === "download" ? "attachment" : "inline"}; filename="${trackingFilename.replace(/["\r\n]/g, "")}"`);
-    return hasLocalFile ? res.sendFile(absolutePath) : res.send(persistentFile);
+    res.setHeader("Content-Disposition", `inline; filename="${trackingFilename.replace(/["\r\n]/g, "")}"`);
+    return res.sendFile(absolutePath);
   } catch (error) {
     return res.status(500).json({ message: "Unable to open the submitted answer.", detail: error.message });
   }
@@ -3118,13 +3092,11 @@ app.get("/api/learning-resources/:id/file", requireLogin, async (req, res) => {
     if (!allowed) return res.status(403).json({ message: "You do not have access to this learning resource." });
     const absolutePath = path.resolve(__dirname, String(resource.stored_path || ""));
     const resourceRoot = path.resolve(LEARNING_RESOURCE_UPLOAD_DIR);
-    const hasLocalFile = Boolean(resource.stored_path && absolutePath.startsWith(resourceRoot) && fs.existsSync(absolutePath));
-    const persistentFile = hasLocalFile ? null : await getPersistentLearningResourceFile(resource.id, "resource");
-    if (!hasLocalFile && !persistentFile) return sendLegacyMissingUploadNotice(res, "Learning resource");
-    if (hasLocalFile && String(req.query.mode || "preview") === "download") return res.download(absolutePath, resource.original_name);
+    if (!absolutePath.startsWith(resourceRoot) || !fs.existsSync(absolutePath)) return res.status(404).json({ message: "The uploaded file is unavailable." });
+    if (String(req.query.mode || "preview") === "download") return res.download(absolutePath, resource.original_name);
     res.type(resource.mime_type || "application/octet-stream");
-    res.setHeader("Content-Disposition", `${String(req.query.mode || "preview") === "download" ? "attachment" : "inline"}; filename="${String(resource.original_name || "resource").replace(/["\r\n]/g, "")}"`);
-    return hasLocalFile ? res.sendFile(absolutePath) : res.send(persistentFile);
+    res.setHeader("Content-Disposition", `inline; filename="${String(resource.original_name || "resource").replace(/["\r\n]/g, "")}"`);
+    return res.sendFile(absolutePath);
   } catch (error) {
     return res.status(500).json({ message: "Unable to open the learning resource.", detail: error.message });
   }
@@ -3136,7 +3108,6 @@ app.delete("/api/learning-resources/:id", requireTeacher, async (req, res) => {
     if (String(req.session.role || "").toLowerCase() !== "admin") query = query.andWhere({ teacher_user_id: req.session.userId });
     const resource = await query.first();
     if (!resource) return res.status(404).json({ message: "Learning resource not found." });
-    await db("learning_resource_files").where({ resource_id: resource.id }).del();
     await db("learning_resources").where({ id: resource.id }).del();
     const absolutePath = path.resolve(__dirname, String(resource.stored_path || ""));
     if (absolutePath.startsWith(path.resolve(LEARNING_RESOURCE_UPLOAD_DIR))) deleteFileIfExists(absolutePath);
