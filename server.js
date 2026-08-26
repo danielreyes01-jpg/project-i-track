@@ -3550,7 +3550,14 @@ app.get("/api/admin/student-monitoring", requireTeacherOrPrincipal, async (req, 
       return { id: student.id, name: [student.firstname, student.middlename, student.lastname].filter(Boolean).join(" "), lrn: student.lrn || "", district: student.district || "", school: student.school || "", gradeLevel: learner.grade || "", answeredModules: module.done, ongoingModules: module.ongoing, totalModules: module.total, progressPercent: module.total ? Math.round((module.done / module.total) * 100) : 0, progressTarget, onTrack, learningStatus, averageGrade, urgent: !onTrack && reasons.length > 0, alertReasons: reasons, studentEmail: student.email || "", studentContact: student.guardian_contact || "", presence: getStudentPresence(student), teacher: teacher ? { name: [teacher.firstname, teacher.lastname].filter(Boolean).join(" "), email: teacher.email || "", role: teacher.role } : null };
     });
     const districtSummary = Array.from(records.reduce((map, record) => { const item = map.get(record.district) || { district: record.district || "Unassigned", students: 0, urgent: 0 }; item.students += 1; if (record.urgent) item.urgent += 1; map.set(record.district, item); return map; }, new Map()).values());
-    return res.json({ records, districtSummary, totals: { students: records.length, online: records.filter((record) => record.presence.online).length, urgent: records.filter((record) => record.urgent).length, noModules: records.filter((record) => record.answeredModules === 0 && record.ongoingModules === 0).length, failing: records.filter((record) => record.averageGrade !== null && record.averageGrade < 75).length } });
+    const viewerRole = String(req.session.role || "").toLowerCase();
+    return res.json({
+      records,
+      districtSummary,
+      scope: viewerRole === "principal" ? "school" : viewerRole === "teacher" ? "adviser" : "division",
+      scope_label: viewerRole === "principal" ? String(req.schoolStaffUser.school || "Assigned School") : viewerRole === "teacher" ? "Advisory Students" : "All Districts",
+      totals: { students: records.length, online: records.filter((record) => record.presence.online).length, urgent: records.filter((record) => record.urgent).length, noModules: records.filter((record) => record.answeredModules === 0 && record.ongoingModules === 0).length, failing: records.filter((record) => record.averageGrade !== null && record.averageGrade < 75).length }
+    });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load student monitoring dashboard.", detail: error.message });
   }
