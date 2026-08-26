@@ -412,7 +412,7 @@
 				accountProfileName.textContent = fullName;
 				accountAvatar.replaceChildren();
 				if (account.profile_image) {
-					const image = document.createElement("img"); image.src = account.profile_image; image.alt = fullName + " profile picture"; accountAvatar.appendChild(image);
+					const image = document.createElement("img"); image.src = account.profile_image; image.alt = fullName + " profile picture"; image.addEventListener("error", function () { accountAvatar.replaceChildren(); accountAvatar.textContent = initials; }, { once:true }); accountAvatar.appendChild(image);
 				} else { accountAvatar.textContent = initials; }
 			}
 
