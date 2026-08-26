@@ -393,6 +393,7 @@ function simplifyNavigation(navMenu) {
 				const teacherItems = [
 					['Learner Record', 'learner.html'],
 					['FLP Request Form', 'adm-request.html'],
+					['Student Dashboard', 'admin-students.html'],
 					['My Account', 'account.html'],
 					['Learning Resources', 'learning-resources.html']
 				];

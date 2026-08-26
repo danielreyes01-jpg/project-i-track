@@ -3296,9 +3296,18 @@ app.post("/api/student/reset-password", requireLogin, async (req, res) => {
   }
 });
 
-app.get("/api/admin/student-monitoring", requireAdmin, async (req, res) => {
+app.get("/api/admin/student-monitoring", requireTeacher, async (req, res) => {
   try {
-    const students = await db("users").where({ role: "student", approved: true }).select("*").orderBy(["district", "school", "lastname", "firstname"]);
+    let students = await db("users").where({ role: "student", approved: true }).select("*").orderBy(["district", "school", "lastname", "firstname"]);
+    if (String(req.session.role || "").toLowerCase() === "teacher") {
+      const [adviserLearners, teacherResources] = await Promise.all([
+        db("learners").where({ adviser_user_id: req.session.userId }).select("learner_code"),
+        db("learning_resources").where({ teacher_user_id: req.session.userId }).select("student_user_id")
+      ]);
+      const adviserLrns = new Set(adviserLearners.map((learner) => String(learner.learner_code || "").trim()).filter(Boolean));
+      const resourceStudentIds = new Set(teacherResources.map((resource) => String(resource.student_user_id || "")).filter(Boolean));
+      students = students.filter((student) => adviserLrns.has(String(student.lrn || "").trim()) || resourceStudentIds.has(String(student.id)));
+    }
     const studentIds = students.map((student) => student.id);
     const lrns = students.map((student) => String(student.lrn || "").trim()).filter(Boolean);
     const progressRows = studentIds.length ? await db("student_module_progress").whereIn("student_user_id", studentIds).select("student_user_id", "status") : [];
@@ -3345,12 +3354,23 @@ app.get("/api/admin/student-monitoring", requireAdmin, async (req, res) => {
   }
 });
 
-app.get("/api/admin/modular-tracking-summary", requireAdmin, async (req, res) => {
+app.get("/api/admin/modular-tracking-summary", requireTeacher, async (req, res) => {
   try {
-    const [students, resources] = await Promise.all([
+    let [students, resources] = await Promise.all([
       db("users").where({ role: "student", approved: true }).select("id", "firstname", "middlename", "lastname", "lrn", "district", "school", "last_seen_at"),
       db("learning_resources").select("id", "student_user_id", "term", "module_number", "title", "status", "created_at", "started_at", "submitted_at").orderBy("created_at", "desc")
     ]);
+    if (String(req.session.role || "").toLowerCase() === "teacher") {
+      const [adviserLearners, teacherResources] = await Promise.all([
+        db("learners").where({ adviser_user_id: req.session.userId }).select("learner_code"),
+        db("learning_resources").where({ teacher_user_id: req.session.userId }).select("id", "student_user_id", "term", "module_number", "title", "status", "created_at", "started_at", "submitted_at").orderBy("created_at", "desc")
+      ]);
+      const adviserLrns = new Set(adviserLearners.map((learner) => String(learner.learner_code || "").trim()).filter(Boolean));
+      const resourceStudentIds = new Set(teacherResources.map((resource) => String(resource.student_user_id || "")).filter(Boolean));
+      students = students.filter((student) => adviserLrns.has(String(student.lrn || "").trim()) || resourceStudentIds.has(String(student.id)));
+      const allowedStudentIds = new Set(students.map((student) => String(student.id)));
+      resources = teacherResources.filter((resource) => allowedStudentIds.has(String(resource.student_user_id)));
+    }
     const studentById = new Map(students.map((student) => [String(student.id), student]));
     const summarize = (term) => {
       const scoped = term ? resources.filter((resource) => Number(resource.term || 1) === term) : resources;
