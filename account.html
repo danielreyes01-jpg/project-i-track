@@ -365,10 +365,6 @@
 					const payload = await response.json();
 					const account = payload.user;
 					const role = String((account || {}).role || "teacher").toLowerCase();
-					if (role === "teacher") {
-						window.location.href = "learner.html";
-						return;
-					}
 
 					const fields = [
 						["Role", account.role || "teacher"],
