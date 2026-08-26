@@ -896,6 +896,14 @@ function injectStudentPresenceStyles() {
 	document.head.appendChild(style);
 }
 
+function injectFinalGradeStyles() {
+	if (document.getElementById('itrack-final-grade-styles')) return;
+	const style = document.createElement('style');
+	style.id = 'itrack-final-grade-styles';
+	style.textContent = '.itrack-final-grade{width:100%;margin-top:12px;padding:12px;border:1px solid #d5e5e1;border-radius:12px;background:linear-gradient(145deg,#fff9e8,#f7fbfa)}.itrack-final-grade-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.itrack-final-grade-label{color:#5a6f77;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.itrack-final-grade-value{color:#123047;font-size:1.25rem;font-weight:800}.itrack-grade-form{display:flex;align-items:center;gap:8px;margin-top:9px}.itrack-grade-form input{width:82px;min-height:36px;padding:7px 9px;border:1px solid #b9d2cd;border-radius:9px;background:#fff;color:#123047;font:700 .78rem Manrope,Arial,sans-serif}.itrack-grade-form button{min-height:36px;padding:7px 11px;border:0;border-radius:9px;background:#167a70;color:#fff;font:800 .7rem Manrope,Arial,sans-serif;cursor:pointer}.itrack-grade-form button:disabled{opacity:.6}.itrack-grade-note{display:block;margin-top:5px;color:#71817c;font-size:.62rem}.itrack-grade-pending{color:#8a6500;font-size:.72rem;font-weight:700}';
+	document.head.appendChild(style);
+}
+
 function formatPresenceLastSeen(value) {
 	if (!value) return 'Not seen recently';
 	const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000));
@@ -987,6 +995,100 @@ function initializeAdviserStudentPresence() {
 	window.setInterval(refresh, 30000);
 }
 
+function initializeLearningResourceFinalGrades() {
+	if (!/learning-resources\.html$/i.test(location.pathname)) return;
+	injectFinalGradeStyles();
+	let role = '';
+	const decorate = async () => {
+		try {
+			const response = await fetch('/api/learning-resources', { credentials: 'include' });
+			if (!response.ok) return;
+			const data = await response.json();
+			role = String(data.role || '').toLowerCase();
+			const active = document.querySelector('.term-tab.active');
+			const term = Number(active && active.dataset.term || 1);
+			const resources = (data.resources || []).filter((resource) => Number(resource.term || 1) === term);
+			document.querySelectorAll('#resourceGrid .resource-card').forEach((card, index) => {
+				const resource = resources[index];
+				if (!resource || String(resource.status || '') !== 'done') return;
+				const gradeKey = resource.final_grade == null ? 'pending' : String(resource.final_grade);
+				const existingPanel = card.querySelector('.itrack-final-grade');
+				if (existingPanel && existingPanel.dataset.gradeValue === gradeKey) return;
+				existingPanel?.remove();
+				const panel = document.createElement('div');
+				panel.className = 'itrack-final-grade';
+				panel.dataset.resourceGradeId = resource.id;
+				panel.dataset.gradeValue = gradeKey;
+				const hasGrade = resource.final_grade != null;
+				if (role === 'teacher' || role === 'admin') {
+					panel.innerHTML = `<div class="itrack-final-grade-head"><span class="itrack-final-grade-label">Final Grade</span><strong class="itrack-final-grade-value">${hasGrade ? Number(resource.final_grade) : 'Pending'}</strong></div><form class="itrack-grade-form" data-final-grade-form="${escapePresenceText(resource.id)}"><input name="final_grade" type="number" min="60" max="100" step="1" value="${hasGrade ? Number(resource.final_grade) : ''}" placeholder="60–100" aria-label="Final grade" required><button type="submit">${hasGrade ? 'Update' : 'Save Grade'}</button></form><small class="itrack-grade-note">Available after the student submits the completed answer.</small>`;
+				} else {
+					panel.innerHTML = hasGrade ? `<div class="itrack-final-grade-head"><span class="itrack-final-grade-label">Final Grade</span><strong class="itrack-final-grade-value">${Number(resource.final_grade)}</strong></div><small class="itrack-grade-note">Graded by your teacher/adviser${resource.graded_at ? ' · ' + formatPresenceLastSeen(resource.graded_at) : ''}</small>` : '<span class="itrack-grade-pending">Final grade pending teacher assessment</span>';
+				}
+				const actions = card.querySelector('.card-actions');
+				if (actions) actions.insertAdjacentElement('beforebegin', panel); else card.appendChild(panel);
+			});
+		} catch (_) {}
+	};
+	document.addEventListener('submit', async (event) => {
+		const form = event.target.closest('[data-final-grade-form]');
+		if (!form) return;
+		event.preventDefault();
+		const button = form.querySelector('button');
+		const grade = Number(new FormData(form).get('final_grade'));
+		button.disabled = true;
+		button.textContent = 'Saving…';
+		try {
+			const response = await fetch(`/api/learning-resources/${encodeURIComponent(form.dataset.finalGradeForm)}/final-grade`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ final_grade: grade }) });
+			const data = await response.json().catch(() => ({}));
+			if (!response.ok) throw new Error(data.message || 'Unable to save final grade.');
+			const value = form.closest('.itrack-final-grade').querySelector('.itrack-final-grade-value');
+			value.textContent = String(data.final_grade);
+			button.textContent = 'Update';
+		} catch (error) {
+			window.alert(error.message);
+			button.textContent = 'Save Grade';
+		} finally {
+			button.disabled = false;
+		}
+	});
+	window.setTimeout(decorate, 700);
+	window.setInterval(decorate, 15000);
+	document.querySelectorAll('.term-tab').forEach((button) => button.addEventListener('click', () => window.setTimeout(decorate, 80)));
+}
+
+function initializeStudentProfileFinalGrades() {
+	if (!/student-profile\.html$/i.test(location.pathname)) return;
+	injectFinalGradeStyles();
+	window.setTimeout(async () => {
+		try {
+			const response = await fetch('/api/student/profile', { credentials: 'include' });
+			if (!response.ok) return;
+			const data = await response.json();
+			const table = document.querySelector('#performance .module-table');
+			if (!table) return;
+			if (!table.querySelector('[data-final-grade-heading]')) {
+				const heading = document.createElement('th');
+				heading.dataset.finalGradeHeading = 'true';
+				heading.textContent = 'Final Grade';
+				table.querySelector('thead tr').appendChild(heading);
+			}
+			const modules = data.modules || [];
+			const applyGrades = (attempt = 0) => {
+				const rows = document.querySelectorAll('#moduleBody tr');
+				if (!rows.length && modules.length && attempt < 10) { window.setTimeout(() => applyGrades(attempt + 1), 300); return; }
+				rows.forEach((row, index) => {
+				let cell = row.querySelector('[data-final-grade-cell]');
+				if (!cell) { cell = document.createElement('td'); cell.dataset.finalGradeCell = 'true'; row.appendChild(cell); }
+				const grade = modules[index] && modules[index].final_grade;
+				cell.innerHTML = grade == null ? '<span class="itrack-grade-pending">Pending</span>' : `<strong class="itrack-final-grade-value">${Number(grade)}</strong>`;
+				});
+			};
+			applyGrades();
+		} catch (_) {}
+	}, 700);
+}
+
 // Initialize theme manager when DOM is ready
 if (document.readyState === 'loading') {
 	document.addEventListener('DOMContentLoaded', () => {
@@ -1001,6 +1103,8 @@ if (document.readyState === 'loading') {
 		initializeStudentPresenceHeartbeat();
 		initializeAdministratorStudentPresence();
 		initializeAdviserStudentPresence();
+		initializeLearningResourceFinalGrades();
+		initializeStudentProfileFinalGrades();
 		window.themeManager = new ThemeManager();
 		document.documentElement.classList.remove('itrack-dashboard-boot');
 	});
@@ -1016,6 +1120,8 @@ if (document.readyState === 'loading') {
 	initializeStudentPresenceHeartbeat();
 	initializeAdministratorStudentPresence();
 	initializeAdviserStudentPresence();
+	initializeLearningResourceFinalGrades();
+	initializeStudentProfileFinalGrades();
 	window.themeManager = new ThemeManager();
 	document.documentElement.classList.remove('itrack-dashboard-boot');
 }

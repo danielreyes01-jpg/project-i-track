@@ -2859,6 +2859,8 @@ function serializeLearningResource(row, learner, student) {
     answer_original_name: row.answer_original_name || "",
     answer_tracking_name: row.answer_stored_path ? buildAnswerTrackingFilename(row, learner) : "",
     answer_file_size: Number(row.answer_file_size || 0),
+    final_grade: row.final_grade == null ? null : Number(row.final_grade),
+    graded_at: row.graded_at || null,
     original_name: row.original_name,
     mime_type: row.mime_type || "application/octet-stream",
     file_size: Number(row.file_size || 0),
@@ -3062,6 +3064,25 @@ app.post("/api/learning-resources/:id/submit", requireLogin, learningResourceUpl
   }
 });
 
+app.put("/api/learning-resources/:id/final-grade", requireTeacher, async (req, res) => {
+  try {
+    const finalGrade = Number((req.body || {}).final_grade);
+    if (!Number.isInteger(finalGrade) || finalGrade < 60 || finalGrade > 100) {
+      return res.status(400).json({ message: "Enter a whole-number final grade from 60 to 100." });
+    }
+    let query = db("learning_resources").where({ id: String(req.params.id || "") });
+    if (String(req.session.role || "").toLowerCase() !== "admin") query = query.andWhere({ teacher_user_id: req.session.userId });
+    const resource = await query.first();
+    if (!resource) return res.status(404).json({ message: "Learning resource not found for this teacher/adviser." });
+    if (String(resource.status || "") !== "done") return res.status(409).json({ message: "A final grade can be entered only after the student submits the completed answer." });
+    const gradedAt = new Date().toISOString();
+    await db("learning_resources").where({ id: resource.id }).update({ final_grade: finalGrade, graded_at: gradedAt, graded_by_user_id: req.session.userId });
+    return res.json({ message: `Final grade ${finalGrade} saved successfully.`, final_grade: finalGrade, graded_at: gradedAt });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to save the final grade.", detail: error.message });
+  }
+});
+
 app.get("/api/learning-resources/:id/answer-file", requireLogin, async (req, res) => {
   try {
     const resource = await db("learning_resources").where({ id: String(req.params.id || "") }).first();
@@ -3137,7 +3158,9 @@ app.get("/api/student/profile", requireLogin, async (req, res) => {
       started_at: resource.started_at || null,
       assigned_at: resource.created_at || null,
       subject: resource.subject || "",
-      description: resource.description || ""
+      description: resource.description || "",
+      final_grade: resource.final_grade == null ? null : Number(resource.final_grade),
+      graded_at: resource.graded_at || null
     }));
     const attendance = await db("student_attendance").where({ student_user_id: user.id }).orderBy("school_year", "desc");
     const learnerHistory = await db("learners")
@@ -3180,6 +3203,11 @@ app.get("/api/student/profile", requireLogin, async (req, res) => {
       { term: "Term 2 Grade", grade: learner.second_quarter_grade, descriptor: learner.second_quarter_verbal || "", interpretation: learner.second_quarter_interpretation || "" },
       { term: "Term 3 Grade", grade: learner.third_quarter_grade, descriptor: learner.third_quarter_verbal || "", interpretation: learner.third_quarter_interpretation || "" }
     ] : [];
+    const moduleFinalGrades = assignedResources.map((resource) => Number(resource.final_grade)).filter((grade) => Number.isFinite(grade));
+    if (moduleFinalGrades.length) {
+      const finalModuleAverage = Math.round((moduleFinalGrades.reduce((sum, grade) => sum + grade, 0) / moduleFinalGrades.length) * 10) / 10;
+      grades.push({ term: "Final Module Average", grade: finalModuleAverage, descriptor: `${moduleFinalGrades.length} graded completed ${moduleFinalGrades.length === 1 ? "activity" : "activities"}`, interpretation: "Teacher-entered Module/LAS final grades" });
+    }
     const anecdotal = learnerHistory.flatMap((record) => {
       const entries = [
         ["Teacher intervention", record.intervention],
