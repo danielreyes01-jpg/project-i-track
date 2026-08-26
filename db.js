@@ -5,6 +5,16 @@ const knex = require("knex");
 const DB_CLIENT = String(process.env.DB_CLIENT || "sqlite3").toLowerCase();
 const DB_POOL_MAX = Math.max(2, Number(process.env.DB_POOL_MAX || 20));
 
+function schoolYearForDate(value) {
+  const date = value ? new Date(value) : new Date();
+  const safeDate = Number.isNaN(date.getTime()) ? new Date() : date;
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Manila", year: "numeric", month: "numeric" }).formatToParts(safeDate);
+  const year = Number(parts.find((part) => part.type === "year").value);
+  const month = Number(parts.find((part) => part.type === "month").value);
+  const startYear = month >= 6 ? year : year - 1;
+  return `${startYear}-${startYear + 1}`;
+}
+
 function resolveKnexConfig() {
   if (DB_CLIENT === "mysql2") {
     if (!process.env.DB_CONNECTION_STRING) {
@@ -557,6 +567,25 @@ async function ensureSchema() {
       table.unique(["student_user_id", "school_year"], "uq_student_attendance_year");
       table.index(["student_user_id"], "idx_student_attendance_student");
     });
+  }
+
+  const schoolYearTables = [
+    ["learners", "date_started"],
+    ["learning_resources", "created_at"],
+    ["online_quizzes", "created_at"],
+    ["approval_requests", "created_at"],
+    ["adm_requests", "request_date"],
+    ["student_module_progress", "updated_at"]
+  ];
+  for (const [tableName, dateColumn] of schoolYearTables) {
+    const columns = await db(tableName).columnInfo();
+    if (!columns.school_year) {
+      await db.schema.alterTable(tableName, (table) => table.string("school_year", 20).nullable());
+    }
+    const recordsWithoutSchoolYear = await db(tableName).whereNull("school_year").select("id", dateColumn);
+    for (const record of recordsWithoutSchoolYear) {
+      await db(tableName).where({ id: record.id }).update({ school_year: schoolYearForDate(record[dateColumn]) });
+    }
   }
 }
 

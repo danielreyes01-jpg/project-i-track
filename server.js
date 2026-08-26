@@ -2039,6 +2039,7 @@ app.post("/api/learners", requireTeacherOrPrincipal, async (req, res) => {
 	  });
 	  await trx("learners").insert({
 		id: learnerId,
+		school_year: getActiveSchoolYear(date_started || nowIso),
 		user_id: req.session.userId,
 		adviser_user_id: req.session.userId,
 		teacher_adviser: adviserName,
@@ -2426,6 +2427,7 @@ app.post(
 
       await db("adm_requests").insert({
         id: crypto.randomUUID(),
+		school_year: getActiveSchoolYear(requestDate),
         requestor_user_id: req.session.userId,
         request_date: requestDate,
         district: String((user || {}).district || "N/A").trim() || "N/A",
@@ -2847,6 +2849,7 @@ app.post("/api/approval-requests", requireLogin, approvalRequestUpload.single("d
 
     await db("approval_requests").insert({
       id: crypto.randomUUID(),
+	  school_year: getActiveSchoolYear(nowIso),
       learner_id: learnerId,
       requestor_user_id: req.session.userId,
       district: String(learner.district || "N/A").trim() || "N/A",
@@ -3077,7 +3080,7 @@ function hasAvailableResourceFile(row) {
 }
 
 const LEARNING_RESOURCE_LIST_COLUMNS = [
-  "id", "teacher_user_id", "student_user_id", "learner_id", "resource_type", "title", "subject", "description",
+  "id", "school_year", "teacher_user_id", "student_user_id", "learner_id", "resource_type", "title", "subject", "description",
   "term", "module_number", "status", "started_at", "answer_original_name", "answer_stored_path", "answer_mime_type",
   "answer_file_size", "answer_file_durable", "submitted_at", "final_grade", "graded_at", "graded_by_user_id",
   "original_name", "stored_path", "mime_type", "file_size", "resource_file_durable", "created_at"
@@ -3089,6 +3092,7 @@ function serializeLearningResource(row, learner, student) {
   const resourceFileAvailable = hasAvailableResourceFile(row);
   return {
     id: row.id,
+	school_year: row.school_year || getActiveSchoolYear(row.created_at),
     resource_type: row.resource_type,
     title: row.title,
     subject: row.subject || "",
@@ -3239,6 +3243,7 @@ app.post("/api/learning-resources", requireTeacher, learningResourceUpload.singl
     const resourceFileData = await fs.promises.readFile(req.file.path);
     const row = {
       id,
+	  school_year: getActiveSchoolYear(),
       teacher_user_id: req.session.userId,
       student_user_id: student.id,
       learner_id: learner.id,
@@ -3460,6 +3465,7 @@ function parseQuizJson(value, fallback) {
 function serializeOnlineQuiz(quiz, attempt, learner) {
   return {
     id: quiz.id,
+	school_year: quiz.school_year || getActiveSchoolYear(quiz.created_at),
     title: quiz.title,
     subject: quiz.subject || "",
     instructions: quiz.instructions || "",
@@ -3525,7 +3531,7 @@ app.post("/api/quizzes", requireTeacher, async (req, res) => {
     const totalPoints = questions.reduce((sum, item) => sum + item.points, 0);
     const createdAt = new Date().toISOString();
     await db.transaction(async (trx) => {
-      await trx("online_quizzes").insert({ id: quizId, teacher_user_id: req.session.userId, student_user_id: student.id, learner_id: learner.id, term, activity_number: activityNumber, title: title.slice(0, 220), subject: subject.slice(0, 120), instructions, total_points: totalPoints, created_at: createdAt });
+      await trx("online_quizzes").insert({ id: quizId, school_year: getActiveSchoolYear(createdAt), teacher_user_id: req.session.userId, student_user_id: student.id, learner_id: learner.id, term, activity_number: activityNumber, title: title.slice(0, 220), subject: subject.slice(0, 120), instructions, total_points: totalPoints, created_at: createdAt });
       await trx("online_quiz_questions").insert(questions.map((item, index) => ({ id: item.id, quiz_id: quizId, question_order: index + 1, question_type: item.type, prompt: item.prompt, options_json: JSON.stringify(item.options), correct_answer: item.correctAnswer, points: item.points })));
     });
     const quiz = await db("online_quizzes").where({ id: quizId }).first();
@@ -3677,7 +3683,7 @@ app.get("/api/student/profile", requireLogin, async (req, res) => {
     };
     const enrollment = learnerHistory.map((record, index) => ({
       id: record.id,
-      school_year: schoolYearFromDate(record.date_started),
+      school_year: record.school_year || schoolYearFromDate(record.date_started),
       grade: record.grade || "",
       district: record.district || "",
       school: record.school || "",
@@ -3721,6 +3727,7 @@ app.get("/api/student/profile", requireLogin, async (req, res) => {
       const attempt = attemptByQuiz.get(String(quiz.id));
       return {
         id: quiz.id,
+		school_year: quiz.school_year || getActiveSchoolYear(quiz.created_at),
         term: Number(quiz.term || 1),
         activity_number: Number(quiz.activity_number || 1),
         title: quiz.title,
