@@ -132,7 +132,7 @@
 
 		.cards {
 			display: grid;
-			grid-template-columns: repeat(3, minmax(0, 1fr));
+			grid-template-columns: repeat(4, minmax(0, 1fr));
 			gap: 14px;
 		}
 
@@ -151,6 +151,7 @@
 		.card-copy { min-width:0; }
 		.card-division { border-color:#c9dff0; background:#f8fcff; }.card-division .card-icon { color:#176fa4; background:#dceefa; }
 		.card-teacher { border-color:#c9e3d6; background:#f9fdfb; }.card-teacher .card-icon { color:#237a50; background:#ddf2e5; }
+		.card-principal { border-color:#cfc7ec; background:#fbfaff; }.card-principal .card-icon { color:#6547a3; background:#ebe6fa; }
 		.card-student { border-color:#eadfba; background:#fffdf8; }.card-student .card-icon { color:#a66c00; background:#fff0c8; }
 
 		.card-label {
@@ -175,6 +176,7 @@
 		.live-users-panel .card { min-height:112px; padding:14px 16px; gap:12px; border-radius:15px; animation:dashboard-tile-in .55s cubic-bezier(.22,1,.36,1) both; }
 		.live-users-panel .card:nth-child(2) { animation-delay:.08s; }
 		.live-users-panel .card:nth-child(3) { animation-delay:.16s; }
+		.live-users-panel .card:nth-child(4) { animation-delay:.24s; }
 		.live-users-panel .card-icon { width:48px; height:48px; flex-basis:48px; border-radius:13px; font-size:1.1rem; }
 		.live-users-panel .card-label { font-size:.72rem; }
 		.live-users-panel .card-value { margin-top:3px; font-size:1.75rem; line-height:1; }
@@ -467,6 +469,7 @@
 				min-width: 220px;
 			}
 		}
+		@media (min-width:901px) and (max-width:1200px) { .cards { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 
 		@media (prefers-reduced-motion: reduce) {
 			.live-users-panel .card,.dashboard-tile-grid > .panel { animation:none; transition:none; }
@@ -681,6 +684,9 @@
 				<div class="card card-teacher">
 					<div class="card-icon" aria-hidden="true">♟</div><div class="card-copy"><div class="card-label">Teacher Users</div><div id="teacherUserCount" class="card-value">0</div><div class="card-note">Updated from registered users</div></div>
 				</div>
+				<div class="card card-principal">
+					<div class="card-icon" aria-hidden="true">🏫</div><div class="card-copy"><div class="card-label">School Principals</div><div id="schoolPrincipalCount" class="card-value">0</div><div class="card-note">Updated from registered users</div></div>
+				</div>
 				<div class="card card-student">
 					<div class="card-icon" aria-hidden="true">♙</div><div class="card-copy"><div class="card-label">Students</div><div id="studentUserCount" class="card-value">0</div><div class="card-note">Updated from registered users</div></div>
 				</div>
@@ -883,6 +889,7 @@
 
 			const divisionPersonnelCountEl = document.getElementById("divisionPersonnelCount");
 			const teacherUserCountEl = document.getElementById("teacherUserCount");
+			const schoolPrincipalCountEl = document.getElementById("schoolPrincipalCount");
 			const studentUserCountEl = document.getElementById("studentUserCount");
 			function animateCount(element, target) {
 				const end = Math.max(0, Number(target) || 0);
@@ -1826,6 +1833,7 @@
 						const districtUsers = new Set(filteredSummary.map(function (row) { return String(row.user_id || "").trim(); }).filter(Boolean)).size;
 						animateCount(divisionPersonnelCountEl, 0);
 						animateCount(teacherUserCountEl, districtUsers);
+						animateCount(schoolPrincipalCountEl, 0);
 						animateCount(studentUserCountEl, 0);
 					} else {
 						const usersResponse = await fetch(apiUrl("/admin/users"), requestOptions);
@@ -1835,12 +1843,14 @@
 							const counts = users.reduce(function (summary, user) {
 								const role = String(user.role || "").trim().toLowerCase();
 								if (role === "student") summary.students += 1;
-								else if (["admin", "administrator", "supervisor", "division", "division_personnel"].includes(role)) summary.divisionPersonnel += 1;
-								else summary.teacherUsers += 1;
+								else if (role === "principal") summary.schoolPrincipals += 1;
+								else if (role === "teacher") summary.teacherUsers += 1;
+								else summary.divisionPersonnel += 1;
 								return summary;
-							}, { divisionPersonnel: 0, teacherUsers: 0, students: 0 });
+							}, { divisionPersonnel: 0, teacherUsers: 0, schoolPrincipals: 0, students: 0 });
 							animateCount(divisionPersonnelCountEl, counts.divisionPersonnel);
 							animateCount(teacherUserCountEl, counts.teacherUsers);
+							animateCount(schoolPrincipalCountEl, counts.schoolPrincipals);
 							animateCount(studentUserCountEl, counts.students);
 							if (false) {
 								const attention = await parseApiPayload(attentionResponse);
