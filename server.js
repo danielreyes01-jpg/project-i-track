@@ -3040,8 +3040,33 @@ function buildAnswerTrackingFilename(row, learner) {
   return `${learnerCode}_T${Number(row.term || 1)}_${type}-${Number(row.module_number || 1)}_Completed-${completedStamp}_Elapsed-${elapsed}${originalExtension.toLowerCase()}`;
 }
 
+function getStoredFileBuffer(value) {
+  if (!value) return null;
+  if (Buffer.isBuffer(value)) return value;
+  if (value && value.type === "Buffer" && Array.isArray(value.data)) return Buffer.from(value.data);
+  if (value instanceof Uint8Array) return Buffer.from(value);
+  return null;
+}
+
+function hasAvailableAnswerFile(row) {
+  if (Boolean(row && row.answer_file_durable) || getStoredFileBuffer(row && row.answer_file_data)) return true;
+  const storedPath = String((row && row.answer_stored_path) || "");
+  if (!storedPath) return false;
+  const absolutePath = path.resolve(__dirname, storedPath);
+  const uploadRoot = path.resolve(LEARNING_RESOURCE_UPLOAD_DIR);
+  return absolutePath.startsWith(uploadRoot + path.sep) && fs.existsSync(absolutePath);
+}
+
+const LEARNING_RESOURCE_LIST_COLUMNS = [
+  "id", "teacher_user_id", "student_user_id", "learner_id", "resource_type", "title", "subject", "description",
+  "term", "module_number", "status", "started_at", "answer_original_name", "answer_stored_path", "answer_mime_type",
+  "answer_file_size", "answer_file_durable", "submitted_at", "final_grade", "graded_at", "graded_by_user_id",
+  "original_name", "stored_path", "mime_type", "file_size", "created_at"
+];
+
 function serializeLearningResource(row, learner, student) {
   const elapsedSeconds = getLearningResourceElapsedSeconds(row.started_at, row.submitted_at || (row.status === "ongoing" ? new Date().toISOString() : null));
+  const answerFileAvailable = hasAvailableAnswerFile(row);
   return {
     id: row.id,
     resource_type: row.resource_type,
@@ -3057,6 +3082,7 @@ function serializeLearningResource(row, learner, student) {
     elapsed_label: formatLearningResourceElapsed(elapsedSeconds),
     answer_original_name: row.answer_original_name || "",
     answer_tracking_name: row.answer_stored_path ? buildAnswerTrackingFilename(row, learner) : "",
+    answer_file_available: answerFileAvailable,
     answer_file_size: Number(row.answer_file_size || 0),
     final_grade: row.final_grade == null ? null : Number(row.final_grade),
     graded_at: row.graded_at || null,
@@ -3070,8 +3096,8 @@ function serializeLearningResource(row, learner, student) {
     student_presence: getStudentPresence(student),
     preview_url: `/api/learning-resources/${encodeURIComponent(row.id)}/file?mode=preview`,
     download_url: `/api/learning-resources/${encodeURIComponent(row.id)}/file?mode=download`,
-    answer_preview_url: row.answer_stored_path ? `/api/learning-resources/${encodeURIComponent(row.id)}/answer-file?mode=preview` : "",
-    answer_download_url: row.answer_stored_path ? `/api/learning-resources/${encodeURIComponent(row.id)}/answer-file?mode=download` : ""
+    answer_preview_url: answerFileAvailable ? `/api/learning-resources/${encodeURIComponent(row.id)}/answer-file?mode=preview` : "",
+    answer_download_url: answerFileAvailable ? `/api/learning-resources/${encodeURIComponent(row.id)}/answer-file?mode=download` : ""
   };
 }
 
@@ -3079,7 +3105,7 @@ app.get("/api/learning-resources", requireLogin, async (req, res) => {
   try {
     const user = await db("users").where({ id: req.session.userId }).first();
     const role = String((user && user.role) || "").toLowerCase();
-    let query = db("learning_resources");
+    let query = db("learning_resources").select(LEARNING_RESOURCE_LIST_COLUMNS);
     if (role === "student") query = query.where({ student_user_id: user.id });
     else if (role === "teacher") query = query.where({ teacher_user_id: user.id });
     else if (role !== "admin") return res.status(403).json({ message: "Learning resource access is not available for this account." });
@@ -3099,7 +3125,7 @@ app.get("/api/learning-resources", requireLogin, async (req, res) => {
 app.get("/api/admin/learning-resources-overview", requireAdmin, async (req, res) => {
   try {
     const [resources, teachers, students, learners] = await Promise.all([
-      db("learning_resources").orderBy("created_at", "desc"),
+      db("learning_resources").select(LEARNING_RESOURCE_LIST_COLUMNS).orderBy("created_at", "desc"),
       db("users").whereIn("role", ["teacher", "admin"]).orderBy("lastname", "asc"),
       db("users").where({ role: "student" }).orderBy("lastname", "asc"),
       db("learners").select("id", "learner_code", "firstname", "middlename", "family_name", "grade", "school")
@@ -3247,6 +3273,7 @@ app.post("/api/learning-resources/:id/submit", requireLogin, learningResourceUpl
       if (previous.startsWith(path.resolve(LEARNING_RESOURCE_UPLOAD_DIR))) deleteFileIfExists(previous);
     }
     const submittedAt = new Date().toISOString();
+    const answerFileData = await fs.promises.readFile(req.file.path);
     await db("learning_resources").where({ id: resource.id }).update({
       status: "done",
       started_at: resource.started_at || submittedAt,
@@ -3254,6 +3281,8 @@ app.post("/api/learning-resources/:id/submit", requireLogin, learningResourceUpl
       answer_stored_path: path.relative(__dirname, req.file.path).replace(/\\/g, "/"),
       answer_mime_type: String(req.file.mimetype || "application/octet-stream"),
       answer_file_size: Number(req.file.size || 0),
+      answer_file_data: answerFileData,
+      answer_file_durable: true,
       submitted_at: submittedAt
     });
     return res.json({ message: "Answer uploaded successfully. Your teacher adviser has been notified that you are done.", status: "done", submitted_at: submittedAt });
@@ -3291,13 +3320,26 @@ app.get("/api/learning-resources/:id/answer-file", requireLogin, async (req, res
     const allowed = resource && (role === "admin" || (role === "teacher" && resource.teacher_user_id === user.id) || (role === "student" && resource.student_user_id === user.id));
     if (!allowed) return res.status(403).json({ message: "You do not have access to this submitted answer." });
     const absolutePath = path.resolve(__dirname, String(resource.answer_stored_path || ""));
-    if (!resource.answer_stored_path || !absolutePath.startsWith(path.resolve(LEARNING_RESOURCE_UPLOAD_DIR)) || !fs.existsSync(absolutePath)) return res.status(404).json({ message: "Submitted answer file not found." });
+    const uploadRoot = path.resolve(LEARNING_RESOURCE_UPLOAD_DIR);
+    const diskFileAvailable = Boolean(resource.answer_stored_path) && absolutePath.startsWith(uploadRoot + path.sep) && fs.existsSync(absolutePath);
+    const storedFileData = getStoredFileBuffer(resource.answer_file_data);
+    if (!diskFileAvailable && !storedFileData) {
+      return res.status(410).type("html").send('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Answer file unavailable</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:#f2f7f5;color:#123b58;font:16px Manrope,Arial,sans-serif}.notice{max-width:560px;padding:28px;border:1px solid #cfe0df;border-radius:18px;background:#fff;text-align:center;box-shadow:0 12px 32px rgba(16,47,73,.1)}h1{margin:0 0 10px;font-size:1.4rem}p{color:#607789;line-height:1.55}a{display:inline-block;margin-top:8px;padding:11px 16px;border-radius:10px;background:#176f98;color:#fff;font-weight:800;text-decoration:none}</style></head><body><main class="notice"><h1>Earlier answer file is unavailable</h1><p>This answer was submitted before durable file storage was enabled. Ask the student to upload the answer again. New submissions will remain available after future deployments.</p><a href="/learning-resources.html">Back to Learning Resources</a></main></body></html>');
+    }
     const learner = await db("learners").where({ id: resource.learner_id }).first("learner_code");
     const trackingFilename = buildAnswerTrackingFilename(resource, learner);
-    if (String(req.query.mode || "preview") === "download") return res.download(absolutePath, trackingFilename);
+    const safeTrackingFilename = trackingFilename.replace(/["\r\n]/g, "");
+    const isDownload = String(req.query.mode || "preview") === "download";
+    if (diskFileAvailable) {
+      if (isDownload) return res.download(absolutePath, safeTrackingFilename);
+      res.type(resource.answer_mime_type || "application/octet-stream");
+      res.setHeader("Content-Disposition", `inline; filename="${safeTrackingFilename}"`);
+      return res.sendFile(absolutePath);
+    }
     res.type(resource.answer_mime_type || "application/octet-stream");
-    res.setHeader("Content-Disposition", `inline; filename="${trackingFilename.replace(/["\r\n]/g, "")}"`);
-    return res.sendFile(absolutePath);
+    res.setHeader("Content-Disposition", `${isDownload ? "attachment" : "inline"}; filename="${safeTrackingFilename}"`);
+    res.setHeader("Content-Length", String(storedFileData.length));
+    return res.send(storedFileData);
   } catch (error) {
     return res.status(500).json({ message: "Unable to open the submitted answer.", detail: error.message });
   }
@@ -3346,7 +3388,10 @@ app.get("/api/student/profile", requireLogin, async (req, res) => {
   try {
     const user = await db("users").where({ id: req.session.userId }).first();
     if (!user || String(user.role || "").toLowerCase() !== "student") return res.status(403).json({ message: "Student account access only." });
-    const assignedResources = await db("learning_resources").where({ student_user_id: user.id }).orderBy([{ column: "term", order: "asc" }, { column: "module_number", order: "asc" }]);
+    const assignedResources = await db("learning_resources")
+      .where({ student_user_id: user.id })
+      .select("id", "term", "module_number", "title", "resource_type", "status", "submitted_at", "started_at", "created_at", "subject", "description", "final_grade", "graded_at")
+      .orderBy([{ column: "term", order: "asc" }, { column: "module_number", order: "asc" }]);
     const modules = assignedResources.map((resource) => ({
       id: resource.id,
       term: Number(resource.term || 1),

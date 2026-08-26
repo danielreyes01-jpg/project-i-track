@@ -328,7 +328,7 @@ async function ensureSchema() {
     });
   }
   const resourceColumns = await db("learning_resources").columnInfo();
-  const missingResourceColumns = ["term", "module_number", "status", "started_at", "answer_original_name", "answer_stored_path", "answer_mime_type", "answer_file_size", "submitted_at", "final_grade", "graded_at", "graded_by_user_id"];
+  const missingResourceColumns = ["term", "module_number", "status", "started_at", "answer_original_name", "answer_stored_path", "answer_mime_type", "answer_file_size", "answer_file_data", "answer_file_durable", "submitted_at", "final_grade", "graded_at", "graded_by_user_id"];
   if (missingResourceColumns.some((name) => !resourceColumns[name])) {
     await db.schema.alterTable("learning_resources", (table) => {
       if (!resourceColumns.term) table.integer("term").notNullable().defaultTo(1);
@@ -339,6 +339,8 @@ async function ensureSchema() {
       if (!resourceColumns.answer_stored_path) table.string("answer_stored_path", 500).nullable();
       if (!resourceColumns.answer_mime_type) table.string("answer_mime_type", 120).nullable();
       if (!resourceColumns.answer_file_size) table.integer("answer_file_size").nullable();
+      if (!resourceColumns.answer_file_data) table.binary("answer_file_data").nullable();
+      if (!resourceColumns.answer_file_durable) table.boolean("answer_file_durable").notNullable().defaultTo(false);
       if (!resourceColumns.submitted_at) table.string("submitted_at", 40).nullable();
       if (!resourceColumns.final_grade) table.integer("final_grade").nullable();
       if (!resourceColumns.graded_at) table.string("graded_at", 40).nullable();
