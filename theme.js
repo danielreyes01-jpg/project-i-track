@@ -944,15 +944,6 @@ function initializeAdministratorStudentPresence() {
 			const response = await fetch('/api/admin/student-monitoring', { credentials: 'include' });
 			if (!response.ok) return;
 			const data = await response.json();
-			const metrics = document.querySelector('.metrics');
-			if (metrics && !document.getElementById('onlineStudents')) {
-				const card = document.createElement('article');
-				card.className = 'metric itrack-online-metric';
-				card.innerHTML = '<span>Online students</span><strong id="onlineStudents">0</strong>';
-				metrics.firstElementChild.insertAdjacentElement('afterend', card);
-			}
-			const total = document.getElementById('onlineStudents');
-			if (total) total.textContent = String((data.totals && data.totals.online) || 0);
 			const byLrn = new Map((data.records || []).map((record) => [String(record.lrn || ''), record]));
 			const table = document.querySelector('.student-table');
 			if (table && !table.querySelector('[data-presence-heading]')) {
