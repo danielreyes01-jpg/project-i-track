@@ -31,6 +31,10 @@ const RESEND_WINDOW_MS = Number(process.env.RESEND_WINDOW_MS || 1000 * 60 * 15);
 const RESEND_MAX_PER_WINDOW = Number(process.env.RESEND_MAX_PER_WINDOW || 3);
 const MAX_LOGIN_FAILURES = Number(process.env.MAX_LOGIN_FAILURES || 5);
 const LOCKOUT_DURATION_MS = Number(process.env.LOCKOUT_DURATION_MS || 1000 * 60 * 15);
+const PASSWORD_HASH_ROUNDS = Math.min(14, Math.max(10, Number(process.env.PASSWORD_HASH_ROUNDS || 10)));
+const REGISTRATION_RATE_LIMIT_MAX = Math.max(500, Number(process.env.REGISTRATION_RATE_LIMIT_MAX || 1000));
+const REGISTRATION_MAX_IN_FLIGHT = Math.max(5, Number(process.env.REGISTRATION_MAX_IN_FLIGHT || 10));
+const REGISTRATION_MAX_QUEUE = Math.max(500, Number(process.env.REGISTRATION_MAX_QUEUE || 1000));
 const ADMIN_ACCESS_KEY = String(process.env.ADMIN_ACCESS_KEY || "").trim();
 const ADMIN_EMAIL = normalizeEmail(process.env.ADMIN_EMAIL || "admin@adm.local");
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || "Admin@12345!");
@@ -778,7 +782,7 @@ registrationWindowCleanup.unref();
 function limitRegistrationTraffic(req, res, next) {
   const now = Date.now();
   const windowMs = 15 * 60 * 1000;
-  const maximumAttempts = 300;
+  const maximumAttempts = REGISTRATION_RATE_LIMIT_MAX;
   const key = String(req.ip || req.socket.remoteAddress || "unknown");
   const current = registrationWindows.get(key);
   if (!current || now - current.startedAt >= windowMs) {
@@ -793,7 +797,40 @@ function limitRegistrationTraffic(req, res, next) {
   return next();
 }
 
-app.post("/api/auth/register", limitRegistrationTraffic, async (req, res) => {
+let activeRegistrations = 0;
+const registrationQueue = [];
+function releaseRegistrationSlot() {
+  activeRegistrations = Math.max(0, activeRegistrations - 1);
+  const next = registrationQueue.shift();
+  if (next) {
+    activeRegistrations += 1;
+    next();
+  }
+}
+function limitConcurrentRegistrations(req, res, next) {
+  const enter = () => {
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      releaseRegistrationSlot();
+    };
+    res.once("finish", release);
+    res.once("close", release);
+    next();
+  };
+  if (activeRegistrations < REGISTRATION_MAX_IN_FLIGHT) {
+    activeRegistrations += 1;
+    return enter();
+  }
+  if (registrationQueue.length >= REGISTRATION_MAX_QUEUE) {
+    res.setHeader("Retry-After", "10");
+    return res.status(503).json({ message: "Registration is temporarily at capacity. Please retry in a few seconds." });
+  }
+  registrationQueue.push(enter);
+}
+
+app.post("/api/auth/register", limitRegistrationTraffic, limitConcurrentRegistrations, async (req, res) => {
   try {
     const {
       email,
@@ -846,9 +883,11 @@ app.post("/api/auth/register", limitRegistrationTraffic, async (req, res) => {
       String(isSupervisor || "").trim().toLowerCase() === "yes" ||
       String(isSupervisor || "").trim().toLowerCase() === "true";
     const requestedRole = normalizedPosition === "principal" ? "principal" : (normalizedPosition === "supervisor" || requestedSupervisor) ? "supervisor" : "teacher";
-    const existing = await db("users").where({ email: normalizedEmail }).first();
 	const normalizedUsername = String(username || "").trim().toLowerCase();
-	const usernameOwner = await db("users").whereRaw("LOWER(username) = ?", [normalizedUsername]).first();
+	const [existing, usernameOwner] = await Promise.all([
+	  db("users").where({ email: normalizedEmail }).first(),
+	  db("users").whereRaw("LOWER(username) = ?", [normalizedUsername]).first()
+	]);
 	if (usernameOwner && (!existing || usernameOwner.id !== existing.id)) {
 	  return res.status(409).json({ message: "Username is already registered." });
 	}
@@ -859,7 +898,7 @@ app.post("/api/auth/register", limitRegistrationTraffic, async (req, res) => {
 
     const now = Date.now();
     const nowIso = new Date(now).toISOString();
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await bcrypt.hash(password, PASSWORD_HASH_ROUNDS);
 
     const basePayload = {
       email: normalizedEmail,
@@ -900,7 +939,9 @@ app.post("/api/auth/register", limitRegistrationTraffic, async (req, res) => {
       email: normalizedEmail
     });
   } catch (error) {
-    return res.status(500).json({ message: formatDatabaseError(error, "Failed to register account."), detail: error.message });
+    const databaseMessage = String((error && error.message) || "").toLowerCase();
+    const duplicate = /unique|duplicate/.test(databaseMessage);
+    return res.status(duplicate ? 409 : 500).json({ message: formatDatabaseError(error, "Failed to register account."), detail: error.message });
   }
 });
 
@@ -4005,7 +4046,7 @@ app.get(["/api", "/api/"], (req, res) => {
 app.get("/api/health", async (req, res) => {
   try {
     await db.raw("SELECT 1");
-    return res.json({ status: "ok", database: "connected", time: new Date().toISOString() });
+    return res.json({ status: "ok", database: "connected", registration: { active: activeRegistrations, queued: registrationQueue.length, capacity: REGISTRATION_MAX_IN_FLIGHT }, time: new Date().toISOString() });
   } catch (error) {
     return res.status(503).json({ status: "unavailable", database: "disconnected" });
   }
@@ -4085,11 +4126,14 @@ async function startServer() {
     await resetDatabaseRetainingAdministratorOnce();
     await removePlaceholderLearners();
 
-    app.listen(PORT, () => {
+    const httpServer = app.listen({ port: PORT, host: "0.0.0.0", backlog: 1024 }, () => {
       console.log(`Server running at ${APP_BASE_URL}`);
       console.log(`Database client: ${DB_CLIENT}`);
       console.log("Registration mode: admin approval (email verification disabled).");
     });
+    httpServer.keepAliveTimeout = 65000;
+    httpServer.headersTimeout = 66000;
+    httpServer.requestTimeout = 120000;
   } catch (error) {
     console.error("Failed to initialize server:", error.message);
     process.exit(1);

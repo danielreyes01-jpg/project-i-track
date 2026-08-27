@@ -3,7 +3,8 @@ const path = require("path");
 const knex = require("knex");
 
 const DB_CLIENT = String(process.env.DB_CLIENT || "sqlite3").toLowerCase();
-const DB_POOL_MAX = Math.max(2, Number(process.env.DB_POOL_MAX || 20));
+const DB_POOL_MAX = Math.max(2, Number(process.env.DB_POOL_MAX || 30));
+const DB_POOL_ACQUIRE_TIMEOUT_MS = Math.max(5000, Number(process.env.DB_POOL_ACQUIRE_TIMEOUT_MS || 30000));
 
 function schoolYearForDate(value) {
   const date = value ? new Date(value) : new Date();
@@ -24,7 +25,7 @@ function resolveKnexConfig() {
     return {
       client: "mysql2",
       connection: process.env.DB_CONNECTION_STRING,
-      pool: { min: 0, max: DB_POOL_MAX }
+      pool: { min: 2, max: DB_POOL_MAX, acquireTimeoutMillis: DB_POOL_ACQUIRE_TIMEOUT_MS, idleTimeoutMillis: 30000 }
     };
   }
 
@@ -36,7 +37,7 @@ function resolveKnexConfig() {
     return {
       client: "pg",
       connection: process.env.DB_CONNECTION_STRING,
-      pool: { min: 0, max: DB_POOL_MAX }
+      pool: { min: 2, max: DB_POOL_MAX, acquireTimeoutMillis: DB_POOL_ACQUIRE_TIMEOUT_MS, idleTimeoutMillis: 30000 }
     };
   }
 
