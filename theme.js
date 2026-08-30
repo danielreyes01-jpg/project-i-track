@@ -1242,7 +1242,7 @@ function initializeAdviserStudentChat() {
 				<label class="itrack-chat-contact-label" for="itrackChatContact">Conversation</label>
 				<select id="itrackChatContact" class="itrack-chat-contact" aria-label="Choose conversation"></select>
 				<div class="itrack-chat-messages" aria-live="polite"><p class="itrack-chat-empty">Loading conversations…</p></div>
-				<form class="itrack-chat-form"><textarea maxlength="2000" rows="2" placeholder="Type a message…" aria-label="Chat message" required></textarea><button type="submit">Send</button></form>
+				<form class="itrack-chat-form"><textarea maxlength="2000" rows="2" placeholder="Type a message…" aria-label="Chat message" required></textarea><button type="submit">Send</button><small class="itrack-chat-hint">Enter to send · Shift+Enter for a new line</small></form>
 				<p class="itrack-chat-status" role="status"></p>
 			</section>`;
 		document.body.appendChild(widget);
@@ -1255,6 +1255,7 @@ function initializeAdviserStudentChat() {
 		const textarea = form.querySelector('textarea');
 		const status = widget.querySelector('.itrack-chat-status');
 		const unreadBadge = widget.querySelector('.itrack-chat-unread');
+		const sendButton = form.querySelector('button');
 
 		const showStatus = (message, isError = false) => {
 			status.textContent = message || '';
@@ -1268,12 +1269,20 @@ function initializeAdviserStudentChat() {
 		const renderContacts = () => {
 			select.replaceChildren();
 			if (!contacts.length) {
-				const option = document.createElement('option'); option.value = ''; option.textContent = role === 'teacher' ? 'No assigned students available' : 'No adviser assigned'; select.appendChild(option); select.disabled = true; return;
+				selectedContactId = '';
+				const option = document.createElement('option'); option.value = ''; option.textContent = role === 'teacher' ? 'No assigned students available' : 'No adviser assigned'; select.appendChild(option); select.disabled = true;
+				textarea.disabled = true; sendButton.disabled = true; textarea.placeholder = role === 'teacher' ? 'Assign a student to begin chatting' : 'An adviser must be assigned first';
+				messagesBox.replaceChildren();
+				const empty = document.createElement('div'); empty.className = 'itrack-chat-empty itrack-chat-empty-state';
+				const icon = document.createElement('span'); icon.textContent = role === 'teacher' ? '👥' : '👩‍🏫';
+				const title = document.createElement('strong'); title.textContent = role === 'teacher' ? 'No assigned students yet' : 'No adviser assigned yet';
+				const note = document.createElement('p'); note.textContent = role === 'teacher' ? 'Students will appear here after their learner record is assigned to your account.' : 'Ask your school or system administrator to link your learner record to your adviser.';
+				empty.append(icon, title, note); messagesBox.appendChild(empty); return;
 			}
-			select.disabled = false;
+			select.disabled = false; textarea.disabled = false; sendButton.disabled = false; textarea.placeholder = 'Type a message…';
 			contacts.forEach((contact) => {
 				const option = document.createElement('option'); option.value = contact.id;
-				option.textContent = `${contact.name || 'User'}${contact.lrn ? ` — LRN ${contact.lrn}` : ''}${contact.unread ? ` (${contact.unread} new)` : ''}`;
+				option.textContent = `${role === 'teacher' ? (contact.online ? '🟢 ' : '⚪ ') : ''}${contact.name || 'User'}${contact.lrn ? ` — LRN ${contact.lrn}` : ''}${contact.unread ? ` (${contact.unread} new)` : ''}`;
 				select.appendChild(option);
 			});
 			if (!contacts.some((contact) => contact.id === selectedContactId)) selectedContactId = contacts[0].id;
@@ -1300,7 +1309,7 @@ function initializeAdviserStudentChat() {
 			catch (error) { showStatus(error.message, true); }
 		};
 		const setPanelOpen = (open) => {
-			panelOpen = open; panel.hidden = !open; launcher.setAttribute('aria-expanded', String(open));
+			panelOpen = open; panel.hidden = !open; launcher.hidden = open; launcher.setAttribute('aria-expanded', String(open));
 			if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 			if (open) { loadContacts(); pollTimer = window.setInterval(loadContacts, 10000); }
 		};
@@ -1312,6 +1321,9 @@ function initializeAdviserStudentChat() {
 			const submit = form.querySelector('button'); submit.disabled = true; showStatus('Sending…');
 			try { await requestJson(`/api/chat/messages/${encodeURIComponent(selectedContactId)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }) }); textarea.value = ''; showStatus(''); await loadMessages(); textarea.focus(); }
 			catch (error) { showStatus(error.message, true); } finally { submit.disabled = false; }
+		});
+		textarea.addEventListener('keydown', (event) => {
+			if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); form.requestSubmit(); }
 		});
 		await loadContacts();
 	}, 1000);

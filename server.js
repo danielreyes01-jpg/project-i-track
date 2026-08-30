@@ -4082,7 +4082,7 @@ app.get("/api/chat/contacts", requireLogin, async (req, res) => {
       contacts = await db("users as s")
         .join("learners as l", "l.learner_code", "s.lrn")
         .where({ "l.adviser_user_id": user.id, "s.role": "student" })
-        .distinct("s.id", "s.firstname", "s.middlename", "s.lastname", "s.lrn")
+        .distinct("s.id", "s.firstname", "s.middlename", "s.lastname", "s.lrn", "s.last_seen_at")
         .orderBy([{ column: "s.lastname", order: "asc" }, { column: "s.firstname", order: "asc" }]);
     } else if (role === "student") {
       contacts = await db("learners as l")
@@ -4104,7 +4104,8 @@ app.get("/api/chat/contacts", requireLogin, async (req, res) => {
       counts[id] = Number(counts[id] || 0) + 1;
       return counts;
     }, {});
-    return res.json({ role, contacts: contacts.map((contact) => ({ id: contact.id, name: [contact.firstname, contact.middlename, contact.lastname].filter(Boolean).join(" "), lrn: contact.lrn || "", unread: Number(unread[contact.id] || 0) })) });
+    const onlineCutoff = Date.now() - (2 * 60 * 1000);
+    return res.json({ role, contacts: contacts.map((contact) => ({ id: contact.id, name: [contact.firstname, contact.middlename, contact.lastname].filter(Boolean).join(" "), lrn: contact.lrn || "", online: role === "teacher" && contact.last_seen_at ? new Date(contact.last_seen_at).getTime() >= onlineCutoff : null, unread: Number(unread[contact.id] || 0) })) });
   } catch (error) {
     return res.status(500).json({ message: "Unable to load chat contacts.", detail: error.message });
   }
