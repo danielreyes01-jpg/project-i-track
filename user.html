@@ -409,6 +409,7 @@
 		.user-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}.user-metric{padding:15px;border:1px solid #dce7ea;border-radius:13px;background:#fff;box-shadow:0 6px 18px rgba(18,48,71,.05)}.user-metric span{display:block;color:#607481;font-size:.76rem}.user-metric strong{display:block;margin-top:3px;color:#123047;font-size:1.65rem}.user-metric.pending{border-left:4px solid #f0b429}.user-metric.approved{border-left:4px solid #16805e}
 		.management-controls{display:grid;grid-template-columns:minmax(220px,1.4fr) minmax(150px,.65fr) minmax(150px,.65fr) auto;gap:10px;align-items:center;margin-bottom:12px}.management-controls input,.management-controls select{width:100%;min-height:44px;padding:9px 11px;border:1px solid #c8dadd;border-radius:10px;background:#fff;font:inherit}.access-panel{position:relative}.access-panel summary{display:flex;align-items:center;min-height:44px;padding:9px 12px;border:1px solid #c8dadd;border-radius:10px;background:#fff;color:#31566d;font-size:.78rem;font-weight:750;cursor:pointer;list-style:none}.access-panel summary::-webkit-details-marker{display:none}.access-panel[open] summary{border-radius:10px 10px 0 0}.access-panel input{border-radius:0 0 10px 10px}
 		.bulk-actions{display:grid;grid-template-columns:minmax(180px,260px) auto;justify-content:end;gap:9px;padding:10px 0;margin:0 0 10px;border-top:1px solid #e1eaec}.bulk-actions select{min-height:42px;padding:8px 10px;border:1px solid #c8dadd;border-radius:9px;background:#fff;font:inherit}.bulk-actions button{min-width:92px}
+		.approval-shortcuts{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;margin-bottom:12px;border:1px solid #d8e7e9;border-radius:13px;background:#f8fbfb}.check-all-label{display:flex;align-items:center;gap:9px;padding:10px 13px;border:1px solid #cddfe2;border-radius:10px;background:#fff;color:#29485c;font-weight:800}.check-all-label input{width:17px;height:17px}.approve-selected{padding:11px 17px;border:0;border-radius:10px;background:#23815f;color:#fff;font-weight:850;cursor:pointer}.approve-selected:disabled{opacity:.55}.district-groups{display:grid;gap:13px}.district-card{overflow:hidden;border:1px solid #cfe0e4;border-radius:15px;background:#fff;box-shadow:0 7px 20px rgba(18,48,71,.06)}.district-card summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:linear-gradient(135deg,#eef8fa,#f8fcfb);cursor:pointer;list-style:none}.district-card summary::-webkit-details-marker{display:none}.district-title{display:flex;align-items:center;gap:10px;color:#153c55}.district-title strong{font-size:1rem}.district-counts{display:flex;gap:7px;flex-wrap:wrap}.district-counts span{padding:4px 8px;border-radius:999px;background:#e7f0f3;color:#45616e;font-size:.66rem;font-weight:800}.district-counts .pending-count{background:#fff0c8;color:#8a6100}.district-tools{display:flex;align-items:center;gap:8px;padding:9px 14px;border-top:1px solid #dbe8ea;background:#fbfdfd}.district-select-label{display:flex;align-items:center;gap:7px;margin-right:auto;font-size:.73rem;font-weight:750}.district-approve{padding:7px 11px;border:0;border-radius:8px;background:#23815f;color:#fff;font-size:.72rem;font-weight:800;cursor:pointer}.district-table-wrap{overflow:auto}.district-table-wrap table{border:0;border-radius:0}.district-table-wrap th{position:static}.district-empty{padding:25px;border:1px dashed #c9dce0;border-radius:13px;color:#6e8189;text-align:center;background:#f9fbfb}
 		@media(max-width:900px){.management-controls{grid-template-columns:1fr 1fr}.user-metrics{grid-template-columns:1fr}.bulk-actions{grid-template-columns:1fr auto}.management-hero{flex-direction:column}}
 		@media(max-width:560px){.management-controls{grid-template-columns:1fr}.bulk-actions{grid-template-columns:1fr}.bulk-actions button{width:100%}}
 	</style>
@@ -428,29 +429,17 @@
 
 		<div id="message" class="message" role="status" aria-live="polite"></div>
 
+		<div class="approval-shortcuts">
+			<label class="check-all-label"><input id="selectAllUsers" type="checkbox"> Check all accounts</label>
+			<button id="approveSelectedBtn" class="approve-selected" type="button">Approve Selected</button>
+		</div>
+
 		<div class="bulk-actions">
 			<select id="bulkAction" aria-label="Action for selected users"><option value="">Action for selected users</option><option value="approve">Approve accounts</option><option value="reject">Reject accounts</option><option value="delete">Delete accounts</option></select>
 			<button id="applyBulkBtn" class="btn-primary" type="button">Apply</button>
 		</div>
 
-		<div id="usersSection" class="table-wrap hidden">
-			<table>
-				<thead>
-					<tr>
-						<th class="select-col"><input id="selectAllUsers" type="checkbox" aria-label="Select all users"></th>
-						<th>Name</th>
-						<th>Email</th>
-						<th>District</th>
-						<th>School</th>
-						<th>Role</th>
-						<th>Status</th>
-						<th>Created</th>
-						<th>Actions</th>
-					</tr>
-				</thead>
-				<tbody id="usersBody"></tbody>
-			</table>
-		</div>
+		<div id="usersSection" class="district-groups hidden"></div>
 
 	</main>
 
@@ -459,7 +448,6 @@
 			const AUTO_REFRESH_MS = 30000;
 			const adminKeyInput = document.getElementById("adminKey");
 			const message = document.getElementById("message");
-			const usersBody = document.getElementById("usersBody");
 			const usersSection = document.getElementById("usersSection");
 			const selectAllUsers = document.getElementById("selectAllUsers");
 			const userSearch = document.getElementById("userSearch");
@@ -467,6 +455,7 @@
 			const roleFilter = document.getElementById("roleFilter");
 			const bulkAction = document.getElementById("bulkAction");
 			const applyBulkBtn = document.getElementById("applyBulkBtn");
+			const approveSelectedBtn = document.getElementById("approveSelectedBtn");
 			const totalUsers = document.getElementById("totalUsers");
 			const pendingUsers = document.getElementById("pendingUsers");
 			const approvedUsers = document.getElementById("approvedUsers");
@@ -516,12 +505,14 @@
 
 			function renderRows(users) {
 				if (!users.length) {
-					usersBody.innerHTML = '<tr><td class="empty" colspan="9">No user registrations found.</td></tr>';
+					usersSection.innerHTML = '<div class="district-empty">No user registrations found for the selected filters.</div>';
 					selectAllUsers.checked = false;
 					return;
 				}
-
-				usersBody.innerHTML = users.map(function (user) {
+				function escapeHtml(value) {
+					return String(value == null ? "" : value).replace(/[&<>"']/g, function (char) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]; });
+				}
+				function renderUserRow(user) {
 					const name = [user.firstname, user.middlename, user.lastname].filter(Boolean).join(" ");
 					const created = user.created_at ? new Date(user.created_at).toLocaleString() : "-";
 					const approved = Boolean(user.approved);
@@ -540,18 +531,35 @@
 					const actionButtons =
 						'<div class="row-actions">' + roleSelect + '</div>';
 
-					return '<tr>' +
-						'<td class="select-col"><input class="user-select" type="checkbox" data-id="' + user.id + '" aria-label="Select user ' + user.email + '"></td>' +
-						'<td>' + name + '</td>' +
-						'<td>' + user.email + '</td>' +
-						'<td>' + (user.district || "-") + '</td>' +
-						'<td>' + (user.school || "-") + '</td>' +
+					return '<tr data-approved="' + (approved ? 'true' : 'false') + '">' +
+						'<td class="select-col"><input class="user-select" type="checkbox" data-id="' + escapeHtml(user.id) + '" aria-label="Select user ' + escapeHtml(user.email) + '"></td>' +
+						'<td>' + escapeHtml(name) + '</td>' +
+						'<td>' + escapeHtml(user.email) + '</td>' +
+						'<td>' + escapeHtml(user.school || "-") + '</td>' +
 						'<td>' + rolePill + '</td>' +
 						'<td><span class="' + statusClass + '">' + statusText + '</span></td>' +
-						'<td>' + created + '</td>' +
+						'<td>' + escapeHtml(created) + '</td>' +
 						'<td>' + actionButtons + '</td>' +
 					'</tr>';
-				}).join("");
+				}
+				const grouped = users.reduce(function (groups, user) {
+					const district = String(user.district || "Unassigned District").trim() || "Unassigned District";
+					if (!groups[district]) groups[district] = [];
+					groups[district].push(user); return groups;
+				}, {});
+				const districts = Object.keys(grouped).sort(function (a, b) { return a.localeCompare(b); });
+				usersSection.innerHTML = districts.map(function (district, index) {
+					const districtUsers = grouped[district].sort(function (a, b) {
+						const approvalOrder = Number(Boolean(a.approved)) - Number(Boolean(b.approved));
+						return approvalOrder || String(a.lastname || '').localeCompare(String(b.lastname || ''));
+					});
+					const pending = districtUsers.filter(function (user) { return !Boolean(user.approved); }).length;
+					return '<details class="district-card" data-district="' + escapeHtml(district) + '" ' + (pending || index === 0 ? 'open' : '') + '>' +
+						'<summary><span class="district-title"><span aria-hidden="true">📍</span><strong>' + escapeHtml(district) + '</strong></span><span class="district-counts"><span>' + districtUsers.length + ' account' + (districtUsers.length === 1 ? '' : 's') + '</span><span class="pending-count">' + pending + ' pending</span></span></summary>' +
+						'<div class="district-tools"><label class="district-select-label"><input class="district-select" type="checkbox"> Select all in ' + escapeHtml(district) + '</label><button class="district-approve" type="button" ' + (pending ? '' : 'disabled') + '>Approve pending</button></div>' +
+						'<div class="district-table-wrap"><table><thead><tr><th class="select-col">Select</th><th>Name</th><th>Email</th><th>School</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>' + districtUsers.map(renderUserRow).join('') + '</tbody></table></div>' +
+					'</details>';
+				}).join('');
 
 				selectAllUsers.checked = false;
 			}
@@ -576,7 +584,7 @@
 			}
 
 			function getSelectedUserIds() {
-				return Array.from(usersBody.querySelectorAll("input.user-select:checked")).map(function (el) {
+				return Array.from(usersSection.querySelectorAll("input.user-select:checked")).map(function (el) {
 					return el.getAttribute("data-id");
 				});
 			}
@@ -738,7 +746,14 @@
 			});
 			[userSearch, statusFilter, roleFilter].forEach(function (control) { control.addEventListener(control === userSearch ? "input" : "change", applyFilters); });
 
-			usersBody.addEventListener("click", function (event) {
+			usersSection.addEventListener("click", function (event) {
+				const districtApprove = event.target.closest(".district-approve");
+				if (districtApprove) {
+					const card = districtApprove.closest(".district-card");
+					card.querySelectorAll('tr[data-approved="false"] input.user-select').forEach(function (box) { box.checked = true; });
+					applyBulkAction("approve");
+					return;
+				}
 				const button = event.target.closest("button[data-action]");
 				if (!button) return;
 				applyAction(button.getAttribute("data-action"), button.getAttribute("data-id"), null);
@@ -746,15 +761,24 @@
 
 			selectAllUsers.addEventListener("change", function () {
 				const checked = selectAllUsers.checked;
-				usersBody.querySelectorAll("input.user-select").forEach(function (box) {
+				usersSection.querySelectorAll("input.user-select").forEach(function (box) {
 					box.checked = checked;
 				});
+				usersSection.querySelectorAll("input.district-select").forEach(function (box) { box.checked = checked; });
 			});
 
-			usersBody.addEventListener("change", function (event) {
+			usersSection.addEventListener("change", function (event) {
+				if (event.target.matches("input.district-select")) {
+					const card = event.target.closest(".district-card");
+					card.querySelectorAll("input.user-select").forEach(function (box) { box.checked = event.target.checked; });
+				}
 				if (event.target.matches("input.user-select")) {
-					const allBoxes = usersBody.querySelectorAll("input.user-select");
-					const checkedBoxes = usersBody.querySelectorAll("input.user-select:checked");
+					const card = event.target.closest(".district-card");
+					const districtBoxes = card.querySelectorAll("input.user-select");
+					const districtChecked = card.querySelectorAll("input.user-select:checked");
+					card.querySelector("input.district-select").checked = districtBoxes.length > 0 && districtChecked.length === districtBoxes.length;
+					const allBoxes = usersSection.querySelectorAll("input.user-select");
+					const checkedBoxes = usersSection.querySelectorAll("input.user-select:checked");
 					selectAllUsers.checked = allBoxes.length > 0 && checkedBoxes.length === allBoxes.length;
 				}
 			});
@@ -763,8 +787,9 @@
 				if (!bulkAction.value) { setMessage("Choose an action for the selected users.", "error"); return; }
 				applyBulkAction(bulkAction.value);
 			});
+			approveSelectedBtn.addEventListener("click", function () { applyBulkAction("approve"); });
 
-			usersBody.addEventListener("change", function (event) {
+			usersSection.addEventListener("change", function (event) {
 				const select = event.target.closest("select[data-action='setRole']");
 				if (!select) return;
 				applyAction("setRole", select.getAttribute("data-id"), select.value);
