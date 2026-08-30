@@ -4052,6 +4052,96 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
+async function resolveChatRelationship(currentUser, contactUserId) {
+  const role = String((currentUser && currentUser.role) || "").toLowerCase();
+  const contactId = String(contactUserId || "").trim();
+  if (!contactId) return null;
+  if (role === "teacher") {
+    const student = await db("users as s")
+      .join("learners as l", "l.learner_code", "s.lrn")
+      .where({ "s.id": contactId, "s.role": "student", "l.adviser_user_id": currentUser.id })
+      .first("s.id", "s.firstname", "s.middlename", "s.lastname", "s.lrn", "l.id as learner_id");
+    return student ? { adviserUserId: currentUser.id, studentUserId: student.id, contact: student } : null;
+  }
+  if (role === "student") {
+    const adviser = await db("learners as l")
+      .join("users as a", "a.id", "l.adviser_user_id")
+      .where({ "l.learner_code": String(currentUser.lrn || "").trim(), "a.id": contactId })
+      .first("a.id", "a.firstname", "a.middlename", "a.lastname", "a.role", "l.id as learner_id");
+    return adviser ? { adviserUserId: adviser.id, studentUserId: currentUser.id, contact: adviser } : null;
+  }
+  return null;
+}
+
+app.get("/api/chat/contacts", requireLogin, async (req, res) => {
+  try {
+    const user = await db("users").where({ id: req.session.userId }).first();
+    const role = String((user && user.role) || "").toLowerCase();
+    let contacts = [];
+    if (role === "teacher") {
+      contacts = await db("users as s")
+        .join("learners as l", "l.learner_code", "s.lrn")
+        .where({ "l.adviser_user_id": user.id, "s.role": "student" })
+        .distinct("s.id", "s.firstname", "s.middlename", "s.lastname", "s.lrn")
+        .orderBy([{ column: "s.lastname", order: "asc" }, { column: "s.firstname", order: "asc" }]);
+    } else if (role === "student") {
+      contacts = await db("learners as l")
+        .join("users as a", "a.id", "l.adviser_user_id")
+        .where({ "l.learner_code": String(user.lrn || "").trim() })
+        .distinct("a.id", "a.firstname", "a.middlename", "a.lastname", "a.role")
+        .orderBy("a.lastname", "asc");
+    } else {
+      return res.json({ role, contacts: [] });
+    }
+    const contactIds = contacts.map((contact) => contact.id);
+    const unreadRows = contactIds.length ? await db("adviser_student_messages")
+      .whereNull("read_at")
+      .whereNot({ sender_user_id: user.id })
+      .where((query) => role === "teacher" ? query.where({ adviser_user_id: user.id }).whereIn("student_user_id", contactIds) : query.where({ student_user_id: user.id }).whereIn("adviser_user_id", contactIds))
+      .select("adviser_user_id", "student_user_id") : [];
+    const unread = unreadRows.reduce((counts, row) => {
+      const id = role === "teacher" ? row.student_user_id : row.adviser_user_id;
+      counts[id] = Number(counts[id] || 0) + 1;
+      return counts;
+    }, {});
+    return res.json({ role, contacts: contacts.map((contact) => ({ id: contact.id, name: [contact.firstname, contact.middlename, contact.lastname].filter(Boolean).join(" "), lrn: contact.lrn || "", unread: Number(unread[contact.id] || 0) })) });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to load chat contacts.", detail: error.message });
+  }
+});
+
+app.get("/api/chat/messages/:contactUserId", requireLogin, async (req, res) => {
+  try {
+    const user = await db("users").where({ id: req.session.userId }).first();
+    const relationship = await resolveChatRelationship(user, req.params.contactUserId);
+    if (!relationship) return res.status(403).json({ message: "Chat is only available between an adviser and their assigned student." });
+    const messages = await db("adviser_student_messages")
+      .where({ adviser_user_id: relationship.adviserUserId, student_user_id: relationship.studentUserId })
+      .orderBy("created_at", "asc").limit(300);
+    const nowIso = new Date().toISOString();
+    await db("adviser_student_messages").where({ adviser_user_id: relationship.adviserUserId, student_user_id: relationship.studentUserId }).whereNot({ sender_user_id: user.id }).whereNull("read_at").update({ read_at: nowIso });
+    return res.json({ messages: messages.map((message) => ({ id: message.id, message: message.message, created_at: message.created_at, mine: message.sender_user_id === user.id })) });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to load chat messages.", detail: error.message });
+  }
+});
+
+app.post("/api/chat/messages/:contactUserId", requireLogin, async (req, res) => {
+  try {
+    const user = await db("users").where({ id: req.session.userId }).first();
+    const relationship = await resolveChatRelationship(user, req.params.contactUserId);
+    if (!relationship) return res.status(403).json({ message: "Chat is only available between an adviser and their assigned student." });
+    const message = String((req.body || {}).message || "").trim();
+    if (!message) return res.status(400).json({ message: "Enter a message." });
+    if (message.length > 2000) return res.status(400).json({ message: "Messages are limited to 2,000 characters." });
+    const row = { id: crypto.randomUUID(), adviser_user_id: relationship.adviserUserId, student_user_id: relationship.studentUserId, sender_user_id: user.id, message, created_at: new Date().toISOString(), read_at: null };
+    await db("adviser_student_messages").insert(row);
+    return res.status(201).json({ message: "Message sent.", chat_message: { id: row.id, message: row.message, created_at: row.created_at, mine: true } });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to send chat message.", detail: error.message });
+  }
+});
+
 app.use("/api", (req, res) => {
   return res.status(404).json({ message: "API route not found." });
 });

@@ -1209,6 +1209,114 @@ function initializeAdmDeadlineWarnings() {
 	}, 900);
 }
 
+function initializeAdviserStudentChat() {
+	if (/^(?:\/)?(?:index|signup|signout)\.html$/i.test(location.pathname.replace(/^\//, ''))) return;
+	let contacts = [];
+	let selectedContactId = '';
+	let pollTimer = null;
+	let panelOpen = false;
+
+	const formatChatTime = (value) => {
+		const date = new Date(value);
+		return Number.isNaN(date.getTime()) ? '' : date.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+	};
+	const requestJson = async (url, options = {}) => {
+		const response = await fetch(url, { credentials: 'include', ...options });
+		const data = await response.json().catch(() => ({}));
+		if (!response.ok) throw new Error(data.message || 'Chat request failed.');
+		return data;
+	};
+
+	window.setTimeout(async () => {
+		let session;
+		try { session = await requestJson('/api/auth/me'); } catch (_) { return; }
+		const role = String((session.user || session).role || '').toLowerCase();
+		if (role !== 'teacher' && role !== 'student') return;
+
+		const widget = document.createElement('aside');
+		widget.className = 'itrack-chat-widget';
+		widget.innerHTML = `
+			<button class="itrack-chat-launcher" type="button" aria-expanded="false" aria-label="Open adviser student chat"><span aria-hidden="true">💬</span><span>Chat</span><b class="itrack-chat-unread" hidden>0</b></button>
+			<section class="itrack-chat-panel" hidden aria-label="Adviser student chat">
+				<header><div><strong>Adviser–Student Chat</strong><small>${role === 'teacher' ? 'Message your assigned students' : 'Message your adviser'}</small></div><button class="itrack-chat-close" type="button" aria-label="Close chat">×</button></header>
+				<label class="itrack-chat-contact-label" for="itrackChatContact">Conversation</label>
+				<select id="itrackChatContact" class="itrack-chat-contact" aria-label="Choose conversation"></select>
+				<div class="itrack-chat-messages" aria-live="polite"><p class="itrack-chat-empty">Loading conversations…</p></div>
+				<form class="itrack-chat-form"><textarea maxlength="2000" rows="2" placeholder="Type a message…" aria-label="Chat message" required></textarea><button type="submit">Send</button></form>
+				<p class="itrack-chat-status" role="status"></p>
+			</section>`;
+		document.body.appendChild(widget);
+		const launcher = widget.querySelector('.itrack-chat-launcher');
+		const panel = widget.querySelector('.itrack-chat-panel');
+		const close = widget.querySelector('.itrack-chat-close');
+		const select = widget.querySelector('.itrack-chat-contact');
+		const messagesBox = widget.querySelector('.itrack-chat-messages');
+		const form = widget.querySelector('.itrack-chat-form');
+		const textarea = form.querySelector('textarea');
+		const status = widget.querySelector('.itrack-chat-status');
+		const unreadBadge = widget.querySelector('.itrack-chat-unread');
+
+		const showStatus = (message, isError = false) => {
+			status.textContent = message || '';
+			status.classList.toggle('is-error', isError);
+		};
+		const updateUnread = () => {
+			const total = contacts.reduce((sum, contact) => sum + Number(contact.unread || 0), 0);
+			unreadBadge.textContent = total > 99 ? '99+' : String(total);
+			unreadBadge.hidden = !total;
+		};
+		const renderContacts = () => {
+			select.replaceChildren();
+			if (!contacts.length) {
+				const option = document.createElement('option'); option.value = ''; option.textContent = role === 'teacher' ? 'No assigned students available' : 'No adviser assigned'; select.appendChild(option); select.disabled = true; return;
+			}
+			select.disabled = false;
+			contacts.forEach((contact) => {
+				const option = document.createElement('option'); option.value = contact.id;
+				option.textContent = `${contact.name || 'User'}${contact.lrn ? ` — LRN ${contact.lrn}` : ''}${contact.unread ? ` (${contact.unread} new)` : ''}`;
+				select.appendChild(option);
+			});
+			if (!contacts.some((contact) => contact.id === selectedContactId)) selectedContactId = contacts[0].id;
+			select.value = selectedContactId;
+		};
+		const loadMessages = async () => {
+			if (!selectedContactId || !panelOpen) return;
+			try {
+				const data = await requestJson(`/api/chat/messages/${encodeURIComponent(selectedContactId)}`);
+				messagesBox.replaceChildren();
+				if (!data.messages.length) { const empty = document.createElement('p'); empty.className = 'itrack-chat-empty'; empty.textContent = 'No messages yet. Start the conversation.'; messagesBox.appendChild(empty); }
+				data.messages.forEach((item) => {
+					const bubble = document.createElement('article'); bubble.className = `itrack-chat-bubble ${item.mine ? 'is-mine' : 'is-theirs'}`;
+					const text = document.createElement('p'); text.textContent = item.message;
+					const time = document.createElement('time'); time.dateTime = item.created_at; time.textContent = formatChatTime(item.created_at);
+					bubble.append(text, time); messagesBox.appendChild(bubble);
+				});
+				messagesBox.scrollTop = messagesBox.scrollHeight;
+				const active = contacts.find((contact) => contact.id === selectedContactId); if (active) active.unread = 0; updateUnread(); renderContacts();
+			} catch (error) { showStatus(error.message, true); }
+		};
+		const loadContacts = async () => {
+			try { const data = await requestJson('/api/chat/contacts'); contacts = Array.isArray(data.contacts) ? data.contacts : []; renderContacts(); updateUnread(); if (panelOpen) await loadMessages(); }
+			catch (error) { showStatus(error.message, true); }
+		};
+		const setPanelOpen = (open) => {
+			panelOpen = open; panel.hidden = !open; launcher.setAttribute('aria-expanded', String(open));
+			if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+			if (open) { loadContacts(); pollTimer = window.setInterval(loadContacts, 10000); }
+		};
+		launcher.addEventListener('click', () => setPanelOpen(!panelOpen));
+		close.addEventListener('click', () => setPanelOpen(false));
+		select.addEventListener('change', () => { selectedContactId = select.value; showStatus(''); loadMessages(); });
+		form.addEventListener('submit', async (event) => {
+			event.preventDefault(); const message = textarea.value.trim(); if (!message || !selectedContactId) return;
+			const submit = form.querySelector('button'); submit.disabled = true; showStatus('Sending…');
+			try { await requestJson(`/api/chat/messages/${encodeURIComponent(selectedContactId)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }) }); textarea.value = ''; showStatus(''); await loadMessages(); textarea.focus(); }
+			catch (error) { showStatus(error.message, true); } finally { submit.disabled = false; }
+		});
+		await loadContacts();
+	}, 1000);
+}
+
 // Initialize theme manager when DOM is ready
 if (document.readyState === 'loading') {
 	document.addEventListener('DOMContentLoaded', () => {
@@ -1227,6 +1335,7 @@ if (document.readyState === 'loading') {
 		initializeLearningResourceFinalGrades();
 		initializeStudentProfileFinalGrades();
 		initializeAdmDeadlineWarnings();
+		initializeAdviserStudentChat();
 		window.themeManager = new ThemeManager();
 		document.documentElement.classList.remove('itrack-dashboard-boot');
 	});
@@ -1246,6 +1355,7 @@ if (document.readyState === 'loading') {
 	initializeLearningResourceFinalGrades();
 	initializeStudentProfileFinalGrades();
 	initializeAdmDeadlineWarnings();
+	initializeAdviserStudentChat();
 	window.themeManager = new ThemeManager();
 	document.documentElement.classList.remove('itrack-dashboard-boot');
 }

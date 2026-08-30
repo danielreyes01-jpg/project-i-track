@@ -576,6 +576,21 @@ async function ensureSchema() {
     });
   }
 
+  if (!(await db.schema.hasTable("adviser_student_messages"))) {
+    await db.schema.createTable("adviser_student_messages", (table) => {
+      table.string("id", 64).primary();
+      table.string("adviser_user_id", 64).notNullable();
+      table.string("student_user_id", 64).notNullable();
+      table.string("sender_user_id", 64).notNullable();
+      table.string("message", 2000).notNullable();
+      table.string("created_at", 40).notNullable();
+      table.string("read_at", 40).nullable();
+      table.index(["adviser_user_id", "student_user_id", "created_at"], "idx_adviser_student_chat");
+      table.index(["student_user_id", "read_at"], "idx_student_chat_unread");
+      table.index(["adviser_user_id", "read_at"], "idx_adviser_chat_unread");
+    });
+  }
+
   const schoolYearTables = [
     ["learners", "date_started"],
     ["learning_resources", "created_at"],
