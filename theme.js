@@ -1230,8 +1230,12 @@ function initializeAdviserStudentChat() {
 	window.setTimeout(async () => {
 		let session;
 		try { session = await requestJson('/api/auth/me'); } catch (_) { return; }
-		const role = String((session.user || session).role || '').toLowerCase();
-		if (role !== 'teacher' && role !== 'student') return;
+		const account = session.user || session;
+		const storedRole = String(account.role || '').toLowerCase();
+		const position = String(account.position || '').trim().toLowerCase();
+		const adviserAccount = storedRole === 'teacher' || storedRole === 'adviser' || ['adviser', 'teacher adviser', 'class adviser'].includes(position);
+		const role = adviserAccount ? 'teacher' : storedRole;
+		if (!adviserAccount && role !== 'student') return;
 
 		const widget = document.createElement('aside');
 		widget.className = 'itrack-chat-widget';

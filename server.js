@@ -4052,11 +4052,17 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
+function isAdviserChatAccount(user) {
+  const role = String((user && user.role) || "").trim().toLowerCase();
+  const position = String((user && user.position) || "").trim().toLowerCase();
+  return role === "teacher" || role === "adviser" || position === "adviser" || position === "teacher adviser" || position === "class adviser";
+}
+
 async function resolveChatRelationship(currentUser, contactUserId) {
   const role = String((currentUser && currentUser.role) || "").toLowerCase();
   const contactId = String(contactUserId || "").trim();
   if (!contactId) return null;
-  if (role === "teacher") {
+  if (isAdviserChatAccount(currentUser)) {
     const student = await db("users as s")
       .join("learners as l", "l.learner_code", "s.lrn")
       .where({ "s.id": contactId, "s.role": "student", "l.adviser_user_id": currentUser.id })
@@ -4078,7 +4084,8 @@ app.get("/api/chat/contacts", requireLogin, async (req, res) => {
     const user = await db("users").where({ id: req.session.userId }).first();
     const role = String((user && user.role) || "").toLowerCase();
     let contacts = [];
-    if (role === "teacher") {
+    const adviserAccount = isAdviserChatAccount(user);
+    if (adviserAccount) {
       contacts = await db("users as s")
         .join("learners as l", "l.learner_code", "s.lrn")
         .where({ "l.adviser_user_id": user.id, "s.role": "student" })
@@ -4097,15 +4104,15 @@ app.get("/api/chat/contacts", requireLogin, async (req, res) => {
     const unreadRows = contactIds.length ? await db("adviser_student_messages")
       .whereNull("read_at")
       .whereNot({ sender_user_id: user.id })
-      .where((query) => role === "teacher" ? query.where({ adviser_user_id: user.id }).whereIn("student_user_id", contactIds) : query.where({ student_user_id: user.id }).whereIn("adviser_user_id", contactIds))
+      .where((query) => adviserAccount ? query.where({ adviser_user_id: user.id }).whereIn("student_user_id", contactIds) : query.where({ student_user_id: user.id }).whereIn("adviser_user_id", contactIds))
       .select("adviser_user_id", "student_user_id") : [];
     const unread = unreadRows.reduce((counts, row) => {
-      const id = role === "teacher" ? row.student_user_id : row.adviser_user_id;
+      const id = adviserAccount ? row.student_user_id : row.adviser_user_id;
       counts[id] = Number(counts[id] || 0) + 1;
       return counts;
     }, {});
     const onlineCutoff = Date.now() - (2 * 60 * 1000);
-    return res.json({ role, contacts: contacts.map((contact) => ({ id: contact.id, name: [contact.firstname, contact.middlename, contact.lastname].filter(Boolean).join(" "), lrn: contact.lrn || "", online: role === "teacher" && contact.last_seen_at ? new Date(contact.last_seen_at).getTime() >= onlineCutoff : null, unread: Number(unread[contact.id] || 0) })) });
+    return res.json({ role: adviserAccount ? "adviser" : role, contacts: contacts.map((contact) => ({ id: contact.id, name: [contact.firstname, contact.middlename, contact.lastname].filter(Boolean).join(" "), lrn: contact.lrn || "", online: adviserAccount && contact.last_seen_at ? new Date(contact.last_seen_at).getTime() >= onlineCutoff : null, unread: Number(unread[contact.id] || 0) })) });
   } catch (error) {
     return res.status(500).json({ message: "Unable to load chat contacts.", detail: error.message });
   }
