@@ -1431,23 +1431,26 @@
 						navDashboard.setAttribute("onclick", "window.location.href='admin-students.html'");
 					}
 					if (userRole === "supervisor") {
-						window.location.href = "dashboard.html";
-						return;
-					} else {
-						// Show My Learner Records section for teacher/admin
-						myLearnersSection.style.display = "block";
+						if (readonlyNotice) readonlyNotice.style.display = "block";
+						form.style.display = "none";
+						document.querySelector('.title').textContent = "District Learner Records";
+						document.querySelector('.subtitle').textContent = "View students under ADM and learner accounts created by teachers in your assigned district.";
 					}
+					// Show the scoped learner records for teachers, administrators, principals, and supervisors.
+					myLearnersSection.style.display = "block";
 				} catch (e) {
 					window.location.href = "index.html";
 				}
 			}
 
 			async function loadMyLearners() {
-				if (userRole === "supervisor") return;
 				try {
+					const approvalRequestFetch = userRole === 'supervisor'
+						? Promise.resolve({ ok: false })
+						: fetch(apiUrl("/approval-requests"), { credentials: "include" });
 					const [response, requestResponse] = await Promise.all([
 						fetch(apiUrl("/learners"), { credentials: "include" }),
-						fetch(apiUrl("/approval-requests"), { credentials: "include" })
+						approvalRequestFetch
 					]);
 					if (!response.ok) {
 						myLearnersCount.textContent = "0";
@@ -1487,6 +1490,12 @@
 							: requestStatus === "rejected"
 							? "Request Again"
 							: "Request for ADM Approval Letter";
+						const recordActions = userRole === 'supervisor'
+							? '<span class="status-pill" style="background:#e8f1f4;color:#365a6c;">View only</span>'
+							: '<button class="btn-edit" type="button" data-learner-id="' + lr.id + '">Edit</button><button class="btn-request" type="button" data-request-learner-id="' + lr.id + '"' + (requestDisabled ? ' disabled' : '') + '>' + requestLabel + '</button><div class="request-meta">' +
+								(fileName ? ('<div class="request-file">Uploaded: ' + fileName + '</div>') : '<div class="request-file">Uploaded: None</div>') +
+								'<button class="btn-replace-document" type="button" data-replace-request-id="' + (requestInfo ? requestInfo.id : '') + '"' + (replaceDisabled ? ' disabled' : '') + '>Replace Document</button>' +
+							'</div>';
 						return '<tr>' +
 							'<td>' + (lr.learner_code || '-') + '</td>' +
 							'<td>' + (lr.family_name || '-') + '</td>' +
@@ -1495,10 +1504,7 @@
 							'<td>' + (lr.district || '-') + '</td>' +
 							'<td>' + (lr.school || '-') + '</td>' +
 							'<td>' + (lr.teacher_adviser || '-') + '</td>' +
-							'<td><button class="btn-edit" type="button" data-learner-id="' + lr.id + '">Edit</button><button class="btn-request" type="button" data-request-learner-id="' + lr.id + '"' + (requestDisabled ? ' disabled' : '') + '>' + requestLabel + '</button><div class="request-meta">' +
-								(fileName ? ('<div class="request-file">Uploaded: ' + fileName + '</div>') : '<div class="request-file">Uploaded: None</div>') +
-								'<button class="btn-replace-document" type="button" data-replace-request-id="' + (requestInfo ? requestInfo.id : '') + '"' + (replaceDisabled ? ' disabled' : '') + '>Replace Document</button>' +
-							'</div></td>' +
+							'<td>' + recordActions + '</td>' +
 							'</tr>';
 					}).join('');
 				} catch (e) {

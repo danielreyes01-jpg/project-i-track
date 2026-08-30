@@ -1968,6 +1968,20 @@ async function requireTeacherOrPrincipal(req, res, next) {
   }
 }
 
+async function requireStudentMonitoringAccess(req, res, next) {
+  try {
+    const sessionUser = await hasActiveAccountSession(req);
+    if (!sessionUser) return res.status(401).json({ message: "Session expired or this account was signed in on another device." });
+    const role = String(sessionUser.role || "").trim().toLowerCase();
+    if (!["teacher", "principal", "supervisor", "admin"].includes(role)) return res.status(403).json({ message: "Student monitoring access only." });
+    req.session.role = role;
+    req.schoolStaffUser = sessionUser;
+    return next();
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to validate student monitoring access.", detail: error.message });
+  }
+}
+
 function getStatusLabel(status) {
   const normalizedStatus = String(status || "pending").trim().toLowerCase() || "pending";
   const statusLabels = {
@@ -2193,7 +2207,10 @@ app.get("/api/learners", requireLogin, async (req, res) => {
   try {
     const user = await db("users").where({ id: req.session.userId }).first("role", "district", "school");
     let query = db("learners");
-    if (String((user || {}).role || "").toLowerCase() === "principal") query = query.where({ district: user.district, school: user.school });
+    const viewerRole = String((user || {}).role || "").toLowerCase();
+    if (viewerRole === "principal") query = query.where({ district: user.district, school: user.school });
+    else if (viewerRole === "supervisor") query = query.where({ district: user.district });
+    else if (viewerRole === "admin") query = query;
     else query = query.where({ user_id: req.session.userId });
     const learners = await query
       .select("*")
@@ -2208,7 +2225,10 @@ app.get("/api/learners/export", requireLogin, async (req, res) => {
   try {
     const user = await db("users").where({ id: req.session.userId }).first("role", "district", "school");
     let query = db("learners");
-    if (String((user || {}).role || "").toLowerCase() === "principal") query = query.where({ district: user.district, school: user.school });
+    const viewerRole = String((user || {}).role || "").toLowerCase();
+    if (viewerRole === "principal") query = query.where({ district: user.district, school: user.school });
+    else if (viewerRole === "supervisor") query = query.where({ district: user.district });
+    else if (viewerRole === "admin") query = query;
     else query = query.where({ user_id: req.session.userId });
     const learners = await query
       .select("*")
@@ -3895,7 +3915,7 @@ app.post("/api/student/reset-password", requireLogin, async (req, res) => {
   }
 });
 
-app.get("/api/admin/student-monitoring", requireTeacherOrPrincipal, async (req, res) => {
+app.get("/api/admin/student-monitoring", requireStudentMonitoringAccess, async (req, res) => {
   try {
     let students = await db("users").where({ role: "student", approved: true }).select("*").orderBy(["district", "school", "lastname", "firstname"]);
     if (String(req.session.role || "").toLowerCase() === "teacher") {
@@ -3908,6 +3928,8 @@ app.get("/api/admin/student-monitoring", requireTeacherOrPrincipal, async (req, 
       students = students.filter((student) => adviserLrns.has(String(student.lrn || "").trim()) || resourceStudentIds.has(String(student.id)));
     } else if (String(req.session.role || "").toLowerCase() === "principal") {
       students = students.filter((student) => String(student.district || "") === String(req.schoolStaffUser.district || "") && String(student.school || "") === String(req.schoolStaffUser.school || ""));
+    } else if (String(req.session.role || "").toLowerCase() === "supervisor") {
+      students = students.filter((student) => String(student.district || "") === String(req.schoolStaffUser.district || ""));
     }
     const studentIds = students.map((student) => student.id);
     const lrns = students.map((student) => String(student.lrn || "").trim()).filter(Boolean);
@@ -3953,8 +3975,8 @@ app.get("/api/admin/student-monitoring", requireTeacherOrPrincipal, async (req, 
     return res.json({
       records,
       districtSummary,
-      scope: viewerRole === "principal" ? "school" : viewerRole === "teacher" ? "adviser" : "division",
-      scope_label: viewerRole === "principal" ? String(req.schoolStaffUser.school || "Assigned School") : viewerRole === "teacher" ? "Advisory Students" : "All Districts",
+      scope: viewerRole === "principal" ? "school" : viewerRole === "teacher" ? "adviser" : viewerRole === "supervisor" ? "district" : "division",
+      scope_label: viewerRole === "principal" ? String(req.schoolStaffUser.school || "Assigned School") : viewerRole === "teacher" ? "Advisory Students" : viewerRole === "supervisor" ? String(req.schoolStaffUser.district || "Assigned District") : "All Districts",
       totals: { students: records.length, online: records.filter((record) => record.presence.online).length, urgent: records.filter((record) => record.urgent).length, noModules: records.filter((record) => record.answeredModules === 0 && record.ongoingModules === 0).length, failing: records.filter((record) => record.averageGrade !== null && record.averageGrade < 75).length }
     });
   } catch (error) {
@@ -3962,7 +3984,7 @@ app.get("/api/admin/student-monitoring", requireTeacherOrPrincipal, async (req, 
   }
 });
 
-app.get("/api/admin/modular-tracking-summary", requireTeacherOrPrincipal, async (req, res) => {
+app.get("/api/admin/modular-tracking-summary", requireStudentMonitoringAccess, async (req, res) => {
   try {
     let [students, resources] = await Promise.all([
       db("users").where({ role: "student", approved: true }).select("id", "firstname", "middlename", "lastname", "lrn", "district", "school", "last_seen_at", "active_session_id"),
@@ -3980,6 +4002,10 @@ app.get("/api/admin/modular-tracking-summary", requireTeacherOrPrincipal, async 
       resources = teacherResources.filter((resource) => allowedStudentIds.has(String(resource.student_user_id)));
     } else if (String(req.session.role || "").toLowerCase() === "principal") {
       students = students.filter((student) => String(student.district || "") === String(req.schoolStaffUser.district || "") && String(student.school || "") === String(req.schoolStaffUser.school || ""));
+      const allowedStudentIds = new Set(students.map((student) => String(student.id)));
+      resources = resources.filter((resource) => allowedStudentIds.has(String(resource.student_user_id)));
+    } else if (String(req.session.role || "").toLowerCase() === "supervisor") {
+      students = students.filter((student) => String(student.district || "") === String(req.schoolStaffUser.district || ""));
       const allowedStudentIds = new Set(students.map((student) => String(student.id)));
       resources = resources.filter((resource) => allowedStudentIds.has(String(resource.student_user_id)));
     }

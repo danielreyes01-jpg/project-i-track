@@ -455,7 +455,7 @@ function simplifyNavigation(navMenu) {
 			if ((role === 'supervisor' || role === 'principal') && !navMenu.dataset.leadershipNavigationLoaded) {
 				navMenu.dataset.leadershipNavigationLoaded = 'true';
 				const leadershipItems = role === 'supervisor'
-					? [['District Dashboard', 'dashboard.html'], ['District Reports', 'reports.html'], ['My Account', 'account.html']]
+					? [['Learner Records', 'learner.html'], ['Student Dashboard', 'admin-students.html'], ['District Dashboard', 'dashboard.html'], ['District Reports', 'reports.html'], ['My Account', 'account.html']]
 					: [['FLP Request Form', 'adm-request.html'], ['Student Dashboard', 'admin-students.html'], ['School Reports', 'reports.html'], ['My Account', 'account.html']];
 				const allowedTargets = new Set(leadershipItems.map(([, target]) => target.toLowerCase()));
 				Array.from(navMenu.querySelectorAll('.nav-item')).forEach((item) => {
