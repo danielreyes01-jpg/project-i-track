@@ -1064,12 +1064,12 @@ app.get("/api/auth/me", async (req, res) => {
 app.post("/api/presence/heartbeat", requireLogin, async (req, res) => {
   try {
     const user = await db("users").where({ id: req.session.userId }).first("id", "role");
-    if (!user || String(user.role || "").toLowerCase() !== "student") return res.json({ tracked: false });
+    if (!user) return res.json({ tracked: false });
     const lastSeenAt = new Date().toISOString();
     await db("users").where({ id: user.id }).update({ last_seen_at: lastSeenAt });
     return res.json({ tracked: true, online: true, last_seen_at: lastSeenAt });
   } catch (error) {
-    return res.status(500).json({ message: "Unable to update student presence." });
+    return res.status(500).json({ message: "Unable to update account presence." });
   }
 });
 
@@ -4125,6 +4125,14 @@ async function resolveChatRelationship(currentUser, contactUserId) {
   const role = String((currentUser && currentUser.role) || "").toLowerCase();
   const contactId = String(contactUserId || "").trim();
   if (!contactId) return null;
+  if (role === "admin") {
+    const contact = await db("users").where({ id: contactId, approved: true }).whereIn("role", ["teacher", "student"]).first("id", "firstname", "middlename", "lastname", "role", "lrn", "last_seen_at", "active_session_id");
+    return contact ? { adviserUserId: currentUser.id, studentUserId: contact.id, contact } : null;
+  }
+  const administrator = await db("users").where({ role: "admin" }).orderBy("created_at", "asc").first("id", "firstname", "middlename", "lastname", "role", "last_seen_at", "active_session_id");
+  if (administrator && String(administrator.id) === contactId) {
+    return { adviserUserId: administrator.id, studentUserId: currentUser.id, contact: administrator };
+  }
   if (isAdviserChatAccount(currentUser)) {
     const student = await db("users as s")
       .join("learners as l", "l.learner_code", "s.lrn")
@@ -4142,40 +4150,82 @@ async function resolveChatRelationship(currentUser, contactUserId) {
   return null;
 }
 
+function chatHistoryContactId(adviserUserId, studentUserId) {
+  return `history:${adviserUserId}:${studentUserId}`;
+}
+
+function parseChatHistoryContactId(value) {
+  const match = String(value || "").match(/^history:([^:]+):([^:]+)$/);
+  return match ? { adviserUserId: match[1], studentUserId: match[2] } : null;
+}
+
+function chatDisplayName(user) {
+  return [user && user.firstname, user && user.middlename, user && user.lastname].filter(Boolean).join(" ") || "User";
+}
+
+function chatRoleLabel(role) {
+  const value = String(role || "").toLowerCase();
+  if (value === "admin") return "System Administrator";
+  if (value === "teacher" || value === "adviser") return "Teacher";
+  if (value === "student") return "Student";
+  return value || "User";
+}
+
 app.get("/api/chat/contacts", requireLogin, async (req, res) => {
   try {
     const user = await db("users").where({ id: req.session.userId }).first();
     const role = String((user && user.role) || "").toLowerCase();
     let contacts = [];
     const adviserAccount = isAdviserChatAccount(user);
-    if (adviserAccount) {
+    if (role === "admin") {
+      contacts = await db("users").where({ approved: true }).whereIn("role", ["teacher", "student"]).whereNot({ id: user.id }).select("id", "firstname", "middlename", "lastname", "role", "lrn", "last_seen_at", "active_session_id").orderBy([{ column: "lastname", order: "asc" }, { column: "firstname", order: "asc" }]);
+    } else if (adviserAccount) {
       contacts = await db("users as s")
         .join("learners as l", "l.learner_code", "s.lrn")
         .where({ "l.adviser_user_id": user.id, "s.role": "student" })
-        .distinct("s.id", "s.firstname", "s.middlename", "s.lastname", "s.lrn", "s.last_seen_at")
+        .distinct("s.id", "s.firstname", "s.middlename", "s.lastname", "s.role", "s.lrn", "s.last_seen_at", "s.active_session_id")
         .orderBy([{ column: "s.lastname", order: "asc" }, { column: "s.firstname", order: "asc" }]);
     } else if (role === "student") {
       contacts = await db("learners as l")
         .join("users as a", "a.id", "l.adviser_user_id")
         .where({ "l.learner_code": String(user.lrn || "").trim() })
-        .distinct("a.id", "a.firstname", "a.middlename", "a.lastname", "a.role")
+        .distinct("a.id", "a.firstname", "a.middlename", "a.lastname", "a.role", "a.last_seen_at", "a.active_session_id")
         .orderBy("a.lastname", "asc");
     } else {
       return res.json({ role, contacts: [] });
+    }
+    if (role !== "admin") {
+      const administrator = await db("users").where({ role: "admin" }).orderBy("created_at", "asc").first("id", "firstname", "middlename", "lastname", "role", "last_seen_at", "active_session_id");
+      if (administrator && !contacts.some((contact) => String(contact.id) === String(administrator.id))) contacts.unshift(administrator);
     }
     const contactIds = contacts.map((contact) => contact.id);
     const unreadRows = contactIds.length ? await db("adviser_student_messages")
       .whereNull("read_at")
       .whereNot({ sender_user_id: user.id })
-      .where((query) => adviserAccount ? query.where({ adviser_user_id: user.id }).whereIn("student_user_id", contactIds) : query.where({ student_user_id: user.id }).whereIn("adviser_user_id", contactIds))
+      .where((query) => query.where({ adviser_user_id: user.id }).whereIn("student_user_id", contactIds).orWhere((nested) => nested.where({ student_user_id: user.id }).whereIn("adviser_user_id", contactIds)))
       .select("adviser_user_id", "student_user_id") : [];
     const unread = unreadRows.reduce((counts, row) => {
-      const id = adviserAccount ? row.student_user_id : row.adviser_user_id;
+      const id = String(row.adviser_user_id) === String(user.id) ? row.student_user_id : row.adviser_user_id;
       counts[id] = Number(counts[id] || 0) + 1;
       return counts;
     }, {});
-    const onlineCutoff = Date.now() - (2 * 60 * 1000);
-    return res.json({ role: adviserAccount ? "adviser" : role, contacts: contacts.map((contact) => ({ id: contact.id, name: [contact.firstname, contact.middlename, contact.lastname].filter(Boolean).join(" "), lrn: contact.lrn || "", online: adviserAccount && contact.last_seen_at ? new Date(contact.last_seen_at).getTime() >= onlineCutoff : null, unread: Number(unread[contact.id] || 0) })) });
+    const directContacts = contacts.map((contact) => ({ id: contact.id, name: chatDisplayName(contact), role: chatRoleLabel(contact.role), lrn: contact.lrn || "", online: getStudentPresence(contact).online, unread: Number(unread[contact.id] || 0), mode: "direct" }));
+    let history = [];
+    if (role === "admin") {
+      const pairs = await db("adviser_student_messages")
+        .whereNot({ adviser_user_id: user.id }).whereNot({ student_user_id: user.id })
+        .select("adviser_user_id as adviserUserId", "student_user_id as studentUserId")
+        .count({ messageCount: "id" }).max({ lastMessageAt: "created_at" })
+        .groupBy("adviser_user_id", "student_user_id").orderBy("lastMessageAt", "desc");
+      const participantIds = [...new Set(pairs.flatMap((pair) => [pair.adviserUserId, pair.studentUserId]))];
+      const participants = participantIds.length ? await db("users").whereIn("id", participantIds).select("id", "firstname", "middlename", "lastname", "role") : [];
+      const userById = new Map(participants.map((participant) => [String(participant.id), participant]));
+      history = pairs.map((pair) => {
+        const adviser = userById.get(String(pair.adviserUserId)); const student = userById.get(String(pair.studentUserId));
+        return { id: chatHistoryContactId(pair.adviserUserId, pair.studentUserId), name: `${chatDisplayName(adviser)} ↔ ${chatDisplayName(student)}`, role: "Chat History", online: false, unread: 0, mode: "history", message_count: Number(pair.messageCount || 0), last_message_at: pair.lastMessageAt };
+      });
+    }
+    return res.json({ role: adviserAccount ? "adviser" : role, contacts: [...directContacts, ...history] });
   } catch (error) {
     return res.status(500).json({ message: "Unable to load chat contacts.", detail: error.message });
   }
@@ -4184,14 +4234,18 @@ app.get("/api/chat/contacts", requireLogin, async (req, res) => {
 app.get("/api/chat/messages/:contactUserId", requireLogin, async (req, res) => {
   try {
     const user = await db("users").where({ id: req.session.userId }).first();
-    const relationship = await resolveChatRelationship(user, req.params.contactUserId);
-    if (!relationship) return res.status(403).json({ message: "Chat is only available between an adviser and their assigned student." });
+    const historyPair = parseChatHistoryContactId(req.params.contactUserId);
+    const historyView = String(user.role || "").toLowerCase() === "admin" && historyPair;
+    const relationship = historyView ? historyPair : await resolveChatRelationship(user, req.params.contactUserId);
+    if (!relationship) return res.status(403).json({ message: "This conversation is not available for your account." });
     const messages = await db("adviser_student_messages")
       .where({ adviser_user_id: relationship.adviserUserId, student_user_id: relationship.studentUserId })
       .orderBy("created_at", "asc").limit(300);
-    const nowIso = new Date().toISOString();
-    await db("adviser_student_messages").where({ adviser_user_id: relationship.adviserUserId, student_user_id: relationship.studentUserId }).whereNot({ sender_user_id: user.id }).whereNull("read_at").update({ read_at: nowIso });
-    return res.json({ messages: messages.map((message) => ({ id: message.id, message: message.message, created_at: message.created_at, mine: message.sender_user_id === user.id })) });
+    const senderIds = [...new Set(messages.map((message) => message.sender_user_id))];
+    const senders = senderIds.length ? await db("users").whereIn("id", senderIds).select("id", "firstname", "middlename", "lastname", "role") : [];
+    const senderById = new Map(senders.map((sender) => [String(sender.id), sender]));
+    if (!historyView) await db("adviser_student_messages").where({ adviser_user_id: relationship.adviserUserId, student_user_id: relationship.studentUserId }).whereNot({ sender_user_id: user.id }).whereNull("read_at").update({ read_at: new Date().toISOString() });
+    return res.json({ readOnly: Boolean(historyView), messages: messages.map((message) => { const sender = senderById.get(String(message.sender_user_id)); return { id: message.id, message: message.message, created_at: message.created_at, mine: !historyView && message.sender_user_id === user.id, sender_name: chatDisplayName(sender), sender_role: chatRoleLabel(sender && sender.role) }; }) });
   } catch (error) {
     return res.status(500).json({ message: "Unable to load chat messages.", detail: error.message });
   }
@@ -4200,8 +4254,9 @@ app.get("/api/chat/messages/:contactUserId", requireLogin, async (req, res) => {
 app.post("/api/chat/messages/:contactUserId", requireLogin, async (req, res) => {
   try {
     const user = await db("users").where({ id: req.session.userId }).first();
+    if (parseChatHistoryContactId(req.params.contactUserId)) return res.status(403).json({ message: "Chat history is read-only." });
     const relationship = await resolveChatRelationship(user, req.params.contactUserId);
-    if (!relationship) return res.status(403).json({ message: "Chat is only available between an adviser and their assigned student." });
+    if (!relationship) return res.status(403).json({ message: "This conversation is not available for your account." });
     const message = String((req.body || {}).message || "").trim();
     if (!message) return res.status(400).json({ message: "Enter a message." });
     if (message.length > 2000) return res.status(400).json({ message: "Messages are limited to 2,000 characters." });

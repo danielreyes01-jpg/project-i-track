@@ -960,7 +960,7 @@ async function initializeStudentPresenceHeartbeat() {
 		const response = await fetch('/api/auth/me', { credentials: 'include' });
 		if (!response.ok) return;
 		const payload = await response.json();
-		if (String(payload && payload.user && payload.user.role || '').toLowerCase() !== 'student') return;
+		if (!payload || !payload.user) return;
 		const heartbeat = () => fetch('/api/presence/heartbeat', { method: 'POST', credentials: 'include', keepalive: true }).catch(() => {});
 		heartbeat();
 		window.setInterval(heartbeat, 25000);
@@ -1235,25 +1235,28 @@ function initializeAdviserStudentChat() {
 		const position = String(account.position || '').trim().toLowerCase();
 		const adviserAccount = storedRole === 'teacher' || storedRole === 'adviser' || ['adviser', 'teacher adviser', 'class adviser'].includes(position);
 		const role = adviserAccount ? 'teacher' : storedRole;
-		if (!adviserAccount && role !== 'student') return;
+		if (!adviserAccount && role !== 'student' && role !== 'admin') return;
+		const title = role === 'admin' ? 'System Chat Center' : (role === 'teacher' ? 'Teacher–Student Chat' : 'Student Chat');
+		const subtitle = role === 'admin' ? 'Message users and review chat history' : (role === 'teacher' ? 'Message assigned students or System Administrator' : 'Message your teacher or System Administrator');
 
 		const widget = document.createElement('aside');
 		widget.className = 'itrack-chat-widget';
 		widget.innerHTML = `
-			<button class="itrack-chat-launcher" type="button" aria-expanded="false" aria-label="Open adviser student chat"><span aria-hidden="true">💬</span><span>Chat</span><b class="itrack-chat-unread" hidden>0</b></button>
-			<section class="itrack-chat-panel" hidden aria-label="Adviser student chat">
-				<header><div><strong>Adviser–Student Chat</strong><small>${role === 'teacher' ? 'Message your assigned students' : 'Message your adviser'}</small></div><button class="itrack-chat-close" type="button" aria-label="Close chat">×</button></header>
-				<label class="itrack-chat-contact-label" for="itrackChatContact">Conversation</label>
-				<select id="itrackChatContact" class="itrack-chat-contact" aria-label="Choose conversation"></select>
-				<div class="itrack-chat-messages" aria-live="polite"><p class="itrack-chat-empty">Loading conversations…</p></div>
-				<form class="itrack-chat-form"><textarea maxlength="2000" rows="2" placeholder="Type a message…" aria-label="Chat message" required></textarea><button type="submit">Send</button><small class="itrack-chat-hint">Enter to send · Shift+Enter for a new line</small></form>
-				<p class="itrack-chat-status" role="status"></p>
+			<button class="itrack-chat-launcher" type="button" aria-expanded="false" aria-label="Open chat"><span aria-hidden="true">💬</span><span>Chat</span><b class="itrack-chat-unread" hidden>0</b></button>
+			<section class="itrack-chat-panel" hidden aria-label="${title}">
+				<header><div><strong>${title}</strong><small>${subtitle}</small></div><button class="itrack-chat-close" type="button" aria-label="Close chat">×</button></header>
+				<div class="itrack-chat-layout">
+					<aside class="itrack-chat-directory"><strong>Conversations</strong><div class="itrack-chat-contact-list" aria-label="Chat contacts"></div></aside>
+					<section class="itrack-chat-thread"><div class="itrack-chat-thread-head"><strong>Select a conversation</strong><small></small></div><div class="itrack-chat-messages" aria-live="polite"><p class="itrack-chat-empty">Loading conversations…</p></div>
+					<form class="itrack-chat-form"><textarea maxlength="2000" rows="2" placeholder="Type a message…" aria-label="Chat message" required></textarea><button type="submit">Send</button><small class="itrack-chat-hint">Enter to send · Shift+Enter for a new line</small></form><p class="itrack-chat-status" role="status"></p></section>
+				</div>
 			</section>`;
 		document.body.appendChild(widget);
 		const launcher = widget.querySelector('.itrack-chat-launcher');
 		const panel = widget.querySelector('.itrack-chat-panel');
 		const close = widget.querySelector('.itrack-chat-close');
-		const select = widget.querySelector('.itrack-chat-contact');
+		const contactList = widget.querySelector('.itrack-chat-contact-list');
+		const threadHead = widget.querySelector('.itrack-chat-thread-head');
 		const messagesBox = widget.querySelector('.itrack-chat-messages');
 		const form = widget.querySelector('.itrack-chat-form');
 		const textarea = form.querySelector('textarea');
@@ -1271,41 +1274,51 @@ function initializeAdviserStudentChat() {
 			unreadBadge.hidden = !total;
 		};
 		const renderContacts = () => {
-			select.replaceChildren();
+			contactList.replaceChildren();
 			if (!contacts.length) {
 				selectedContactId = '';
-				const option = document.createElement('option'); option.value = ''; option.textContent = role === 'teacher' ? 'No assigned students available' : 'No adviser assigned'; select.appendChild(option); select.disabled = true;
-				textarea.disabled = true; sendButton.disabled = true; textarea.placeholder = role === 'teacher' ? 'Assign a student to begin chatting' : 'An adviser must be assigned first';
+				textarea.disabled = true; sendButton.disabled = true; textarea.placeholder = 'No conversation is available';
 				messagesBox.replaceChildren();
 				const empty = document.createElement('div'); empty.className = 'itrack-chat-empty itrack-chat-empty-state';
-				const icon = document.createElement('span'); icon.textContent = role === 'teacher' ? '👥' : '👩‍🏫';
-				const title = document.createElement('strong'); title.textContent = role === 'teacher' ? 'No assigned students yet' : 'No adviser assigned yet';
-				const note = document.createElement('p'); note.textContent = role === 'teacher' ? 'Students will appear here after their learner record is assigned to your account.' : 'Ask your school or system administrator to link your learner record to your adviser.';
-				empty.append(icon, title, note); messagesBox.appendChild(empty); return;
+				const icon = document.createElement('span'); icon.textContent = '💬';
+				const emptyTitle = document.createElement('strong'); emptyTitle.textContent = 'No conversations available';
+				const note = document.createElement('p'); note.textContent = 'Available users and conversations will appear here.';
+				empty.append(icon, emptyTitle, note); messagesBox.appendChild(empty); return;
 			}
-			select.disabled = false; textarea.disabled = false; sendButton.disabled = false; textarea.placeholder = 'Type a message…';
+			if (!contacts.some((contact) => String(contact.id) === String(selectedContactId))) selectedContactId = String(contacts[0].id);
 			contacts.forEach((contact) => {
-				const option = document.createElement('option'); option.value = contact.id;
-				option.textContent = `${role === 'teacher' ? (contact.online ? '🟢 ' : '⚪ ') : ''}${contact.name || 'User'}${contact.lrn ? ` — LRN ${contact.lrn}` : ''}${contact.unread ? ` (${contact.unread} new)` : ''}`;
-				select.appendChild(option);
+				const button = document.createElement('button'); button.type = 'button'; button.className = 'itrack-chat-contact-card'; button.classList.toggle('is-active', String(contact.id) === String(selectedContactId));
+				const avatar = document.createElement('span'); avatar.className = 'itrack-chat-avatar'; avatar.textContent = String(contact.name || 'U').split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+				const copy = document.createElement('span'); copy.className = 'itrack-chat-contact-copy';
+				const name = document.createElement('strong'); name.textContent = contact.name || 'User';
+				const meta = document.createElement('small');
+				if (contact.mode === 'history') meta.textContent = `${contact.role || 'Chat History'} · ${Number(contact.message_count || 0)} messages`;
+				else { const roleText = document.createTextNode(`${contact.role || 'User'} · `); const presence = document.createElement('span'); presence.className = contact.online ? 'itrack-chat-online' : 'itrack-chat-offline'; presence.textContent = contact.online ? '● Online' : 'Offline'; meta.append(roleText, presence); }
+				copy.append(name, meta); button.append(avatar, copy);
+				if (contact.unread) { const badge = document.createElement('b'); badge.textContent = contact.unread > 99 ? '99+' : String(contact.unread); button.appendChild(badge); }
+				button.addEventListener('click', () => { selectedContactId = String(contact.id); showStatus(''); renderContacts(); loadMessages(); });
+				contactList.appendChild(button);
 			});
-			if (!contacts.some((contact) => contact.id === selectedContactId)) selectedContactId = contacts[0].id;
-			select.value = selectedContactId;
 		};
 		const loadMessages = async () => {
 			if (!selectedContactId || !panelOpen) return;
 			try {
 				const data = await requestJson(`/api/chat/messages/${encodeURIComponent(selectedContactId)}`);
+				const active = contacts.find((contact) => String(contact.id) === String(selectedContactId));
+				threadHead.querySelector('strong').textContent = active ? active.name : 'Conversation';
+				threadHead.querySelector('small').textContent = data.readOnly ? 'Administrator history view · Read only' : `${active && active.role ? active.role : 'User'}${active && active.online ? ' · Online' : ''}`;
+				form.hidden = Boolean(data.readOnly); textarea.disabled = Boolean(data.readOnly); sendButton.disabled = Boolean(data.readOnly);
 				messagesBox.replaceChildren();
 				if (!data.messages.length) { const empty = document.createElement('p'); empty.className = 'itrack-chat-empty'; empty.textContent = 'No messages yet. Start the conversation.'; messagesBox.appendChild(empty); }
 				data.messages.forEach((item) => {
 					const bubble = document.createElement('article'); bubble.className = `itrack-chat-bubble ${item.mine ? 'is-mine' : 'is-theirs'}`;
+					if (data.readOnly) { const sender = document.createElement('strong'); sender.className = 'itrack-chat-sender'; sender.textContent = `${item.sender_name || 'User'} · ${item.sender_role || 'User'}`; bubble.appendChild(sender); }
 					const text = document.createElement('p'); text.textContent = item.message;
 					const time = document.createElement('time'); time.dateTime = item.created_at; time.textContent = formatChatTime(item.created_at);
 					bubble.append(text, time); messagesBox.appendChild(bubble);
 				});
 				messagesBox.scrollTop = messagesBox.scrollHeight;
-				const active = contacts.find((contact) => contact.id === selectedContactId); if (active) active.unread = 0; updateUnread(); renderContacts();
+				if (active) active.unread = 0; updateUnread(); renderContacts();
 			} catch (error) { showStatus(error.message, true); }
 		};
 		const loadContacts = async () => {
@@ -1319,7 +1332,6 @@ function initializeAdviserStudentChat() {
 		};
 		launcher.addEventListener('click', () => setPanelOpen(!panelOpen));
 		close.addEventListener('click', () => setPanelOpen(false));
-		select.addEventListener('change', () => { selectedContactId = select.value; showStatus(''); loadMessages(); });
 		form.addEventListener('submit', async (event) => {
 			event.preventDefault(); const message = textarea.value.trim(); if (!message || !selectedContactId) return;
 			const submit = form.querySelector('button'); submit.disabled = true; showStatus('Sending…');
