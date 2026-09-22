@@ -427,6 +427,10 @@ async function ensureSchema() {
       table.string("requestor_name", 255).notNullable();
       table.string("learner_name", 255).notNullable();
       table.string("document_path", 255).notNullable();
+      table.string("document_original_name", 255).nullable();
+      table.string("document_mime_type", 120).nullable();
+      table.specificType("document_data", DB_CLIENT === "mysql2" ? "LONGBLOB" : DB_CLIENT === "pg" ? "BYTEA" : "BLOB").nullable();
+      table.boolean("document_durable").notNullable().defaultTo(false);
       table.string("status", 30).notNullable().defaultTo("pending");
       table.string("review_note", 255).nullable();
       table.string("reviewed_by", 255).nullable();
@@ -465,6 +469,16 @@ async function ensureSchema() {
     }
   }
 
+  const durableApprovalColumns = await db("approval_requests").columnInfo();
+  if (!["document_original_name", "document_mime_type", "document_data", "document_durable"].every((name) => durableApprovalColumns[name])) {
+    await db.schema.alterTable("approval_requests", (table) => {
+      if (!durableApprovalColumns.document_original_name) table.string("document_original_name", 255).nullable();
+      if (!durableApprovalColumns.document_mime_type) table.string("document_mime_type", 120).nullable();
+      if (!durableApprovalColumns.document_data) table.specificType("document_data", DB_CLIENT === "mysql2" ? "LONGBLOB" : DB_CLIENT === "pg" ? "BYTEA" : "BLOB").nullable();
+      if (!durableApprovalColumns.document_durable) table.boolean("document_durable").notNullable().defaultTo(false);
+    });
+  }
+
   const admRequestsExists = await db.schema.hasTable("adm_requests");
   if (!admRequestsExists) {
     await db.schema.createTable("adm_requests", (table) => {
@@ -480,6 +494,14 @@ async function ensureSchema() {
       table.string("requestor_name", 255).notNullable();
       table.string("psds_endorsement_path", 255).notNullable();
       table.string("secondary_document_path", 255).notNullable();
+      table.string("psds_endorsement_original_name", 255).nullable();
+      table.string("psds_endorsement_mime_type", 120).nullable();
+      table.specificType("psds_endorsement_data", DB_CLIENT === "mysql2" ? "LONGBLOB" : DB_CLIENT === "pg" ? "BYTEA" : "BLOB").nullable();
+      table.boolean("psds_endorsement_durable").notNullable().defaultTo(false);
+      table.string("secondary_document_original_name", 255).nullable();
+      table.string("secondary_document_mime_type", 120).nullable();
+      table.specificType("secondary_document_data", DB_CLIENT === "mysql2" ? "LONGBLOB" : DB_CLIENT === "pg" ? "BYTEA" : "BLOB").nullable();
+      table.boolean("secondary_document_durable").notNullable().defaultTo(false);
       table.string("approval_pdf_path", 255).nullable();
       table.string("status", 30).notNullable().defaultTo("pending");
       table.string("review_note", 255).nullable();
@@ -545,6 +567,24 @@ async function ensureSchema() {
         table.string("theme_preference", 10).notNullable().defaultTo("light");
       });
     }
+  }
+
+  const durableAdmColumns = await db("adm_requests").columnInfo();
+  const durableAdmColumnNames = [
+    "psds_endorsement_original_name", "psds_endorsement_mime_type", "psds_endorsement_data", "psds_endorsement_durable",
+    "secondary_document_original_name", "secondary_document_mime_type", "secondary_document_data", "secondary_document_durable"
+  ];
+  if (!durableAdmColumnNames.every((name) => durableAdmColumns[name])) {
+    await db.schema.alterTable("adm_requests", (table) => {
+      if (!durableAdmColumns.psds_endorsement_original_name) table.string("psds_endorsement_original_name", 255).nullable();
+      if (!durableAdmColumns.psds_endorsement_mime_type) table.string("psds_endorsement_mime_type", 120).nullable();
+      if (!durableAdmColumns.psds_endorsement_data) table.specificType("psds_endorsement_data", DB_CLIENT === "mysql2" ? "LONGBLOB" : DB_CLIENT === "pg" ? "BYTEA" : "BLOB").nullable();
+      if (!durableAdmColumns.psds_endorsement_durable) table.boolean("psds_endorsement_durable").notNullable().defaultTo(false);
+      if (!durableAdmColumns.secondary_document_original_name) table.string("secondary_document_original_name", 255).nullable();
+      if (!durableAdmColumns.secondary_document_mime_type) table.string("secondary_document_mime_type", 120).nullable();
+      if (!durableAdmColumns.secondary_document_data) table.specificType("secondary_document_data", DB_CLIENT === "mysql2" ? "LONGBLOB" : DB_CLIENT === "pg" ? "BYTEA" : "BLOB").nullable();
+      if (!durableAdmColumns.secondary_document_durable) table.boolean("secondary_document_durable").notNullable().defaultTo(false);
+    });
   }
 
   if (!(await db.schema.hasTable("student_module_progress"))) {

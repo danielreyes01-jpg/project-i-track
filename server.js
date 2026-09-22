@@ -193,6 +193,27 @@ function resolveApprovalUploadPath(documentPath) {
   return absolute;
 }
 
+function sendApprovalDocument(res, row, fields) {
+  const storedData = getStoredFileBuffer(row && row[fields.data]);
+  const diskPath = resolveApprovalUploadPath(row && row[fields.path]);
+  const diskAvailable = Boolean(diskPath) && fs.existsSync(diskPath);
+  if (!storedData && !diskAvailable) {
+    return res.status(410).type("html").send('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Document unavailable</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:#f2f7f5;color:#123b58;font:16px Arial,sans-serif}.notice{max-width:580px;padding:28px;border:1px solid #cfe0df;border-radius:18px;background:#fff;text-align:center;box-shadow:0 12px 32px rgba(16,47,73,.1)}h1{margin:0 0 10px;font-size:1.4rem}p{color:#607789;line-height:1.55}</style></head><body><main class="notice"><h1>Earlier document is unavailable</h1><p>This file was uploaded before durable document storage was enabled and is no longer present on the server. Please ask the requester to submit it again. New documents will remain available after future deployments.</p></main></body></html>');
+  }
+  const fallbackName = path.basename(String((row && row[fields.path]) || "document"));
+  const safeName = path.basename(String((row && row[fields.name]) || fallbackName || "document")).replace(/["\r\n]/g, "");
+  const mimeType = String((row && row[fields.mime]) || "application/octet-stream");
+  if (storedData) {
+    res.type(mimeType);
+    res.setHeader("Content-Disposition", `inline; filename="${safeName}"`);
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.send(storedData);
+  }
+  res.type(mimeType);
+  res.setHeader("Cache-Control", "private, no-store");
+  return res.sendFile(diskPath, { headers: { "Content-Disposition": `inline; filename="${safeName}"` } });
+}
+
 function getActiveSchoolYear(referenceDate = new Date()) {
   const date = referenceDate instanceof Date ? referenceDate : new Date(referenceDate);
   const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Manila", year: "numeric", month: "numeric" }).formatToParts(date);
@@ -2341,6 +2362,22 @@ app.get("/api/adm-requests", requireTeacherOrPrincipal, async (req, res) => {
   }
 });
 
+app.get("/api/adm-requests/:id/documents/:kind", requireTeacherOrPrincipal, async (req, res) => {
+  try {
+    const kind = String(req.params.kind || "").toLowerCase();
+    if (!["psds", "secondary"].includes(kind)) return res.status(400).json({ message: "Unknown document type." });
+    const row = await db("adm_requests")
+      .where({ id: String(req.params.id || ""), requestor_user_id: req.session.userId })
+      .first("psds_endorsement_path", "psds_endorsement_original_name", "psds_endorsement_mime_type", "psds_endorsement_data", "secondary_document_path", "secondary_document_original_name", "secondary_document_mime_type", "secondary_document_data");
+    if (!row) return res.status(404).json({ message: "ADM request not found." });
+    return sendApprovalDocument(res, row, kind === "psds"
+      ? { path: "psds_endorsement_path", name: "psds_endorsement_original_name", mime: "psds_endorsement_mime_type", data: "psds_endorsement_data" }
+      : { path: "secondary_document_path", name: "secondary_document_original_name", mime: "secondary_document_mime_type", data: "secondary_document_data" });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to open the submitted document.", detail: error.message });
+  }
+});
+
 app.get("/api/adm-deadline-alerts", requireLogin, async (req, res) => {
   try {
     const user = await db("users").where({ id: req.session.userId }).first("id", "role", "lrn");
@@ -2522,6 +2559,10 @@ app.post(
         .filter(Boolean)
         .join(", ") || "N/A";
       const nowIso = new Date().toISOString();
+      const [psdsData, secondaryData] = await Promise.all([
+        fs.promises.readFile(uploadedPsdsFile.path),
+        fs.promises.readFile(uploadedSecondaryFile.path)
+      ]);
 
       await db("adm_requests").insert({
         id: crypto.randomUUID(),
@@ -2537,6 +2578,14 @@ app.post(
         requestor_name: requestorName,
         psds_endorsement_path: path.posix.join("uploads", "approval-requests", path.basename(String(uploadedPsdsFile.filename || "").trim())),
         secondary_document_path: path.posix.join("uploads", "approval-requests", path.basename(String(uploadedSecondaryFile.filename || "").trim())),
+        psds_endorsement_original_name: path.basename(String(uploadedPsdsFile.originalname || "PSDS-Endorsement")),
+        psds_endorsement_mime_type: String(uploadedPsdsFile.mimetype || "application/octet-stream"),
+        psds_endorsement_data: psdsData,
+        psds_endorsement_durable: true,
+        secondary_document_original_name: path.basename(String(uploadedSecondaryFile.originalname || "Secondary-Supporting-Document")),
+        secondary_document_mime_type: String(uploadedSecondaryFile.mimetype || "application/octet-stream"),
+        secondary_document_data: secondaryData,
+        secondary_document_durable: true,
         status: "pending",
         created_at: nowIso,
         updated_at: nowIso
@@ -2951,6 +3000,7 @@ app.post("/api/approval-requests", requireLogin, approvalRequestUpload.single("d
       .filter(Boolean)
       .join(", ") || "N/A";
     const nowIso = new Date().toISOString();
+    const documentData = await fs.promises.readFile(req.file.path);
 
     await db("approval_requests").insert({
       id: crypto.randomUUID(),
@@ -2962,6 +3012,10 @@ app.post("/api/approval-requests", requireLogin, approvalRequestUpload.single("d
       requestor_name: requestorName,
       learner_name: learnerName,
       document_path: path.posix.join("uploads", "approval-requests", path.basename(String(req.file.filename || "").trim())),
+      document_original_name: path.basename(String(req.file.originalname || "approval-document")),
+      document_mime_type: String(req.file.mimetype || "application/octet-stream"),
+      document_data: documentData,
+      document_durable: true,
       status: "pending",
       created_at: nowIso,
       updated_at: nowIso
@@ -3002,10 +3056,15 @@ app.post("/api/approval-requests/:id/document", requireLogin, approvalRequestUpl
     }
 
     const newDocumentPath = path.posix.join("uploads", "approval-requests", path.basename(String(req.file.filename || "").trim()));
+    const documentData = await fs.promises.readFile(req.file.path);
     await db("approval_requests")
       .where({ id: requestId, requestor_user_id: req.session.userId })
       .update({
         document_path: newDocumentPath,
+        document_original_name: path.basename(String(req.file.originalname || "approval-document")),
+        document_mime_type: String(req.file.mimetype || "application/octet-stream"),
+        document_data: documentData,
+        document_durable: true,
         updated_at: new Date().toISOString()
       });
 
@@ -3033,6 +3092,18 @@ app.get("/api/admin/approval-requests", requireAdmin, async (req, res) => {
     return res.json({ requests });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch admin approval requests.", detail: error.message });
+  }
+});
+
+app.get("/api/admin/approval-requests/:id/document", requireAdmin, async (req, res) => {
+  try {
+    const row = await db("approval_requests")
+      .where({ id: String(req.params.id || "") })
+      .first("document_path", "document_original_name", "document_mime_type", "document_data");
+    if (!row) return res.status(404).json({ message: "Approval request not found." });
+    return sendApprovalDocument(res, row, { path: "document_path", name: "document_original_name", mime: "document_mime_type", data: "document_data" });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to open the submitted document.", detail: error.message });
   }
 });
 
@@ -3256,6 +3327,34 @@ app.get("/api/learning-resources", requireLogin, async (req, res) => {
     return res.json({ resources: rows.map((row) => serializeLearningResource(row, learnerById.get(String(row.learner_id)), studentById.get(String(row.student_user_id)))), role });
   } catch (error) {
     return res.status(500).json({ message: "Unable to load learning resources.", detail: error.message });
+  }
+});
+
+app.get("/api/approval-requests/:id/document", requireLogin, async (req, res) => {
+  try {
+    const row = await db("approval_requests")
+      .where({ id: String(req.params.id || ""), requestor_user_id: req.session.userId })
+      .first("document_path", "document_original_name", "document_mime_type", "document_data");
+    if (!row) return res.status(404).json({ message: "Approval request not found." });
+    return sendApprovalDocument(res, row, { path: "document_path", name: "document_original_name", mime: "document_mime_type", data: "document_data" });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to open the submitted document.", detail: error.message });
+  }
+});
+
+app.get("/api/admin/adm-requests/:id/documents/:kind", requireAdmin, async (req, res) => {
+  try {
+    const kind = String(req.params.kind || "").toLowerCase();
+    if (!["psds", "secondary"].includes(kind)) return res.status(400).json({ message: "Unknown document type." });
+    const row = await db("adm_requests")
+      .where({ id: String(req.params.id || "") })
+      .first("psds_endorsement_path", "psds_endorsement_original_name", "psds_endorsement_mime_type", "psds_endorsement_data", "secondary_document_path", "secondary_document_original_name", "secondary_document_mime_type", "secondary_document_data");
+    if (!row) return res.status(404).json({ message: "ADM request not found." });
+    return sendApprovalDocument(res, row, kind === "psds"
+      ? { path: "psds_endorsement_path", name: "psds_endorsement_original_name", mime: "psds_endorsement_mime_type", data: "psds_endorsement_data" }
+      : { path: "secondary_document_path", name: "secondary_document_original_name", mime: "secondary_document_mime_type", data: "secondary_document_data" });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to open the submitted document.", detail: error.message });
   }
 });
 
@@ -4348,6 +4447,45 @@ async function persistExistingLearningResourceFiles() {
   }
 }
 
+async function persistExistingApprovalDocuments() {
+  let restored = 0;
+  const admRows = await db("adm_requests").select(
+    "id", "psds_endorsement_path", "psds_endorsement_durable", "secondary_document_path", "secondary_document_durable"
+  );
+  for (const row of admRows) {
+    const update = {};
+    for (const document of [
+      { prefix: "psds_endorsement", storedPath: row.psds_endorsement_path, durable: row.psds_endorsement_durable },
+      { prefix: "secondary_document", storedPath: row.secondary_document_path, durable: row.secondary_document_durable }
+    ]) {
+      const diskPath = resolveApprovalUploadPath(document.storedPath);
+      if (!document.durable && diskPath && fs.existsSync(diskPath)) {
+        update[`${document.prefix}_data`] = await fs.promises.readFile(diskPath);
+        update[`${document.prefix}_original_name`] = path.basename(diskPath);
+        update[`${document.prefix}_mime_type`] = path.extname(diskPath).toLowerCase() === ".pdf" ? "application/pdf" : "application/octet-stream";
+        update[`${document.prefix}_durable`] = true;
+        restored += 1;
+      }
+    }
+    if (Object.keys(update).length) await db("adm_requests").where({ id: row.id }).update(update);
+  }
+
+  const learnerRows = await db("approval_requests").select("id", "document_path", "document_durable");
+  for (const row of learnerRows) {
+    const diskPath = resolveApprovalUploadPath(row.document_path);
+    if (!row.document_durable && diskPath && fs.existsSync(diskPath)) {
+      await db("approval_requests").where({ id: row.id }).update({
+        document_data: await fs.promises.readFile(diskPath),
+        document_original_name: path.basename(diskPath),
+        document_mime_type: path.extname(diskPath).toLowerCase() === ".pdf" ? "application/pdf" : "application/octet-stream",
+        document_durable: true
+      });
+      restored += 1;
+    }
+  }
+  if (restored) console.log(`Persisted ${restored} existing approval document(s).`);
+}
+
 async function startServer() {
   try {
     if (!ADMIN_ACCESS_KEY) {
@@ -4356,6 +4494,7 @@ async function startServer() {
 
     await ensureSchema();
     await persistExistingLearningResourceFiles();
+    await persistExistingApprovalDocuments();
     await ensureAdminAccount();
     await resetDatabaseRetainingAdministratorOnce();
     await removePlaceholderLearners();

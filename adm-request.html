@@ -468,10 +468,10 @@
 				}
 			}
 
-			function makeDocLink(storedPath, label) {
+			function makeDocLink(storedPath, label, apiHref) {
 				const p = String(storedPath || "").trim();
 				if (!p) return '<span class="doc-no-file">No document</span>';
-				const href = "/" + p.replace(/^\//, "");
+				const href = String(apiHref || "");
 				const ext = p.split(".").pop().toLowerCase();
 				const extBadge = ext ? ' <span style="font-size:0.72rem;opacity:0.7;">(' + escapeHtml(ext.toUpperCase()) + ')</span>' : '';
 				return '<a class="doc-link" href="' + encodeURI(href) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + extBadge + '</a>';
@@ -512,8 +512,8 @@
 						'<td><div class="detail-copy">' + escapeHtml(item.reason_for_adm || "Not provided") + '</div></td>' +
 						'<td><div class="duration-copy"><span><strong>From:</strong> ' + escapeHtml(formatRequestDate(item.duration_from)) + '</span><span><strong>To:</strong> ' + escapeHtml(formatRequestDate(item.duration_to)) + '</span></div></td>' +
 						'<td>' +
-						makeDocLink(item.psds_endorsement_path, "PSDS Endorsement") +
-						makeDocLink(item.secondary_document_path, "Secondary Supporting Document") +
+						makeDocLink(item.psds_endorsement_path, "PSDS Endorsement", "/api/adm-requests/" + encodeURIComponent(item.id) + "/documents/psds") +
+						makeDocLink(item.secondary_document_path, "Secondary Supporting Document", "/api/adm-requests/" + encodeURIComponent(item.id) + "/documents/secondary") +
 						'</td>' +
 						'<td>' + resultMarkup + '</td>' +
 						'<td><span class="status-pill">' + escapeHtml(formatStatusLabel(status)) + '</span></td>' +

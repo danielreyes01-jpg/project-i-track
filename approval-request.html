@@ -519,10 +519,10 @@
 				return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 			}
 
-				function makeDocLink(storedPath, label) {
+				function makeDocLink(storedPath, label, apiHref) {
 					const p = String(storedPath || "").trim();
 					if (!p) return '<span class="doc-no-file">No document</span>';
-					const href = "/" + p.replace(/^\//, "");
+					const href = String(apiHref || "");
 					const ext = p.split(".").pop().toLowerCase();
 					const extBadge = ext ? ' <span style="font-size:0.72rem;opacity:0.7;">(' + escapeHtml(ext.toUpperCase()) + ')</span>' : '';
 					return '<a class="doc-link" href="' + encodeURI(href) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + extBadge + '</a>';
@@ -545,10 +545,10 @@
 						: '<div class="result-meta"><div><strong>Name:</strong> ' + escapeHtml(item.learner_name || "N/A") + '</div></div>';
 					const documentLinks = requestKind === "teacher"
 						? '<div style="display:grid;gap:4px;">' +
-							makeDocLink(item.psds_endorsement_path, "PSDS Endorsement") +
-							makeDocLink(item.secondary_document_path, "Secondary Supporting Document") +
+							makeDocLink(item.psds_endorsement_path, "PSDS Endorsement", "/api/admin/adm-requests/" + encodeURIComponent(item.id) + "/documents/psds") +
+							makeDocLink(item.secondary_document_path, "Secondary Supporting Document", "/api/admin/adm-requests/" + encodeURIComponent(item.id) + "/documents/secondary") +
 						  '</div>'
-						: makeDocLink(item.document_path, "Open Document");
+						: makeDocLink(item.document_path, "Open Document", "/api/admin/approval-requests/" + encodeURIComponent(item.id) + "/document");
 					const resultParts = [];
 					if (item.review_note) {
 						resultParts.push('<div class="result-note">' + escapeHtml(item.review_note) + '</div>');
