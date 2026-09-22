@@ -4126,7 +4126,7 @@ async function resolveChatRelationship(currentUser, contactUserId) {
   const contactId = String(contactUserId || "").trim();
   if (!contactId) return null;
   if (role === "admin") {
-    const contact = await db("users").where({ id: contactId, approved: true }).whereIn("role", ["teacher", "student"]).first("id", "firstname", "middlename", "lastname", "role", "lrn", "last_seen_at", "active_session_id");
+    const contact = await db("users").where({ id: contactId, approved: true }).whereIn("role", ["teacher", "student", "principal", "supervisor"]).first("id", "firstname", "middlename", "lastname", "role", "lrn", "last_seen_at", "active_session_id");
     return contact ? { adviserUserId: currentUser.id, studentUserId: contact.id, contact } : null;
   }
   const administrator = await db("users").where({ role: "admin" }).orderBy("created_at", "asc").first("id", "firstname", "middlename", "lastname", "role", "last_seen_at", "active_session_id");
@@ -4168,6 +4168,8 @@ function chatRoleLabel(role) {
   if (value === "admin") return "System Administrator";
   if (value === "teacher" || value === "adviser") return "Teacher";
   if (value === "student") return "Student";
+  if (value === "principal") return "School Principal";
+  if (value === "supervisor") return "District Supervisor";
   return value || "User";
 }
 
@@ -4178,7 +4180,7 @@ app.get("/api/chat/contacts", requireLogin, async (req, res) => {
     let contacts = [];
     const adviserAccount = isAdviserChatAccount(user);
     if (role === "admin") {
-      contacts = await db("users").where({ approved: true }).whereIn("role", ["teacher", "student"]).whereNot({ id: user.id }).select("id", "firstname", "middlename", "lastname", "role", "lrn", "last_seen_at", "active_session_id").orderBy([{ column: "lastname", order: "asc" }, { column: "firstname", order: "asc" }]);
+      contacts = await db("users").where({ approved: true }).whereIn("role", ["teacher", "student", "principal", "supervisor"]).whereNot({ id: user.id }).select("id", "firstname", "middlename", "lastname", "role", "lrn", "last_seen_at", "active_session_id").orderBy([{ column: "lastname", order: "asc" }, { column: "firstname", order: "asc" }]);
     } else if (adviserAccount) {
       contacts = await db("users as s")
         .join("learners as l", "l.learner_code", "s.lrn")
@@ -4191,6 +4193,8 @@ app.get("/api/chat/contacts", requireLogin, async (req, res) => {
         .where({ "l.learner_code": String(user.lrn || "").trim() })
         .distinct("a.id", "a.firstname", "a.middlename", "a.lastname", "a.role", "a.last_seen_at", "a.active_session_id")
         .orderBy("a.lastname", "asc");
+    } else if (role === "principal" || role === "supervisor") {
+      contacts = [];
     } else {
       return res.json({ role, contacts: [] });
     }
@@ -4209,7 +4213,7 @@ app.get("/api/chat/contacts", requireLogin, async (req, res) => {
       counts[id] = Number(counts[id] || 0) + 1;
       return counts;
     }, {});
-    const directContacts = contacts.map((contact) => ({ id: contact.id, name: chatDisplayName(contact), role: chatRoleLabel(contact.role), lrn: contact.lrn || "", online: getStudentPresence(contact).online, unread: Number(unread[contact.id] || 0), mode: "direct" }));
+    const directContacts = contacts.map((contact) => ({ id: contact.id, name: chatDisplayName(contact), role: chatRoleLabel(contact.role), lrn: contact.lrn || "", online: getStudentPresence(contact).online, unread: Number(unread[contact.id] || 0), mode: "direct" })).filter((contact) => contact.online);
     let history = [];
     if (role === "admin") {
       const pairs = await db("adviser_student_messages")
