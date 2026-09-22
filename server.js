@@ -52,7 +52,6 @@ const ADM_APPROVAL_FONT_PATH = path.join(__dirname, "assets", "fonts", "Bookman-
 const ADM_APPROVAL_OUTPUT_DIR = path.join(__dirname, "uploads", "adm-approvals");
 const PROFILE_IMAGE_UPLOAD_DIR = path.join(__dirname, "uploads", "profile-images");
 const LEARNING_RESOURCE_UPLOAD_DIR = path.join(__dirname, "uploads", "learning-resources");
-const DATABASE_RESET_EVENT = "reset-retain-configured-admin-2026-07-31-v1";
 
 const districtSchoolReferenceCache = {
   sourceFile: "",
@@ -4496,8 +4495,8 @@ async function startServer() {
     await persistExistingLearningResourceFiles();
     await persistExistingApprovalDocuments();
     await ensureAdminAccount();
-    await resetDatabaseRetainingAdministratorOnce();
-    await removePlaceholderLearners();
+    // Submitted records and their documents are retained permanently. Any future
+    // deletion must be initiated explicitly by an authenticated administrator.
 
     const httpServer = app.listen({ port: PORT, host: "0.0.0.0", backlog: 1024 }, () => {
       console.log(`Server running at ${APP_BASE_URL}`);
@@ -4542,117 +4541,5 @@ app.get("/api/admin/student-attention", requireAdmin, async (req, res) => {
     return res.status(500).json({ message: "Failed to load student attention alerts.", detail: error.message });
   }
 });
-
-async function resetDatabaseRetainingAdministratorOnce() {
-  const resetTableExists = await db.schema.hasTable("maintenance_events");
-  if (!resetTableExists) {
-    await db.schema.createTable("maintenance_events", (table) => {
-      table.string("event_key", 120).primary();
-      table.string("completed_at", 40).notNullable();
-      table.text("details").nullable();
-    });
-  }
-
-  const backupTableExists = await db.schema.hasTable("maintenance_reset_backup");
-  if (!backupTableExists) {
-    await db.schema.createTable("maintenance_reset_backup", (table) => {
-      table.increments("backup_id").primary();
-      table.string("batch_id", 80).notNullable();
-      table.string("table_name", 80).notNullable();
-      table.string("record_id", 120).nullable();
-      table.text("record_json").notNullable();
-      table.string("backed_up_at", 40).notNullable();
-      table.index(["batch_id", "table_name"], "idx_reset_backup_batch_table");
-    });
-  }
-
-  const completedReset = await db("maintenance_events").where({ event_key: DATABASE_RESET_EVENT }).first();
-  if (completedReset) {
-    return;
-  }
-
-  const administrator = await db("users").where({ email: normalizeEmail(ADMIN_EMAIL) }).first("id", "email");
-  if (!administrator) {
-    throw new Error("Database reset stopped because the configured administrator account was not found.");
-  }
-
-  const counts = {};
-  const backupBatchId = `reset-${Date.now()}`;
-  await db.transaction(async (trx) => {
-    const recordsToBackup = {
-      approval_requests: await trx("approval_requests").select("*"),
-      adm_requests: await trx("adm_requests").select("*"),
-      learners: await trx("learners").select("*"),
-      users: await trx("users").whereNot({ id: administrator.id }).select("*")
-    };
-
-    const backupRows = Object.entries(recordsToBackup).flatMap(([tableName, records]) =>
-      records.map((record) => ({
-        batch_id: backupBatchId,
-        table_name: tableName,
-        record_id: String(record.id || ""),
-        record_json: JSON.stringify(record),
-        backed_up_at: new Date().toISOString()
-      }))
-    );
-
-    if (backupRows.length) {
-      for (let index = 0; index < backupRows.length; index += 100) {
-        await trx("maintenance_reset_backup").insert(backupRows.slice(index, index + 100));
-      }
-    }
-
-    counts.approvalRequests = await trx("approval_requests").del();
-    counts.admRequests = await trx("adm_requests").del();
-    counts.learners = await trx("learners").del();
-    counts.nonAdministratorUsers = await trx("users").whereNot({ id: administrator.id }).del();
-
-    await trx("users").where({ id: administrator.id }).update({
-      role: "admin",
-      approved: true,
-      verified: true,
-      failed_login_count: 0,
-      lockout_until: null,
-      updated_at: new Date().toISOString()
-    });
-
-    await trx("maintenance_events").insert({
-      event_key: DATABASE_RESET_EVENT,
-      completed_at: new Date().toISOString(),
-      details: JSON.stringify({ retainedAdministrator: administrator.email, deleted: counts, backupBatchId })
-    });
-  });
-
-  console.log("Recoverable one-time database reset completed; configured administrator retained.", { counts, backupBatchId });
-}
-
-async function removePlaceholderLearners() {
-  const normalize = (value) => String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
-  const placeholderCodes = new Set(["na", "n/a", "not applicable"]);
-  const placeholderNames = new Set(["na", "n/a", "na learner", "n/a learner", "not applicable", "not applicable learner"]);
-
-  try {
-    const learners = await db("learners").select("id", "learner_code", "family_name", "firstname", "middlename");
-    const placeholderIds = learners
-      .filter((learner) => {
-        const learnerCode = normalize(learner.learner_code);
-        const fullName = normalize([learner.family_name, learner.firstname, learner.middlename].filter(Boolean).join(" "));
-        return placeholderCodes.has(learnerCode) || placeholderNames.has(fullName);
-      })
-      .map((learner) => learner.id);
-
-    if (!placeholderIds.length) {
-      return;
-    }
-
-    await db.transaction(async (trx) => {
-      await trx("approval_requests").whereIn("learner_id", placeholderIds).del();
-      await trx("learners").whereIn("id", placeholderIds).del();
-    });
-    console.log(`Removed ${placeholderIds.length} placeholder learner record(s).`);
-  } catch (error) {
-    console.error("Placeholder learner cleanup failed:", error.message);
-  }
-}
 
 startServer();
