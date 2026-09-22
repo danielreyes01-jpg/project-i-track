@@ -2789,6 +2789,13 @@ app.post("/api/admin/adm-requests/:id/status", requireAdmin, async (req, res) =>
       return res.status(400).json({ message: "Valid request id and status are required." });
     }
 
+    if (status === "revise" && !reviewNote) {
+      return res.status(400).json({ message: "Enter a revision statement before saving." });
+    }
+    if (reviewNote.length > 2000) {
+      return res.status(400).json({ message: "Revision statements are limited to 2,000 characters." });
+    }
+
     if (status === "approved" && pinCode !== ADM_APPROVAL_PIN) {
       return res.status(403).json({ message: "Invalid approval PIN code." });
     }
@@ -3039,6 +3046,13 @@ app.post("/api/admin/approval-requests/:id/status", requireAdmin, async (req, re
 
     if (!requestId || !validStatuses.includes(status)) {
       return res.status(400).json({ message: "Valid request id and status are required." });
+    }
+
+    if (status === "revise" && !reviewNote) {
+      return res.status(400).json({ message: "Enter a revision statement before saving." });
+    }
+    if (reviewNote.length > 2000) {
+      return res.status(400).json({ message: "Revision statements are limited to 2,000 characters." });
     }
 
     if (status === "approved" && pinCode !== ADM_APPROVAL_PIN) {

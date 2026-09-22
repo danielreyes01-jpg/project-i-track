@@ -123,6 +123,18 @@
 		.pin-toggle { min-height:34px!important; margin:4px; padding:5px!important; border-radius:7px!important; background:#e8f4f6!important; color:#176f92!important; box-shadow:none!important; font-size:.9rem!important; }
 		.pin-actions { display:flex; justify-content:flex-end; gap:9px; margin-top:17px; }
 		.pin-actions button { min-height:38px!important; padding:8px 13px!important; font-size:.78rem!important; }
+		.revision-dialog { width:min(460px,100%); padding:24px; border:1px solid rgba(126,211,230,.32); border-radius:18px; background:linear-gradient(145deg,#0b334d,#09283d); color:#fff; box-shadow:0 26px 75px rgba(0,0,0,.38); transform:translateY(10px) scale(.98); transition:transform .18s ease; }
+		.pin-overlay.open .revision-dialog { transform:translateY(0) scale(1); }
+		.revision-dialog h2 { margin:0 0 7px; color:#fff; font-family:"Manrope",sans-serif; font-size:1.2rem; }
+		.revision-dialog>p { margin:0 0 16px; color:#cce2eb; font-size:.82rem; line-height:1.55; }
+		.revision-dialog label { display:block; margin-bottom:7px; color:#fff; font-size:.78rem; font-weight:800; }
+		.revision-dialog textarea { width:100%; min-height:125px; max-height:240px; resize:vertical; padding:12px 13px; border:1px solid #8ebdcc; border-radius:11px; outline:0; background:#fff; color:#123047; font:500 .86rem/1.5 "Manrope",sans-serif; box-shadow:none; }
+		.revision-dialog textarea:focus { border-color:#f5c52b; box-shadow:0 0 0 3px rgba(245,197,43,.2); }
+		.revision-dialog small { display:block; margin-top:6px; color:#a9c8d4; font-size:.67rem; }
+		.revision-actions { display:flex; justify-content:flex-end; gap:9px; margin-top:17px; }
+		.revision-actions button { min-height:40px!important; padding:8px 15px!important; font-size:.78rem!important; }
+		.revision-actions .revision-cancel { border:1px solid #5f8799!important; background:#244d63!important; color:#fff!important; }
+		.revision-actions .revision-save { border:1px solid #f5c52b!important; background:#176f92!important; color:#fff!important; }
 
 		.table-wrap {
 			overflow: auto;
@@ -258,6 +270,19 @@
 			</div>
 		</form>
 	</div>
+	<div id="revisionOverlay" class="pin-overlay" role="dialog" aria-modal="true" aria-labelledby="revisionTitle">
+		<form id="revisionForm" class="revision-dialog">
+			<h2 id="revisionTitle">Revision Statement</h2>
+			<p>Explain clearly what the requestor must correct or submit before approval.</p>
+			<label for="revisionStatement">Required revision</label>
+			<textarea id="revisionStatement" maxlength="2000" placeholder="Type the revision statement here…" required></textarea>
+			<small>The statement will be saved in the request history and sent to the requestor.</small>
+			<div class="revision-actions">
+				<button id="revisionCancel" class="revision-cancel" type="button">Cancel</button>
+				<button class="revision-save" type="submit">Save Revision</button>
+			</div>
+		</form>
+	</div>
 
 	<script>
 		(function () {
@@ -277,6 +302,11 @@
 			const approvalPinToggle = document.getElementById("approvalPinToggle");
 			const approvalPinCancel = document.getElementById("approvalPinCancel");
 			let approvalPinResolver = null;
+			const revisionOverlay = document.getElementById("revisionOverlay");
+			const revisionForm = document.getElementById("revisionForm");
+			const revisionStatement = document.getElementById("revisionStatement");
+			const revisionCancel = document.getElementById("revisionCancel");
+			let revisionResolver = null;
 			const exportExcelBtn = document.getElementById("exportExcelBtn");
 			let refreshTimer = null;
 			let admRequestEventSource = null;
@@ -323,6 +353,34 @@
 				approvalPinInput.type = reveal ? "text" : "password";
 				approvalPinToggle.setAttribute("aria-label", reveal ? "Hide PIN" : "Show PIN");
 				approvalPinInput.focus();
+			});
+
+			function closeRevisionStatement(value) {
+				revisionOverlay.classList.remove("open");
+				const resolve = revisionResolver;
+				revisionResolver = null;
+				if (resolve) resolve(String(value || "").trim());
+			}
+
+			function requestRevisionStatement() {
+				if (revisionResolver) closeRevisionStatement("");
+				revisionStatement.value = "";
+				revisionOverlay.classList.add("open");
+				setTimeout(function () { revisionStatement.focus(); }, 40);
+				return new Promise(function (resolve) { revisionResolver = resolve; });
+			}
+
+			revisionForm.addEventListener("submit", function (event) {
+				event.preventDefault();
+				const statement = revisionStatement.value.trim();
+				if (!statement) { revisionStatement.focus(); return; }
+				closeRevisionStatement(statement);
+			});
+			revisionCancel.addEventListener("click", function () { closeRevisionStatement(""); });
+			revisionOverlay.addEventListener("click", function (event) { if (event.target === revisionOverlay) closeRevisionStatement(""); });
+			document.addEventListener("keydown", function (event) {
+				if (event.key !== "Escape") return;
+				if (revisionOverlay.classList.contains("open")) closeRevisionStatement("");
 			});
 
 			function setTableMessage(text) {
@@ -577,7 +635,8 @@
 
 				let reviewNote = "";
 				if (status === "revise") {
-					reviewNote = window.prompt("Enter a short note for this request:", "") || "";
+					reviewNote = await requestRevisionStatement();
+					if (!reviewNote) return;
 				}
 
 				let pinCode = "";
