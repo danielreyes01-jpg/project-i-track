@@ -1276,6 +1276,9 @@ function initializeAdviserStudentChat() {
 			const total = contacts.reduce((sum, contact) => sum + Number(contact.unread || 0), 0);
 			unreadBadge.textContent = total > 99 ? '99+' : String(total);
 			unreadBadge.hidden = !total;
+			launcher.classList.toggle('has-unread', total > 0);
+			launcher.setAttribute('aria-label', total > 0 ? `Open chat — ${total} unread message${total === 1 ? '' : 's'}` : 'Open chat');
+			launcher.title = total > 0 ? `${total} unread chat message${total === 1 ? '' : 's'}` : 'Open chat';
 		};
 		const renderContacts = () => {
 			contactList.replaceChildren();
@@ -1339,8 +1342,7 @@ function initializeAdviserStudentChat() {
 		};
 		const setPanelOpen = (open) => {
 			panelOpen = open; panel.hidden = !open; launcher.hidden = open; launcher.setAttribute('aria-expanded', String(open));
-			if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-			if (open) { loadContacts(); pollTimer = window.setInterval(loadContacts, 10000); }
+			if (open) loadContacts();
 		};
 		launcher.addEventListener('click', () => setPanelOpen(!panelOpen));
 		close.addEventListener('click', () => setPanelOpen(false));
@@ -1355,6 +1357,8 @@ function initializeAdviserStudentChat() {
 			if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); form.requestSubmit(); }
 		});
 		await loadContacts();
+		pollTimer = window.setInterval(loadContacts, 7000);
+		document.addEventListener('visibilitychange', () => { if (!document.hidden) loadContacts(); });
 	}, 1000);
 }
 
