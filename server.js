@@ -12,6 +12,7 @@ const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
 const fontkit = require("@pdf-lib/fontkit");
 const xlsx = require("xlsx");
 const ExcelJS = require("exceljs");
+const JSZip = require("jszip");
 const { createTemplatedDocxBuffer } = require("./report-docx");
 
 dotenv.config();
@@ -4409,6 +4410,53 @@ app.use((err, req, res, next) => {
 
   console.error("API error:", err.message);
   return res.status(500).json({ message: "Internal server error." });
+});
+
+const ADMIN_DATABASE_TABLES = [
+  "users", "learners", "learning_resources", "online_quizzes", "online_quiz_questions",
+  "online_quiz_attempts", "approval_requests", "adm_requests", "student_module_progress",
+  "student_attendance", "adviser_student_messages"
+];
+
+app.get("/api/admin/database/status", requireAdmin, async (req, res) => {
+  try {
+    const tables = [];
+    for (const tableName of ADMIN_DATABASE_TABLES) {
+      if (!(await db.schema.hasTable(tableName))) continue;
+      const result = await db(tableName).count({ count: "*" }).first();
+      tables.push({ name: tableName, count: Number(result && result.count) || 0 });
+    }
+    return res.json({ client: DB_CLIENT, automatic_deletion: false, tables, checked_at: new Date().toISOString() });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to read database status.", detail: error.message });
+  }
+});
+
+app.get("/api/admin/database/backup", requireAdmin, async (req, res) => {
+  try {
+    const zip = new JSZip();
+    const createdAt = new Date().toISOString();
+    const manifest = { created_at: createdAt, database_client: DB_CLIENT, automatic_deletion: false, tables: [] };
+    for (const tableName of ADMIN_DATABASE_TABLES) {
+      if (!(await db.schema.hasTable(tableName))) continue;
+      const rows = await db(tableName).select("*");
+      const serializedRows = rows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [
+        key,
+        Buffer.isBuffer(value) ? { encoding: "base64", data: value.toString("base64") } : value
+      ])));
+      zip.file(`${tableName}.json`, JSON.stringify(serializedRows, null, 2));
+      manifest.tables.push({ name: tableName, count: rows.length });
+    }
+    zip.file("manifest.json", JSON.stringify(manifest, null, 2));
+    const backup = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE", compressionOptions: { level: 6 } });
+    const stamp = createdAt.replace(/[:.]/g, "-");
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="Project-i-Track-Database-Backup-${stamp}.zip"`);
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.send(backup);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to create database backup.", detail: error.message });
+  }
 });
 
 app.use(express.static(__dirname, {

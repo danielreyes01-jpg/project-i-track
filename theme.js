@@ -354,7 +354,7 @@ function simplifyNavigation(navMenu) {
 	if (hasAdministratorNavigation) {
 		const requiredAdministratorItems = [
 			['Learner Record', 'learner.html'], ['Dashboard', 'dashboard.html'], ['FLP Request Form', 'adm-request.html'], ['ADM Approval', 'approval-request.html'],
-			['Student Dashboard', 'admin-students.html'], ['Student Profile', 'student-profile.html'], ['Learning Resources', 'learning-resources.html'], ['Reports', 'reports.html'], ['User Management', 'user.html']
+			['Student Dashboard', 'admin-students.html'], ['Student Profile', 'student-profile.html'], ['Learning Resources', 'learning-resources.html'], ['Reports', 'reports.html'], ['User Management', 'user.html'], ['Database', 'database.html']
 		];
 		const currentLabels = () => Array.from(navMenu.querySelectorAll('.nav-item')).map((item) => String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase());
 		requiredAdministratorItems.forEach(([label, target]) => {
@@ -380,7 +380,7 @@ function simplifyNavigation(navMenu) {
 			signOut.setAttribute('onclick', "window.location.href='signout.html'");
 			navMenu.appendChild(signOut);
 		}
-		const administratorOrder = ['Learner Record', 'Dashboard', 'FLP Request Form', 'ADM Approval', 'Student Dashboard', 'Student Profile', 'Learning Resources', 'Reports', 'User Management'];
+		const administratorOrder = ['Learner Record', 'Dashboard', 'FLP Request Form', 'ADM Approval', 'Student Dashboard', 'Student Profile', 'Learning Resources', 'Reports', 'User Management', 'Database'];
 		const orderAnchor = navMenu.querySelector('.nav-greeting, .nav-item-signout');
 		administratorOrder.forEach((label) => {
 			const item = Array.from(navMenu.querySelectorAll('.nav-item')).find((candidate) => String(candidate.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase() === label.toLowerCase());
@@ -489,7 +489,7 @@ function simplifyNavigation(navMenu) {
 				navMenu.dataset.adminNavigationLoaded = 'true';
 				const adminItems = [
 					['Learner Record', 'learner.html'], ['Dashboard', 'dashboard.html'], ['FLP Request Form', 'adm-request.html'], ['ADM Approval', 'approval-request.html'],
-					['Student Dashboard', 'admin-students.html'], ['Student Profile', 'student-profile.html'], ['Learning Resources', 'learning-resources.html'], ['Reports', 'reports.html'], ['User Management', 'user.html']
+					['Student Dashboard', 'admin-students.html'], ['Student Profile', 'student-profile.html'], ['Learning Resources', 'learning-resources.html'], ['Reports', 'reports.html'], ['User Management', 'user.html'], ['Database', 'database.html']
 				];
 				const existing = () => Array.from(navMenu.querySelectorAll('.nav-item')).map((item) =>
 					String(item.dataset.navLabel || item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase()

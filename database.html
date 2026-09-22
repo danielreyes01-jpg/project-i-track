@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Database Management | Project i-Track</title>
+  <link rel="stylesheet" href="/theme.css">
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:#eef5f6;color:#12324a;font:16px Manrope,Arial,sans-serif}.page{max-width:1180px;margin:auto;padding:28px}.hero,.panel{background:#fff;border:1px solid #d4e2e5;border-radius:22px;box-shadow:0 14px 34px rgba(18,50,74,.08)}.hero{padding:30px;background:linear-gradient(135deg,#073b59,#167b9e);color:#fff}.hero p{margin:8px 0 0;color:#d9f3fb;line-height:1.6}.panel{margin-top:22px;padding:26px}.status{display:inline-flex;gap:8px;align-items:center;padding:8px 13px;border-radius:999px;background:#dbf7e8;color:#08734c;font-weight:800}.dot{width:10px;height:10px;border-radius:50%;background:#16a66a}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:20px}.card{padding:18px;border:1px solid #d9e6e8;border-radius:15px;background:#f8fbfb}.card strong{display:block;font-size:1.65rem;margin-top:8px}.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}.button{border:0;border-radius:12px;padding:13px 18px;background:#177a9f;color:#fff;font-weight:800;cursor:pointer;text-decoration:none}.button.secondary{background:#e8f3f4;color:#123b58}.note{margin-top:16px;color:#637b89;line-height:1.55}.error{color:#a32727}@media(max-width:600px){.page{padding:14px}.hero,.panel{padding:20px}}
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <h1>Administrator Database Management</h1>
+      <p>This protected page is available only to the System Administrator. Records and submitted documents are retained until an administrator explicitly removes them.</p>
+    </section>
+    <section class="panel">
+      <span class="status"><span class="dot"></span><span id="retentionStatus">Permanent retention active</span></span>
+      <div id="tableGrid" class="grid" aria-live="polite"><div class="card">Loading database status…</div></div>
+      <div class="actions">
+        <a class="button" href="/api/admin/database/backup">Download Complete Database Backup</a>
+        <button class="button secondary" type="button" onclick="loadStatus()">Refresh Status</button>
+        <button class="button secondary" type="button" onclick="location.href='dashboard.html'">Back to Dashboard</button>
+      </div>
+      <p class="note">The backup is a ZIP file containing a manifest and JSON copies of all operational tables, including durable uploaded documents. Keep it in a secure location because it contains private student and account information.</p>
+    </section>
+  </main>
+  <script>
+    function labelFor(name){return String(name).split('_').map((part)=>part.charAt(0).toUpperCase()+part.slice(1)).join(' ')}
+    async function loadStatus(){
+      const grid=document.getElementById('tableGrid');
+      try{
+        const auth=await fetch('/api/auth/me',{credentials:'include'});
+        const account=auth.ok?await auth.json():null;
+        if(!account||!account.user||String(account.user.role).toLowerCase()!=='admin'){location.replace('login.html');return}
+        const response=await fetch('/api/admin/database/status',{credentials:'include'});
+        if(!response.ok)throw new Error('Database status is unavailable.');
+        const data=await response.json();
+        grid.innerHTML=(data.tables||[]).map((table)=>'<article class="card"><span>'+labelFor(table.name)+'</span><strong>'+Number(table.count||0).toLocaleString()+'</strong><small>stored records</small></article>').join('')||'<div class="card">No tables found.</div>';
+        document.getElementById('retentionStatus').textContent=data.automatic_deletion?'Automatic deletion enabled':'Permanent retention active';
+      }catch(error){grid.innerHTML='<div class="card error">'+error.message+'</div>'}
+    }
+    loadStatus();
+  </script>
+</body>
+</html>
