@@ -4385,7 +4385,8 @@ app.post("/api/chat/messages/:contactUserId", requireLogin, async (req, res) => 
   }
 });
 
-app.use("/api", (req, res) => {
+app.use("/api", (req, res, next) => {
+  if (String(req.path || "").startsWith("/admin/database/")) return next();
   return res.status(404).json({ message: "API route not found." });
 });
 
