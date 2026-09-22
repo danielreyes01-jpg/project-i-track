@@ -1006,7 +1006,10 @@ function presenceBadge(presence) {
 function initializeAdministratorStudentPresence() {
 	if (!/admin-students\.html$/i.test(location.pathname)) return;
 	injectStudentPresenceStyles();
+	let refreshPending = false;
 	const refresh = async () => {
+		if (refreshPending) return;
+		refreshPending = true;
 		try {
 			const response = await fetch('/api/admin/student-monitoring', { credentials: 'include' });
 			if (!response.ok) return;
@@ -1031,9 +1034,18 @@ function initializeAdministratorStudentPresence() {
 				}
 				cell.innerHTML = presenceBadge(record.presence);
 			});
-		} catch (_) {}
+		} catch (_) {
+			// Presence is supplementary; keep the dashboard available if it cannot refresh.
+		} finally {
+			refreshPending = false;
+		}
 	};
-	window.setTimeout(refresh, 650);
+	const studentBody = document.getElementById('studentBody');
+	if (studentBody) {
+		new MutationObserver(() => refresh()).observe(studentBody, { childList: true });
+	}
+	window.setTimeout(refresh, 300);
+	window.setTimeout(refresh, 1000);
 	window.setInterval(refresh, 30000);
 }
 
