@@ -268,11 +268,14 @@
 		}
 
 		.reset-password-btn {
-			padding: 6px 9px;
+			padding: 4px 8px;
 			border: 1px solid #8fc7d5;
+			border-radius: 999px;
 			background: #eaf7fa;
 			color: #0c6077;
-			font-size: 0.72rem;
+			font-size: 0.7rem;
+			font-weight: 800;
+			line-height: 1;
 			white-space: nowrap;
 		}
 
@@ -604,7 +607,7 @@
 					const actionButtons =
 						'<div class="row-actions">' + roleSelect + '</div>';
 					const resetPasswordButton = approved
-						? '<button class="reset-password-btn" type="button" data-action="resetPassword" data-id="' + escapeHtml(user.id) + '" data-user-name="' + escapeHtml(name || user.email) + '">Reset Password</button>'
+						? '<button class="reset-password-btn" type="button" data-action="resetPassword" data-id="' + escapeHtml(user.id) + '" data-user-name="' + escapeHtml(name || user.email) + '" aria-label="Reset password for ' + escapeHtml(name || user.email) + '">RESET</button>'
 						: '';
 
 					return '<tr data-approved="' + (approved ? 'true' : 'false') + '">' +
