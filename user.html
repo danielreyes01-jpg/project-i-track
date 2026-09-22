@@ -260,6 +260,51 @@
 			color: #7b2503;
 		}
 
+		.status-cell {
+			display: flex;
+			align-items: center;
+			gap: 7px;
+			flex-wrap: wrap;
+		}
+
+		.reset-password-btn {
+			padding: 6px 9px;
+			border: 1px solid #8fc7d5;
+			background: #eaf7fa;
+			color: #0c6077;
+			font-size: 0.72rem;
+			white-space: nowrap;
+		}
+
+		.password-reset-overlay {
+			position: fixed;
+			inset: 0;
+			z-index: 1200;
+			display: none;
+			place-items: center;
+			padding: 20px;
+			background: rgba(7, 34, 51, 0.58);
+			backdrop-filter: blur(4px);
+		}
+
+		.password-reset-overlay.open { display: grid; }
+
+		.password-reset-dialog {
+			width: min(100%, 470px);
+			padding: 24px;
+			border: 1px solid #cfe0e4;
+			border-radius: 18px;
+			background: #fff;
+			box-shadow: 0 26px 70px rgba(7, 34, 51, 0.28);
+		}
+
+		.password-reset-dialog h2 { margin-bottom: 6px; color: #123047; }
+		.password-reset-dialog p { margin-bottom: 16px; color: #607481; line-height: 1.5; }
+		.password-reset-fields { display: grid; gap: 12px; }
+		.password-reset-fields label { display: grid; gap: 6px; color: #29485c; font-size: 0.82rem; font-weight: 800; }
+		.password-reset-help { margin-top: 9px; color: #607481; font-size: 0.74rem; }
+		.password-reset-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; }
+
 		.row-actions {
 			display: flex;
 			flex-wrap: wrap;
@@ -443,6 +488,22 @@
 
 	</main>
 
+	<div id="passwordResetOverlay" class="password-reset-overlay" role="dialog" aria-modal="true" aria-labelledby="passwordResetTitle">
+		<form id="passwordResetForm" class="password-reset-dialog">
+			<h2 id="passwordResetTitle">Reset user password</h2>
+			<p id="passwordResetAccount">Enter a new password for this approved account.</p>
+			<div class="password-reset-fields">
+				<label>New password<input id="newUserPassword" type="password" autocomplete="new-password" required minlength="8"></label>
+				<label>Confirm new password<input id="confirmUserPassword" type="password" autocomplete="new-password" required minlength="8"></label>
+			</div>
+			<div class="password-reset-help">Use 8+ characters with uppercase, lowercase, number, and special character. Resetting the password signs the user out of any active session.</div>
+			<div class="password-reset-actions">
+				<button id="cancelPasswordReset" class="btn-secondary" type="button">Cancel</button>
+				<button id="submitPasswordReset" class="btn-primary" type="submit">Reset Password</button>
+			</div>
+		</form>
+	</div>
+
 	<script>
 		(function () {
 			const AUTO_REFRESH_MS = 30000;
@@ -459,6 +520,14 @@
 			const totalUsers = document.getElementById("totalUsers");
 			const pendingUsers = document.getElementById("pendingUsers");
 			const approvedUsers = document.getElementById("approvedUsers");
+			const passwordResetOverlay = document.getElementById("passwordResetOverlay");
+			const passwordResetForm = document.getElementById("passwordResetForm");
+			const passwordResetAccount = document.getElementById("passwordResetAccount");
+			const newUserPassword = document.getElementById("newUserPassword");
+			const confirmUserPassword = document.getElementById("confirmUserPassword");
+			const cancelPasswordReset = document.getElementById("cancelPasswordReset");
+			const submitPasswordReset = document.getElementById("submitPasswordReset");
+			let passwordResetUserId = "";
 			let autoRefreshTimer = null;
 			let allUsers = [];
 
@@ -530,6 +599,9 @@
 						'</select>';
 					const actionButtons =
 						'<div class="row-actions">' + roleSelect + '</div>';
+					const resetPasswordButton = approved
+						? '<button class="reset-password-btn" type="button" data-action="resetPassword" data-id="' + escapeHtml(user.id) + '" data-user-name="' + escapeHtml(name || user.email) + '">Reset Password</button>'
+						: '';
 
 					return '<tr data-approved="' + (approved ? 'true' : 'false') + '">' +
 						'<td class="select-col"><input class="user-select" type="checkbox" data-id="' + escapeHtml(user.id) + '" aria-label="Select user ' + escapeHtml(user.email) + '"></td>' +
@@ -537,7 +609,7 @@
 						'<td>' + escapeHtml(user.email) + '</td>' +
 						'<td>' + escapeHtml(user.school || "-") + '</td>' +
 						'<td>' + rolePill + '</td>' +
-						'<td><span class="' + statusClass + '">' + statusText + '</span></td>' +
+						'<td><div class="status-cell"><span class="' + statusClass + '">' + statusText + '</span>' + resetPasswordButton + '</div></td>' +
 						'<td>' + escapeHtml(created) + '</td>' +
 						'<td>' + actionButtons + '</td>' +
 					'</tr>';
@@ -738,6 +810,58 @@
 				}
 			}
 
+			function openPasswordReset(button) {
+				passwordResetUserId = String(button.getAttribute("data-id") || "");
+				const accountName = String(button.getAttribute("data-user-name") || "this user");
+				passwordResetAccount.textContent = "Enter a new password for " + accountName + ".";
+				newUserPassword.value = "";
+				confirmUserPassword.value = "";
+				passwordResetOverlay.classList.add("open");
+				setTimeout(function () { newUserPassword.focus(); }, 40);
+			}
+
+			function closePasswordReset() {
+				passwordResetOverlay.classList.remove("open");
+				passwordResetUserId = "";
+				newUserPassword.value = "";
+				confirmUserPassword.value = "";
+			}
+
+			passwordResetForm.addEventListener("submit", async function (event) {
+				event.preventDefault();
+				if (!passwordResetUserId) return;
+				if (newUserPassword.value !== confirmUserPassword.value) {
+					setMessage("New password and confirmation do not match.", "error");
+					confirmUserPassword.focus();
+					return;
+				}
+
+				submitPasswordReset.disabled = true;
+				try {
+					const response = await fetch("/api/admin/reset-user-password", {
+						method: "POST",
+						headers: getAdminHeaders(true),
+						body: JSON.stringify({
+							userId: passwordResetUserId,
+							newPassword: newUserPassword.value,
+							confirmPassword: confirmUserPassword.value
+						})
+					});
+					const payload = await parseApiPayload(response);
+					if (!response.ok) throw new Error(payload.message || "Password reset failed.");
+					closePasswordReset();
+					setMessage(payload.message || "Password reset successfully.", "success");
+				} catch (error) {
+					setMessage(error.message || "Password reset failed.", "error");
+				} finally {
+					submitPasswordReset.disabled = false;
+				}
+			});
+
+			cancelPasswordReset.addEventListener("click", closePasswordReset);
+			passwordResetOverlay.addEventListener("click", function (event) { if (event.target === passwordResetOverlay) closePasswordReset(); });
+			document.addEventListener("keydown", function (event) { if (event.key === "Escape" && passwordResetOverlay.classList.contains("open")) closePasswordReset(); });
+
 			initializeUserApprovalPage();
 
 			adminKeyInput.addEventListener("change", function () {
@@ -756,6 +880,10 @@
 				}
 				const button = event.target.closest("button[data-action]");
 				if (!button) return;
+				if (button.getAttribute("data-action") === "resetPassword") {
+					openPasswordReset(button);
+					return;
+				}
 				applyAction(button.getAttribute("data-action"), button.getAttribute("data-id"), null);
 			});
 

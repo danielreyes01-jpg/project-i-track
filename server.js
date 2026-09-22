@@ -1883,6 +1883,43 @@ app.post("/api/admin/reject-user", requireAdmin, async (req, res) => {
   return res.json({ message: "User account rejected." });
 });
 
+app.post("/api/admin/reset-user-password", requireAdmin, async (req, res) => {
+  try {
+    const userId = String((req.body || {}).userId || "").trim();
+    const newPassword = String((req.body || {}).newPassword || "");
+    const confirmPassword = String((req.body || {}).confirmPassword || "");
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required." });
+    }
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: "New password and confirmation do not match." });
+    }
+    if (!isStrongPassword(newPassword)) {
+      return res.status(400).json({ message: "New password must have 8+ characters with uppercase, lowercase, number, and special character." });
+    }
+
+    const targetUser = await db("users").where({ id: userId, approved: true }).first("id", "email");
+    if (!targetUser) {
+      return res.status(404).json({ message: "Approved user not found." });
+    }
+
+    await db("users")
+      .where({ id: userId })
+      .update({
+        password_hash: await bcrypt.hash(newPassword, PASSWORD_HASH_ROUNDS),
+        active_session_id: null,
+        failed_login_count: 0,
+        lockout_until: null,
+        updated_at: new Date().toISOString()
+      });
+
+    return res.json({ message: "Password reset successfully. The user must sign in again with the new password." });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to reset user password.", detail: error.message });
+  }
+});
+
 app.delete("/api/admin/delete-user", requireAdmin, async (req, res) => {
   const userId = String((req.body || {}).userId || "").trim();
   if (!userId) {
