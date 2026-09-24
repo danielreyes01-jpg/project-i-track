@@ -716,16 +716,25 @@
 				gap: 8px;
 			}
 		}
+		.adm-gate-modal { position:fixed; inset:0; z-index:10020; display:none; place-items:center; padding:22px; background:rgba(4,25,39,.72); backdrop-filter:blur(5px); }
+		.adm-gate-modal.show { display:grid; }
+		.adm-gate-dialog { width:min(520px,100%); border:1px solid rgba(255,255,255,.16); border-radius:24px; padding:30px; color:#fff; background:linear-gradient(145deg,#07334b,#0d5873); box-shadow:0 24px 70px rgba(0,0,0,.35); text-align:center; }
+		.adm-gate-dialog h2 { margin:0 0 12px; color:#fff; font-size:1.55rem; }
+		.adm-gate-dialog p { margin:0; color:#e8f7fb; line-height:1.65; }
+		.adm-gate-actions { display:flex; justify-content:center; gap:12px; margin-top:24px; flex-wrap:wrap; }
+		.adm-gate-actions button { border:0; border-radius:12px; padding:12px 20px; font:inherit; font-weight:800; cursor:pointer; }
+		.adm-gate-close { color:#0b3d51; background:#fff; }
+		.adm-gate-request { color:#102f3d; background:#ffd447; }
 	</style>
 </head>
 <body>
 	<div class="page-stack">
 		<main class="shell" aria-label="Learner record form">
 			<nav class="quick-nav nav-menu" aria-label="Page navigation">
+				<button id="navAdmRequest" class="quick-nav-btn nav-item" type="button" onclick="window.location.href='adm-request.html'">FLP Request Form</button>
 				<button class="quick-nav-btn nav-item active" type="button" onclick="window.location.href='learner.html'">Learner Record</button>
 				<button id="navDashboard" class="quick-nav-btn nav-item" type="button" onclick="window.location.href='dashboard.html'">Dashboard</button>
 				<button id="teacherAccountBtn" class="quick-nav-btn nav-item" type="button" onclick="window.location.href='account.html'">My Account</button>
-				<button id="navAdmRequest" class="quick-nav-btn nav-item" type="button" onclick="window.location.href='adm-request.html'">ADM Request</button>
 				<button class="quick-nav-btn nav-item" type="button" onclick="window.location.href='learning-resources.html'">Learning Resources</button>
 				<span id="navGreeting" class="nav-greeting"></span>
 				<button class="quick-nav-btn quick-nav-signout nav-item nav-item-signout" type="button" onclick="window.location.href='signout.html'">Sign Out</button>
@@ -1026,9 +1035,30 @@
 			</div>
 		</section>
 	</div>
+	<div id="admGateModal" class="adm-gate-modal" role="dialog" aria-modal="true" aria-labelledby="admGateTitle" aria-describedby="admGateMessage">
+		<div class="adm-gate-dialog">
+			<h2 id="admGateTitle">Approved FLP Request Required</h2>
+			<p id="admGateMessage">The student has No Document Request in the System. Submit the FLP Request Form and wait for approval before saving the learner record.</p>
+			<div class="adm-gate-actions">
+				<button id="admGateClose" class="adm-gate-close" type="button">Close</button>
+				<button id="admGateRequest" class="adm-gate-request" type="button">Open FLP Request Form</button>
+			</div>
+		</div>
+	</div>
 
 	<script>
 		(function () {
+			const admGateModal = document.getElementById("admGateModal");
+			const admGateClose = document.getElementById("admGateClose");
+			const admGateRequest = document.getElementById("admGateRequest");
+			function showAdmGateModal(message) {
+				document.getElementById("admGateMessage").textContent = message;
+				admGateModal.classList.add("show");
+				admGateClose.focus();
+			}
+			admGateClose.addEventListener("click", function () { admGateModal.classList.remove("show"); });
+			admGateRequest.addEventListener("click", function () { window.location.href = "adm-request.html"; });
+			admGateModal.addEventListener("click", function (event) { if (event.target === admGateModal) admGateModal.classList.remove("show"); });
 			const isLocalNodeMode = true;
 
 			function apiUrl(path) {
@@ -1420,7 +1450,7 @@
 						teacherAccountBtn.style.display = "none";
 					}
 					if (navAdmRequest) {
-						navAdmRequest.style.display = (userRole === "admin" || userRole === "principal") ? "inline-flex" : "none";
+						navAdmRequest.style.display = (userRole === "teacher" || userRole === "admin" || userRole === "principal") ? "inline-flex" : "none";
 					}
 					const navDashboard = document.getElementById("navDashboard");
 					if (navDashboard && userRole === "teacher") {
@@ -1887,6 +1917,11 @@
 					const payload = await parseApiPayload(response);
 
 					if (!response.ok) {
+						if (payload.code === "ADM_APPROVAL_REQUIRED") {
+							showAdmGateModal(payload.message || "The student has No Document Request in the System.");
+							setMessage(payload.message || "Approved FLP Request required.", "error");
+							return;
+						}
 						throw new Error(payload.message || "Failed to save learner record.");
 					}
 

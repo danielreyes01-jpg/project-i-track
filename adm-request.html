@@ -275,8 +275,8 @@
 <body>
 	<div class="nav-panel">
 		<nav class="nav-menu" aria-label="Teacher navigation">
-			<button class="nav-item" type="button" onclick="window.location.href='learner.html'">📋 Learner Record</button>
 			<button class="nav-item" type="button" onclick="window.location.href='adm-request.html'">📄 ADM Request</button>
+			<button class="nav-item" type="button" onclick="window.location.href='learner.html'">📋 Learner Record</button>
 			<span id="navGreeting" class="nav-greeting"></span>
 			<button class="nav-item nav-item-signout" type="button" onclick="window.location.href='signout.html'">↪ Sign Out</button>
 		</nav>
@@ -299,6 +299,10 @@
 					<div class="field">
 						<label for="admFocal">ADM Focal</label>
 						<input id="admFocal" name="admFocal" type="text" placeholder="Enter ADM focal" required>
+					</div>
+					<div class="field full">
+						<label for="learnerName">Student Full Name</label>
+						<input id="learnerName" name="learnerName" type="text" maxlength="255" placeholder="Enter the student's complete name" autocomplete="name" required>
 					</div>
 					<div class="field">
 						<label for="district">District</label>
@@ -508,7 +512,7 @@
 						'<td>' + escapeHtml(formatRequestDate(item.request_date)) + '</td>' +
 						'<td>' + escapeHtml(item.district || "N/A") + '</td>' +
 						'<td>' + escapeHtml(item.school || "N/A") + '</td>' +
-						'<td>' + escapeHtml(item.adm_focal || "N/A") + '</td>' +
+						'<td><strong>Student:</strong> ' + escapeHtml(item.learner_name || "N/A") + '<br><strong>ADM Focal:</strong> ' + escapeHtml(item.adm_focal || "N/A") + '</td>' +
 						'<td><div class="detail-copy">' + escapeHtml(item.reason_for_adm || "Not provided") + '</div></td>' +
 						'<td><div class="duration-copy"><span><strong>From:</strong> ' + escapeHtml(formatRequestDate(item.duration_from)) + '</span><span><strong>To:</strong> ' + escapeHtml(formatRequestDate(item.duration_to)) + '</span></div></td>' +
 						'<td>' +
@@ -604,13 +608,22 @@
 				const secondaryInput = document.getElementById("secondarySupportingDocument");
 				const psdsFile = psdsInput.files[0];
 				const secondaryFile = secondaryInput.files[0];
+				const learnerNameInput = document.getElementById("learnerName");
+				const learnerName = String(learnerNameInput.value || "").trim();
+				const admFocalInput = document.getElementById("admFocal");
+				const admFocal = String(admFocalInput.value || "").trim();
 				const reason = String(reasonInput.value || "").trim();
 				const durationFrom = String(durationFromInput.value || "").trim();
 				const durationTo = String(durationToInput.value || "").trim();
 
-				[reasonInput, durationFromInput, durationToInput].forEach(function (input) {
+				[learnerNameInput, admFocalInput, reasonInput, durationFromInput, durationToInput].forEach(function (input) {
 					input.classList.toggle("field-invalid", !String(input.value || "").trim());
 				});
+				if (!learnerName || !admFocal) {
+					setMessage("Student full name and ADM focal are required.", "error");
+					(!learnerName ? learnerNameInput : admFocalInput).focus();
+					return;
+				}
 				if (!reason || !durationFrom || !durationTo) {
 					setMessage("Reason for ADM and the complete From and To duration period are required.", "error");
 					(!reason ? reasonInput : (!durationFrom ? durationFromInput : durationToInput)).focus();
@@ -644,7 +657,8 @@
 
 				const formData = new FormData();
 				formData.append("requestDate", String(document.getElementById("requestDate").value || "").trim());
-				formData.append("admFocal", String(document.getElementById("admFocal").value || "").trim());
+				formData.append("learnerName", learnerName);
+				formData.append("admFocal", admFocal);
 				formData.append("reasonForAdm", reason);
 				formData.append("durationFrom", durationFrom);
 				formData.append("durationTo", durationTo);

@@ -487,6 +487,8 @@ async function ensureSchema() {
       table.string("request_date", 20).notNullable();
       table.string("district", 150).notNullable();
       table.string("school", 150).notNullable();
+      table.string("learner_name", 255).nullable();
+      table.string("learner_name_key", 255).nullable();
       table.string("adm_focal", 255).notNullable();
       table.text("reason_for_adm").notNullable();
       table.string("duration_from", 20).notNullable();
@@ -557,6 +559,12 @@ async function ensureSchema() {
     if (!admRequestColumns.duration_to) {
       await db.schema.alterTable("adm_requests", (table) => {
         table.string("duration_to", 20).nullable();
+      });
+    }
+    if (!admRequestColumns.learner_name || !admRequestColumns.learner_name_key) {
+      await db.schema.alterTable("adm_requests", (table) => {
+        if (!admRequestColumns.learner_name) table.string("learner_name", 255).nullable();
+        if (!admRequestColumns.learner_name_key) table.string("learner_name_key", 255).nullable();
       });
     }
 

@@ -193,6 +193,20 @@ function resolveApprovalUploadPath(documentPath) {
   return absolute;
 }
 
+function normalizeLearnerNameKey(...parts) {
+  return parts
+    .flat()
+    .map((part) => String(part || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, " "))
+    .join(" ")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join("|");
+}
+
 function sendApprovalDocument(res, row, fields) {
   const storedData = getStoredFileBuffer(row && row[fields.data]);
   const diskPath = resolveApprovalUploadPath(row && row[fields.path]);
@@ -2104,6 +2118,21 @@ app.post("/api/learners", requireTeacherOrPrincipal, async (req, res) => {
 	  return res.status(403).json({ message: "School principals can add learner records only for their assigned school." });
 	}
 
+	const learnerNameKey = normalizeLearnerNameKey(firstname, middlename, family_name);
+	const approvedAdmRequest = await db("adm_requests")
+	  .where({
+		requestor_user_id: req.session.userId,
+		learner_name_key: learnerNameKey,
+		status: "approved"
+	  })
+	  .first("id");
+	if (!approvedAdmRequest) {
+	  return res.status(409).json({
+		code: "ADM_APPROVAL_REQUIRED",
+		message: "The student has No Document Request in the System. Submit the FLP Request Form and wait for approval before saving the learner record."
+	  });
+	}
+
 	const existingStudentAccount = await db("users")
 	  .whereRaw("LOWER(username) = ?", [normalizedStudentUsername.toLowerCase()])
 	  .orWhere({ lrn: normalizedLrn })
@@ -2339,6 +2368,7 @@ app.get("/api/adm-requests", requireTeacherOrPrincipal, async (req, res) => {
         "request_date",
         "district",
         "school",
+        "learner_name",
         "adm_focal",
         "reason_for_adm",
         "duration_from",
@@ -2497,6 +2527,7 @@ app.post(
 
     try {
       const requestDate = String((req.body || {}).requestDate || "").trim();
+      const learnerName = String((req.body || {}).learnerName || "").trim();
       const admFocal = String((req.body || {}).admFocal || "").trim();
       const reasonForAdm = String((req.body || {}).reasonForAdm || "").trim();
       const durationFrom = String((req.body || {}).durationFrom || "").trim();
@@ -2513,6 +2544,12 @@ app.post(
         deleteFileIfExists(uploadedPsdsFile && uploadedPsdsFile.path);
         deleteFileIfExists(uploadedSecondaryFile && uploadedSecondaryFile.path);
         return res.status(400).json({ message: "ADM focal is required." });
+      }
+
+      if (!learnerName || learnerName.length > 255) {
+        deleteFileIfExists(uploadedPsdsFile && uploadedPsdsFile.path);
+        deleteFileIfExists(uploadedSecondaryFile && uploadedSecondaryFile.path);
+        return res.status(400).json({ message: "Student full name is required and must be 255 characters or fewer." });
       }
 
       if (!reasonForAdm) {
@@ -2571,6 +2608,8 @@ app.post(
         request_date: requestDate,
         district: String((user || {}).district || "N/A").trim() || "N/A",
         school: String((user || {}).school || "N/A").trim() || "N/A",
+        learner_name: learnerName,
+        learner_name_key: normalizeLearnerNameKey(learnerName),
         adm_focal: admFocal,
         reason_for_adm: reasonForAdm,
         duration_from: durationFrom,
@@ -2611,6 +2650,7 @@ app.get("/api/admin/adm-requests", requireAdmin, async (req, res) => {
         "ar.request_date",
         "ar.district",
         "ar.school",
+        "ar.learner_name",
         "ar.adm_focal",
         "ar.reason_for_adm",
         "ar.duration_from",
@@ -2660,6 +2700,7 @@ app.get("/api/admin/approval-dashboard-requests", requireAdmin, async (req, res)
           "ar.request_date",
           "ar.district",
           "ar.school",
+          "ar.learner_name",
           "ar.adm_focal",
           "ar.reason_for_adm",
           "ar.duration_from",
@@ -2754,6 +2795,7 @@ app.get("/api/admin/approval-requests/export", requireAdmin, async (req, res) =>
           "request_date",
           "district",
           "school",
+          "learner_name",
           "adm_focal",
           "requestor_name",
           "psds_endorsement_path",
@@ -2795,7 +2837,7 @@ app.get("/api/admin/approval-requests/export", requireAdmin, async (req, res) =>
         District: String(item.district || "").trim(),
         School: String(item.school || "").trim(),
         Requestor: String(item.requestor_name || "").trim(),
-        Details: String(item.adm_focal || "").trim() ? `ADM Focal: ${String(item.adm_focal || "").trim()}` : "",
+        Details: [`Student: ${String(item.learner_name || "N/A").trim() || "N/A"}`, `ADM Focal: ${String(item.adm_focal || "N/A").trim() || "N/A"}`].join(" | "),
         DocumentsSubmitted: [path.basename(psdsPath), path.basename(secondaryPath)].filter(Boolean).join(" | "),
         DocumentPaths: [psdsPath, secondaryPath].filter(Boolean).join(" | "),
         Result: String(item.review_note || "").trim(),

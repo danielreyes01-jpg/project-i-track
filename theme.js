@@ -370,7 +370,7 @@ function simplifyNavigation(navMenu) {
 	const hasAdministratorNavigation = navItems.some((item) => /user management|adm approval|approval portal/i.test(String(item.textContent || '')));
 	if (hasAdministratorNavigation) {
 		const requiredAdministratorItems = [
-			['Learner Record', 'learner.html'], ['Dashboard', 'dashboard.html'], ['FLP Request Form', 'adm-request.html'], ['ADM Approval', 'approval-request.html'],
+			['FLP Request Form', 'adm-request.html'], ['Learner Record', 'learner.html'], ['Dashboard', 'dashboard.html'], ['ADM Approval', 'approval-request.html'],
 			['Student Dashboard', 'admin-students.html'], ['Student Profile', 'student-profile.html'], ['Learning Resources', 'learning-resources.html'], ['Reports', 'reports.html'], ['User Management', 'user.html'], ['Database', 'database.html']
 		];
 		const currentLabels = () => Array.from(navMenu.querySelectorAll('.nav-item')).map((item) => String(item.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase());
@@ -397,7 +397,7 @@ function simplifyNavigation(navMenu) {
 			signOut.setAttribute('onclick', "window.location.href='signout.html'");
 			navMenu.appendChild(signOut);
 		}
-		const administratorOrder = ['Learner Record', 'Dashboard', 'FLP Request Form', 'ADM Approval', 'Student Dashboard', 'Student Profile', 'Learning Resources', 'Reports', 'User Management', 'Database'];
+		const administratorOrder = ['FLP Request Form', 'Learner Record', 'Dashboard', 'ADM Approval', 'Student Dashboard', 'Student Profile', 'Learning Resources', 'Reports', 'User Management', 'Database'];
 		const orderAnchor = navMenu.querySelector('.nav-greeting, .nav-item-signout');
 		administratorOrder.forEach((label) => {
 			const item = Array.from(navMenu.querySelectorAll('.nav-item')).find((candidate) => String(candidate.textContent || '').replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase() === label.toLowerCase());
@@ -442,6 +442,7 @@ function simplifyNavigation(navMenu) {
 			if (role === 'teacher' && !navMenu.dataset.teacherNavigationLoaded) {
 				navMenu.dataset.teacherNavigationLoaded = 'true';
 				const teacherItems = [
+					['FLP Request Form', 'adm-request.html'],
 					['Learner Record', 'learner.html'],
 					['Student Dashboard', 'admin-students.html'],
 					['Learning Resources', 'learning-resources.html'],
@@ -476,7 +477,7 @@ function simplifyNavigation(navMenu) {
 				navMenu.dataset.leadershipNavigationLoaded = 'true';
 				const leadershipItems = role === 'supervisor'
 					? [['Learner Records', 'learner.html'], ['Student Dashboard', 'admin-students.html'], ['District Dashboard', 'dashboard.html'], ['District Reports', 'reports.html'], ['My Account', 'account.html']]
-					: [['FLP Request Form', 'adm-request.html'], ['Student Dashboard', 'admin-students.html'], ['School Reports', 'reports.html'], ['My Account', 'account.html']];
+					: [['FLP Request Form', 'adm-request.html'], ['Learner Record', 'learner.html'], ['Student Dashboard', 'admin-students.html'], ['School Reports', 'reports.html'], ['My Account', 'account.html']];
 				const allowedTargets = new Set(leadershipItems.map(([, target]) => target.toLowerCase()));
 				Array.from(navMenu.querySelectorAll('.nav-item')).forEach((item) => {
 					const action = String(item.getAttribute('onclick') || item.getAttribute('href') || '').toLowerCase();
@@ -505,7 +506,7 @@ function simplifyNavigation(navMenu) {
 			if (role === 'admin' && !navMenu.dataset.adminNavigationLoaded) {
 				navMenu.dataset.adminNavigationLoaded = 'true';
 				const adminItems = [
-					['Learner Record', 'learner.html'], ['Dashboard', 'dashboard.html'], ['FLP Request Form', 'adm-request.html'], ['ADM Approval', 'approval-request.html'],
+					['FLP Request Form', 'adm-request.html'], ['Learner Record', 'learner.html'], ['Dashboard', 'dashboard.html'], ['ADM Approval', 'approval-request.html'],
 					['Student Dashboard', 'admin-students.html'], ['Student Profile', 'student-profile.html'], ['Learning Resources', 'learning-resources.html'], ['Reports', 'reports.html'], ['User Management', 'user.html'], ['Database', 'database.html']
 				];
 				const existing = () => Array.from(navMenu.querySelectorAll('.nav-item')).map((item) =>
