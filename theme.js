@@ -1,7 +1,13 @@
 // Theme System - Manage dark/light mode per user
 
-const ITRACK_BRAND_LOGO = 'assets/project-itrack-logo.png';
-const ITRACK_SITE_ICON = 'assets/project-itrack-icon.png';
+const ITRACK_BRAND_LOGO = '/assets/project-itrack-logo.webp';
+const ITRACK_SITE_ICON = '/assets/project-itrack-logo.webp';
+let itrackDeferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (event) => {
+	event.preventDefault();
+	itrackDeferredInstallPrompt = event;
+	window.dispatchEvent(new CustomEvent('itrack-install-ready'));
+});
 const ITRACK_PAGE_KEY = String(window.location.pathname || '/').split('/').pop().replace(/\.html$/i, '').replace(/[^a-z0-9-]/gi, '-').toLowerCase() || 'home';
 document.documentElement.classList.add('itrack-page-' + ITRACK_PAGE_KEY);
 
@@ -13,20 +19,31 @@ function initializeITrackBrandAssets() {
 		fontLink.dataset.itrackFont = 'true';
 		document.head.appendChild(fontLink);
 	}
-	const setIcon = (rel, sizes) => {
+	const setIcon = (rel, sizes, href = ITRACK_SITE_ICON, type = 'image/webp') => {
 		let link = document.head.querySelector(`link[rel="${rel}"]`);
 		if (!link) {
 			link = document.createElement('link');
 			link.rel = rel;
 			document.head.appendChild(link);
 		}
-		link.type = 'image/png';
-		link.href = ITRACK_SITE_ICON;
+		link.type = type;
+		link.href = href;
 		if (sizes) link.sizes = sizes;
 	};
-	setIcon('icon', '96x96');
-	setIcon('shortcut icon', '96x96');
-	setIcon('apple-touch-icon', '96x96');
+	setIcon('icon', '600x600');
+	setIcon('shortcut icon', '600x600');
+	setIcon('apple-touch-icon', '192x192', '/assets/project-itrack-icon-192.png', 'image/png');
+	if (!document.head.querySelector('link[rel="manifest"]')) {
+		const manifest = document.createElement('link'); manifest.rel = 'manifest'; manifest.href = '/manifest.webmanifest'; document.head.appendChild(manifest);
+	}
+	const setMeta = (name, content) => {
+		let meta = document.head.querySelector(`meta[name="${name}"]`); if (!meta) { meta = document.createElement('meta'); meta.name = name; document.head.appendChild(meta); } meta.content = content;
+	};
+	setMeta('theme-color', '#126b91');
+	setMeta('apple-mobile-web-app-capable', 'yes');
+	setMeta('apple-mobile-web-app-status-bar-style', 'default');
+	setMeta('apple-mobile-web-app-title', 'Project I-TRACK');
+	setMeta('application-name', 'Flexible Learning Program of SDO Cebu Province – Project I-TRACK');
 	document.querySelectorAll('img.brand-logo').forEach((image) => {
 		image.src = ITRACK_BRAND_LOGO;
 		image.alt = 'Project i-Track logo';
@@ -1377,6 +1394,48 @@ function initializeAdviserStudentChat() {
 	}, 1000);
 }
 
+function initializeITrackInstallApp() {
+	if ('serviceWorker' in navigator && /^https?:$/i.test(location.protocol)) {
+		const registerWorker = () => navigator.serviceWorker.register('/sw.js').catch(() => {});
+		if (document.readyState === 'complete') registerWorker(); else window.addEventListener('load', registerWorker, { once: true });
+	}
+	const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+	if (standalone || document.querySelector('.itrack-install-app')) return;
+	const install = document.createElement('button');
+	install.type = 'button'; install.className = 'itrack-install-app'; install.innerHTML = '<span aria-hidden="true">⬇</span><span>Install App</span>';
+	install.setAttribute('aria-label', 'Install Project I-TRACK on this computer');
+	const modal = document.createElement('div'); modal.className = 'itrack-install-modal'; modal.hidden = true;
+	modal.innerHTML = '<section role="dialog" aria-modal="true" aria-labelledby="itrackInstallTitle"><button class="itrack-install-close" type="button" aria-label="Close">×</button><img src="/assets/project-itrack-logo.webp" alt="Project I-TRACK logo"><h2 id="itrackInstallTitle">Install Project I-TRACK</h2><p class="itrack-install-program">Flexible Learning Program of SDO Cebu Province</p><div class="itrack-install-copy"></div><button class="itrack-install-primary" type="button">Continue</button></section>';
+	document.body.append(install, modal);
+	const copy = modal.querySelector('.itrack-install-copy');
+	const primary = modal.querySelector('.itrack-install-primary');
+	const isMac = /Macintosh|Mac OS X/i.test(navigator.userAgent);
+	const showInstructions = (installed = false) => {
+		modal.hidden = false;
+		if (installed) {
+			copy.innerHTML = isMac
+				? '<p>The app is installed. Open it, right-click its Dock icon, then choose <strong>Options → Keep in Dock</strong>.</p>'
+				: '<p>The app is installed. Open it, right-click its taskbar icon, then choose <strong>Pin to taskbar</strong>.</p>';
+			primary.textContent = 'Done'; return;
+		}
+		copy.innerHTML = isMac
+			? '<p>In Safari, choose <strong>File → Add to Dock</strong>. In Chrome, open the browser menu and choose <strong>Install Project I-TRACK</strong>.</p><p class="itrack-install-note">After installation, open the app and choose <strong>Options → Keep in Dock</strong> from its Dock icon.</p>'
+			: '<p>In Microsoft Edge or Google Chrome, use the install icon in the address bar or choose <strong>Install Project I-TRACK</strong> from the browser menu.</p><p class="itrack-install-note">After installation, right-click the running app in the taskbar and choose <strong>Pin to taskbar</strong>.</p>';
+		primary.textContent = 'Got It';
+	};
+	const closeModal = () => { modal.hidden = true; install.focus(); };
+	install.addEventListener('click', async () => {
+		if (!itrackDeferredInstallPrompt) { showInstructions(false); return; }
+		const prompt = itrackDeferredInstallPrompt; itrackDeferredInstallPrompt = null; await prompt.prompt();
+		const choice = await prompt.userChoice.catch(() => ({ outcome: 'dismissed' }));
+		if (choice.outcome === 'accepted') showInstructions(true);
+	});
+	modal.querySelector('.itrack-install-close').addEventListener('click', closeModal);
+	primary.addEventListener('click', closeModal);
+	modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
+	window.addEventListener('appinstalled', () => { install.hidden = true; itrackDeferredInstallPrompt = null; showInstructions(true); });
+}
+
 // Initialize theme manager when DOM is ready
 if (document.readyState === 'loading') {
 	document.addEventListener('DOMContentLoaded', () => {
@@ -1396,6 +1455,7 @@ if (document.readyState === 'loading') {
 		initializeStudentProfileFinalGrades();
 		initializeAdmDeadlineWarnings();
 		initializeAdviserStudentChat();
+		initializeITrackInstallApp();
 		window.themeManager = new ThemeManager();
 		document.documentElement.classList.remove('itrack-dashboard-boot');
 	});
@@ -1416,6 +1476,7 @@ if (document.readyState === 'loading') {
 	initializeStudentProfileFinalGrades();
 	initializeAdmDeadlineWarnings();
 	initializeAdviserStudentChat();
+	initializeITrackInstallApp();
 	window.themeManager = new ThemeManager();
 	document.documentElement.classList.remove('itrack-dashboard-boot');
 }
