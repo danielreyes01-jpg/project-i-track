@@ -343,6 +343,25 @@ window.addEventListener('itrack:user-updated', (event) => {
 	if (event && event.detail) renderSidebarAccountProfile(event.detail);
 });
 
+function initializeStudentScrollTop() {
+	if (!/admin-students\.html$/i.test(String(window.location.pathname || '')) || document.getElementById('studentScrollTop')) return;
+	const button = document.createElement('button');
+	button.id = 'studentScrollTop';
+	button.className = 'itrack-scroll-top';
+	button.type = 'button';
+	button.setAttribute('aria-label', 'Scroll to top');
+	button.title = 'Scroll to top';
+	button.textContent = '↑';
+	document.body.appendChild(button);
+	const refresh = () => button.classList.toggle('is-visible', window.scrollY > 260);
+	window.addEventListener('scroll', refresh, { passive: true });
+	button.addEventListener('click', () => {
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+		document.querySelectorAll('[data-scroll-container],.student-learning-containers,.student-containers').forEach((el) => el.scrollTo({ top: 0, behavior: 'smooth' }));
+	});
+	refresh();
+}
+
 function simplifyNavigation(navMenu) {
 	const currentPage = String(window.location.pathname || '').split('/').pop().toLowerCase() || 'dashboard.html';
 	const iconByLabel = [
@@ -530,6 +549,7 @@ function simplifyNavigation(navMenu) {
 				simplifyNavigation(navMenu);
 			}
 		}).catch(() => {}).finally(() => document.documentElement.classList.add('itrack-nav-role-ready'));
+	initializeStudentScrollTop();
 
 	Array.from(navMenu.querySelectorAll('.nav-item')).filter((item) => /sign out/i.test(String(item.textContent || ''))).forEach((item) => item.remove());
 	navItems = Array.from(navMenu.querySelectorAll('.nav-item'));

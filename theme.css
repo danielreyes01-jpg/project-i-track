@@ -1592,6 +1592,35 @@ html body .deped-fixed-header button.itrack-management-toggle:focus-visible {
 .nav-menu .nav-item[data-nav-label="User Management"] .nav-item-icon { background:#f59e0b !important; color:#4a2b00 !important; }
 .nav-menu .nav-item[data-nav-label="Database"] .nav-item-icon { background:#94a3b8 !important; color:#17243a !important; }
 .nav-menu .nav-item-icon { border-radius:10px !important; box-shadow:0 4px 10px rgba(4,43,72,.18) !important; }
+
+/* Student Dashboard scroll-to-top control. */
+.itrack-scroll-top {
+	position:fixed !important;
+	right:28px !important;
+	bottom:92px !important;
+	z-index:10020 !important;
+	display:grid !important;
+	place-items:center !important;
+	width:48px !important;
+	height:48px !important;
+	padding:0 !important;
+	border:3px solid #f8c928 !important;
+	border-radius:50% !important;
+	background:#176f9f !important;
+	color:#ffe36a !important;
+	font-size:1.55rem !important;
+	font-weight:900 !important;
+	line-height:1 !important;
+	box-shadow:0 8px 20px rgba(8,61,99,.28) !important;
+	cursor:pointer !important;
+	opacity:0 !important;
+	visibility:hidden !important;
+	transform:translateY(10px) !important;
+	transition:opacity .2s ease,visibility .2s ease,transform .2s ease,background .2s ease !important;
+}
+.itrack-scroll-top.is-visible { opacity:1 !important; visibility:visible !important; transform:translateY(0) !important; }
+.itrack-scroll-top:hover,.itrack-scroll-top:focus-visible { background:#0f5b88 !important; color:#fff2a6 !important; transform:translateY(-3px) !important; }
+@media (max-width:560px) { .itrack-scroll-top { right:18px !important; bottom:82px !important; width:44px !important; height:44px !important; } }
 .nav-menu .management-caret { grid-column:3 !important; justify-self:end !important; margin:0 !important; }
 .itrack-management-menu { width:100% !important; display:flex !important; flex-direction:column !important; align-items:stretch !important; }
 .itrack-management-submenu { position:static !important; display:flex !important; flex-direction:column !important; min-width:0 !important; width:100% !important; max-height:0 !important; margin:0 !important; padding:0 0 0 10px !important; overflow:hidden !important; opacity:0 !important; visibility:hidden !important; transform:translateY(-7px) !important; pointer-events:none !important; background:rgba(2,31,57,.28) !important; border:0 !important; border-left:2px solid rgba(245,197,43,.7) !important; border-radius:8px !important; box-shadow:none !important; transition:max-height .48s ease,opacity .34s ease,transform .42s ease,padding .42s ease,margin .42s ease,visibility .34s ease !important; }
