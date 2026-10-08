@@ -1528,7 +1528,7 @@ html body .deped-fixed-header button.itrack-management-toggle,
 html body .deped-fixed-header button.theme-toggle-nav,
 html body .deped-fixed-header .nav-greeting {
 	display:grid !important;
-	grid-template-columns:28px minmax(0,1fr) auto !important;
+	grid-template-columns:38px minmax(0,1fr) auto !important;
 	align-items:center !important;
 	column-gap:10px !important;
 	width:100% !important;
@@ -1575,7 +1575,7 @@ html body .deped-fixed-header button.itrack-management-toggle:focus-visible {
 }
 
 .deped-compact-menu-dock .nav-item::after { display:none !important; }
-.nav-menu .nav-item-icon { display:inline-grid !important; grid-column:1 !important; place-items:center !important; width:28px !important; height:28px !important; flex:0 0 28px !important; margin:0 !important; border-radius:8px !important; background:var(--itrack-side-yellow) !important; color:#123047 !important; font-size:.82rem !important; text-align:center !important; }
+.nav-menu .nav-item-icon { display:inline-grid !important; grid-column:1 !important; place-items:center !important; width:36px !important; height:36px !important; flex:0 0 36px !important; margin:0 !important; border-radius:10px !important; background:var(--itrack-side-yellow) !important; color:#123047 !important; font-size:1.08rem !important; text-align:center !important; }
 .nav-menu .management-caret { grid-column:3 !important; justify-self:end !important; margin:0 !important; }
 .itrack-management-menu { width:100% !important; display:flex !important; flex-direction:column !important; align-items:stretch !important; }
 .itrack-management-submenu { position:static !important; display:flex !important; flex-direction:column !important; min-width:0 !important; width:100% !important; max-height:0 !important; margin:0 !important; padding:0 0 0 10px !important; overflow:hidden !important; opacity:0 !important; visibility:hidden !important; transform:translateY(-7px) !important; pointer-events:none !important; background:rgba(2,31,57,.28) !important; border:0 !important; border-left:2px solid rgba(245,197,43,.7) !important; border-radius:8px !important; box-shadow:none !important; transition:max-height .48s ease,opacity .34s ease,transform .42s ease,padding .42s ease,margin .42s ease,visibility .34s ease !important; }
