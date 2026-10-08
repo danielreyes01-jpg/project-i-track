@@ -1922,9 +1922,9 @@ html.has-deped-fixed-header .itrack-header-signout span { width:22px !important;
 /* Layered blue sidebar menu cards with a curved yellow selected indicator. */
 html body .deped-fixed-header {
 	background:
-		radial-gradient(circle at 86% 18%,rgba(63,151,207,.2),transparent 34%),
-		linear-gradient(135deg,rgba(255,255,255,.035) 0 24%,transparent 24% 58%,rgba(0,35,68,.1) 58% 100%),
-		linear-gradient(180deg,#0c558f 0%,#084675 100%) !important;
+		radial-gradient(circle at 86% 18%,rgba(164,225,255,.28),transparent 34%),
+		linear-gradient(135deg,rgba(255,255,255,.10) 0 24%,transparent 24% 58%,rgba(0,55,100,.06) 58% 100%),
+		linear-gradient(180deg,#2f84b8 0%,#216b9c 100%) !important;
 }
 
 html body .deped-fixed-header button.nav-item,
