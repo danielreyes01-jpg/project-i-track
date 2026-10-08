@@ -1576,6 +1576,22 @@ html body .deped-fixed-header button.itrack-management-toggle:focus-visible {
 
 .deped-compact-menu-dock .nav-item::after { display:none !important; }
 .nav-menu .nav-item-icon { display:inline-grid !important; grid-column:1 !important; place-items:center !important; width:40px !important; height:40px !important; flex:0 0 40px !important; margin:0 !important; border-radius:0 !important; background:transparent !important; color:#fff !important; font-size:1.5rem !important; line-height:1 !important; text-align:center !important; font-family:"Segoe UI Symbol","Segoe UI Emoji",sans-serif !important; }
+.nav-menu .nav-item[data-nav-label="My Account"] .nav-item-icon { background:#8b5cf6 !important; color:#fff !important; }
+.nav-menu .nav-item[data-nav-label="Learner Record"] .nav-item-icon,
+.nav-menu .nav-item[data-nav-label="Learner Records"] .nav-item-icon { background:#ffd33d !important; color:#17324d !important; }
+.nav-menu .nav-item[data-nav-label="Dashboard"] .nav-item-icon,
+.nav-menu .nav-item[data-nav-label="District Dashboard"] .nav-item-icon { background:#38bdf8 !important; color:#083b5c !important; }
+.nav-menu .nav-item[data-nav-label="FLP Request Form"] .nav-item-icon { background:#fb923c !important; color:#fff !important; }
+.nav-menu .nav-item[data-nav-label="ADM Approval"] .nav-item-icon { background:#34c98b !important; color:#063f31 !important; }
+.nav-menu .nav-item[data-nav-label="Student Dashboard"] .nav-item-icon { background:#818cf8 !important; color:#fff !important; }
+.nav-menu .nav-item[data-nav-label="Student Profile"] .nav-item-icon { background:#2dd4bf !important; color:#073f3a !important; }
+.nav-menu .nav-item[data-nav-label="Learning Resources"] .nav-item-icon { background:#c084fc !important; color:#3f145f !important; }
+.nav-menu .nav-item[data-nav-label="Reports"] .nav-item-icon,
+.nav-menu .nav-item[data-nav-label="School Reports"] .nav-item-icon,
+.nav-menu .nav-item[data-nav-label="District Reports"] .nav-item-icon { background:#f472b6 !important; color:#5b1239 !important; }
+.nav-menu .nav-item[data-nav-label="User Management"] .nav-item-icon { background:#f59e0b !important; color:#4a2b00 !important; }
+.nav-menu .nav-item[data-nav-label="Database"] .nav-item-icon { background:#94a3b8 !important; color:#17243a !important; }
+.nav-menu .nav-item-icon { border-radius:10px !important; box-shadow:0 4px 10px rgba(4,43,72,.18) !important; }
 .nav-menu .management-caret { grid-column:3 !important; justify-self:end !important; margin:0 !important; }
 .itrack-management-menu { width:100% !important; display:flex !important; flex-direction:column !important; align-items:stretch !important; }
 .itrack-management-submenu { position:static !important; display:flex !important; flex-direction:column !important; min-width:0 !important; width:100% !important; max-height:0 !important; margin:0 !important; padding:0 0 0 10px !important; overflow:hidden !important; opacity:0 !important; visibility:hidden !important; transform:translateY(-7px) !important; pointer-events:none !important; background:rgba(2,31,57,.28) !important; border:0 !important; border-left:2px solid rgba(245,197,43,.7) !important; border-radius:8px !important; box-shadow:none !important; transition:max-height .48s ease,opacity .34s ease,transform .42s ease,padding .42s ease,margin .42s ease,visibility .34s ease !important; }
