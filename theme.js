@@ -346,7 +346,7 @@ window.addEventListener('itrack:user-updated', (event) => {
 function simplifyNavigation(navMenu) {
 	const currentPage = String(window.location.pathname || '').split('/').pop().toLowerCase() || 'dashboard.html';
 	const iconByLabel = [
-		[/learner/i, '📋'], [/reports?/i, '📑'], [/dashboard/i, '📊'], [/account/i, '👤'], [/(adm|flp) request/i, '📄'],
+		[/student profile/i, '🪪'], [/student dashboard/i, '🎓'], [/learner/i, '📝'], [/reports?/i, '📈'], [/dashboard/i, '📊'], [/account/i, '👤'], [/(adm|flp) request/i, '📄'],
 		[/learning resource|module|activity sheet/i, '📚'], [/approval/i, '✅'], [/user/i, '👥'], [/create/i, '➕'], [/login/i, '🔐'], [/sign out/i, '↪']
 	];
 	let navItems = Array.from(navMenu.querySelectorAll('.nav-item'));
