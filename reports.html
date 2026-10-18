@@ -59,13 +59,12 @@
       const escapeHtml=(value)=>String(value==null?'':value).replace(/[&<>"']/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const number=(value)=>Number(value||0).toLocaleString();
       let reportLoadPromise;
-      async function printReport(){
+      function printReport(){
         const button=document.getElementById('printReportButton');
         if(button.dataset.preparing==='true')return;
         const originalLabel=button.innerHTML;
         button.dataset.preparing='true';button.innerHTML='⏳ Preparing report…';
         try{
-          if(reportLoadPromise) await reportLoadPromise.catch(function(){ return null; });
           const preview=document.getElementById('printPreviewBody');preview.innerHTML='';
           document.querySelectorAll('main.page > .hero, main.page > .metrics, main.page > .panel').forEach((section)=>preview.appendChild(section.cloneNode(true)));
           document.getElementById('printPreviewModal').classList.add('open');document.body.style.overflow='hidden';
