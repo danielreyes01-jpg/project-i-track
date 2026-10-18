@@ -29,10 +29,11 @@
 /* Prevent legacy page navigation from flashing before the shared sidebar is mounted. */
 html:not(.has-deped-fixed-header) body:has(.nav-menu) {
 	opacity:0;
+	visibility:hidden;
 	animation:itrack-layout-failsafe 0s 2.5s forwards;
 }
-html.has-deped-fixed-header body { opacity:1; animation:none; }
-@keyframes itrack-layout-failsafe { to { opacity:1; } }
+html.has-deped-fixed-header body { opacity:1; visibility:visible; animation:none; }
+@keyframes itrack-layout-failsafe { to { opacity:1; visibility:visible; } }
 html.has-deped-fixed-header:not(.itrack-nav-role-ready) .deped-fixed-header .nav-menu {
 	opacity:0 !important;
 	pointer-events:none !important;
