@@ -65,8 +65,10 @@
         const originalLabel=button.innerHTML;
         button.dataset.preparing='true';button.innerHTML='⏳ Preparing report…';
         try{
-          const preview=document.getElementById('printPreviewBody');preview.innerHTML='';
-          document.querySelectorAll('main.page > .hero, main.page > .metrics, main.page > .panel').forEach((section)=>preview.appendChild(section.cloneNode(true)));
+          const preview=document.getElementById('printPreviewBody');
+          const reportPage=document.querySelector('main.page');
+          preview.innerHTML=reportPage?reportPage.innerHTML:'<div class="empty">Report data is not available.</div>';
+          preview.querySelectorAll('.print-btn,.nav-menu').forEach((item)=>item.remove());
           document.getElementById('printPreviewModal').classList.add('open');document.body.style.overflow='hidden';
         }finally{
           button.innerHTML=originalLabel;button.dataset.preparing='false';
