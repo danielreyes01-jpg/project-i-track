@@ -63,9 +63,8 @@
         const originalLabel=button.innerHTML;
         button.dataset.preparing='true';button.innerHTML='⏳ Preparing report…';
         try{
-          if(reportLoadPromise) await reportLoadPromise.catch(function(){ return null; });
-          if(document.fonts&&document.fonts.ready) await document.fonts.ready;
-          await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+          // Keep print() in the original click call stack. Awaiting a promise
+          // first causes browsers to block the print dialog as a popup.
           document.body.classList.add('is-printing');
           window.print();
         }finally{
