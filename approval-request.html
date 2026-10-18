@@ -177,6 +177,36 @@
 			color: var(--accent);
 		}
 
+		.approval-summary {
+			display:grid;
+			grid-template-columns:repeat(3,minmax(0,1fr));
+			gap:14px;
+			margin:16px 0 18px;
+		}
+		.approval-summary-card {
+			display:grid;
+			grid-template-columns:52px 1fr;
+			align-items:center;
+			gap:13px;
+			min-height:104px;
+			padding:17px 18px;
+			border:1px solid var(--stroke);
+			border-radius:16px;
+			background:#fff;
+			box-shadow:0 8px 22px rgba(11,73,113,.08);
+		}
+		.approval-summary-icon { display:grid; place-items:center; width:52px; height:52px; border-radius:14px; font-size:1.55rem; font-weight:900; }
+		.approval-summary-copy { display:grid; gap:3px; }
+		.approval-summary-label { color:var(--muted); font-size:.8rem; font-weight:750; }
+		.approval-summary-value { color:var(--ink); font-size:1.85rem; font-weight:900; line-height:1; }
+		.approval-summary-card.for-approval { background:#eef8ff; border-color:#9bd2ed; }
+		.approval-summary-card.for-approval .approval-summary-icon { background:#1978a5; color:#fff; }
+		.approval-summary-card.pending { background:#fff8df; border-color:#f0cf62; }
+		.approval-summary-card.pending .approval-summary-icon { background:#f5c52b; color:#123047; }
+		.approval-summary-card.revised { background:#fff0e9; border-color:#f2ad87; }
+		.approval-summary-card.revised .approval-summary-icon { background:#e7793f; color:#fff; }
+		@media (max-width:720px) { .approval-summary { grid-template-columns:1fr; } }
+
 		a.doc-link {
 			color: var(--accent);
 			font-weight: 700;
@@ -233,6 +263,20 @@
 				</div>
 			</div>
 			<div id="message" class="message" role="status" aria-live="polite"></div>
+			<div class="approval-summary" aria-label="ADM request status summary">
+				<article class="approval-summary-card for-approval" title="Pending and revised requests that still need administrator action">
+					<span class="approval-summary-icon" aria-hidden="true">⌛</span>
+					<span class="approval-summary-copy"><span class="approval-summary-label">For Approval</span><strong class="approval-summary-value" id="forApprovalCount">0</strong></span>
+				</article>
+				<article class="approval-summary-card pending">
+					<span class="approval-summary-icon" aria-hidden="true">●</span>
+					<span class="approval-summary-copy"><span class="approval-summary-label">Pending Requests</span><strong class="approval-summary-value" id="pendingCount">0</strong></span>
+				</article>
+				<article class="approval-summary-card revised">
+					<span class="approval-summary-icon" aria-hidden="true">↻</span>
+					<span class="approval-summary-copy"><span class="approval-summary-label">Revised Requests</span><strong class="approval-summary-value" id="revisedCount">0</strong></span>
+				</article>
+			</div>
 			<div class="table-wrap">
 				<table>
 					<thead>
@@ -528,13 +572,18 @@
 					return '<a class="doc-link" href="' + encodeURI(href) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + extBadge + '</a>';
 				}
 			function renderRows(requests) {
+				const normalizedRequests = Array.isArray(requests) ? requests : [];
+				const statuses = normalizedRequests.map((item) => String(item && item.status || "pending").trim().toLowerCase() || "pending");
+				document.getElementById("forApprovalCount").textContent = String(statuses.filter((status) => status !== "approved").length);
+				document.getElementById("pendingCount").textContent = String(statuses.filter((status) => status === "pending").length);
+				document.getElementById("revisedCount").textContent = String(statuses.filter((status) => status === "revise" || status === "revised").length);
 				requestTableBody.innerHTML = "";
-				if (!Array.isArray(requests) || !requests.length) {
+				if (!normalizedRequests.length) {
 					requestTableBody.innerHTML = '<tr><td class="empty" colspan="8">No approval requests yet.</td></tr>';
 					return;
 				}
 
-				requestTableBody.innerHTML = requests.map(function (item) {
+				requestTableBody.innerHTML = normalizedRequests.map(function (item) {
 					const requestKind = String(item.request_kind || "learner").trim().toLowerCase();
 					const status = String(item.status || "pending").trim().toLowerCase() || "pending";
 					const requestedDate = requestKind === "teacher"
