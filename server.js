@@ -1096,6 +1096,48 @@ app.get("/api/auth/me", async (req, res) => {
   return res.json({ user: sanitizeUser(user) });
 });
 
+app.put("/api/account/profile", requireLogin, async (req, res) => {
+  try {
+    const user = await db("users").where({ id: req.session.userId }).first();
+    if (!user) return res.status(404).json({ message: "User account not found." });
+
+    const firstname = String((req.body || {}).firstname || "").trim();
+    const middlename = String((req.body || {}).middlename || "").trim();
+    const lastname = String((req.body || {}).lastname || "").trim();
+    const email = String((req.body || {}).email || "").trim().toLowerCase();
+    const district = String((req.body || {}).district || "").trim();
+    const school = String((req.body || {}).school || "").trim();
+    const position = String((req.body || {}).position || user.position || "").trim();
+
+    if (!firstname || !lastname || !email || !district || !school) {
+      return res.status(400).json({ message: "First name, last name, email, district, and school are required." });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ message: "Enter a valid email address." });
+    }
+
+    const duplicate = await db("users").whereRaw("LOWER(email) = ?", [email]).whereNot({ id: user.id }).first("id");
+    if (duplicate) return res.status(409).json({ message: "That email address is already used by another account." });
+
+    const updatedAt = new Date().toISOString();
+    await db("users").where({ id: user.id }).update({
+      firstname,
+      middlename,
+      lastname,
+      email,
+      district,
+      school,
+      position,
+      updated_at: updatedAt
+    });
+
+    const updatedUser = await db("users").where({ id: user.id }).first();
+    return res.json({ message: "Account information updated successfully.", user: sanitizeUser(updatedUser) });
+  } catch (error) {
+    return res.status(500).json({ message: formatDatabaseError(error, "Unable to update account information."), detail: error.message });
+  }
+});
+
 app.post("/api/presence/heartbeat", requireLogin, async (req, res) => {
   try {
     const user = await db("users").where({ id: req.session.userId }).first("id", "role");

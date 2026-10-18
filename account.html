@@ -98,6 +98,8 @@
 		.account-profile-copy h2 { margin:0 0 2px;font-size:1rem; }
 		.account-profile-copy p { margin:0 0 5px;color:var(--muted);font-size:.7rem; }
 		.upload-profile-btn { min-height:0 !important;border:0;border-radius:9px;padding:7px 11px;background:#167654;color:#fff;font:700 .72rem Manrope,sans-serif;cursor:pointer; }
+		.edit-account-btn { min-height:0!important;border:1px solid #1978a5!important;border-radius:9px!important;padding:7px 11px!important;background:#1978a5!important;color:#fff!important;font:700 .72rem Manrope,sans-serif!important;cursor:pointer; }
+		.profile-buttons { display:flex;gap:7px;flex-wrap:wrap; }
 		.profile-message { display:block;margin-top:7px;color:#176342;font-size:.72rem;font-weight:700; }
 		.profile-message.error { color:#a52c20; }
 
@@ -129,6 +131,13 @@
 			font-size: .86rem;
 			word-break: break-word;
 		}
+		.card-input { width:100%;min-height:36px;padding:7px 9px;border:1px solid #a9c7d5;border-radius:8px;background:#fff;color:#123047;font:650 .82rem Manrope,sans-serif;outline:none; }
+		.card-input:focus { border-color:#1978a5;box-shadow:0 0 0 3px rgba(25,120,165,.14); }
+		.account-edit-actions { display:none;justify-content:flex-end;gap:8px;margin:2px 0 10px; }
+		.account-edit-actions.is-visible { display:flex; }
+		.account-edit-actions button { min-height:38px!important;padding:8px 14px!important;border-radius:9px!important;font-size:.76rem!important;font-weight:800!important; }
+		.account-edit-cancel { background:#e8f0f4!important;color:#23455c!important; }
+		.account-edit-save { background:#1978a5!important;color:#fff!important; }
 
 		.actions {
 			display: flex;
@@ -376,10 +385,11 @@
 		<p class="subtitle">Your account has been verified successfully.</p>
 		<section class="account-profile" aria-label="Account profile picture">
 			<div id="accountAvatar" class="account-avatar" aria-hidden="true">IT</div>
-			<div class="account-profile-copy"><h2 id="accountProfileName">My Account</h2><p>Your picture is displayed here and in the side panel.</p><button id="uploadProfileButton" class="upload-profile-btn" type="button">📷 Upload Profile Picture</button><input id="profileImageInput" type="file" accept="image/jpeg,image/png,image/webp" hidden><span id="profileMessage" class="profile-message" role="status" aria-live="polite"></span></div>
+			<div class="account-profile-copy"><h2 id="accountProfileName">My Account</h2><p>Your picture is displayed here and in the side panel.</p><div class="profile-buttons"><button id="uploadProfileButton" class="upload-profile-btn" type="button">📷 Upload Profile Picture</button><button id="editAccountButton" class="edit-account-btn" type="button">✎ Edit Information</button></div><input id="profileImageInput" type="file" accept="image/jpeg,image/png,image/webp" hidden><span id="profileMessage" class="profile-message" role="status" aria-live="polite"></span></div>
 		</section>
 
 		<div class="grid" id="accountGrid"></div>
+		<div id="accountEditActions" class="account-edit-actions"><button id="cancelAccountEdit" class="account-edit-cancel" type="button">Cancel</button><button id="saveAccountEdit" class="account-edit-save" type="button">Save Changes</button></div>
 
 		<nav class="nav-menu" aria-label="Admin navigation">
 			<button class="nav-item" type="button" onclick="window.location.href='learner.html'">&#128203; Learner Record</button>
@@ -403,7 +413,14 @@
 			const accountProfileName = document.getElementById("accountProfileName");
 			const profileInput = document.getElementById("profileImageInput");
 			const profileMessage = document.getElementById("profileMessage");
+			const editAccountButton = document.getElementById("editAccountButton");
+			const accountEditActions = document.getElementById("accountEditActions");
 			let currentAccount = null;
+			let editing = false;
+
+			function escapeHtml(value) {
+				return String(value == null ? "" : value).replace(/[&<>"']/g, function (character) { return ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[character]; });
+			}
 
 			function renderAccountProfile(account) {
 				currentAccount = account;
@@ -416,6 +433,30 @@
 				} else { accountAvatar.textContent = initials; }
 			}
 
+			function renderAccountGrid(account) {
+				const role = String((account || {}).role || "teacher").toLowerCase();
+				const position = account.position || (role === "principal" ? "School Principal" : role === "supervisor" ? "District Supervisor" : role === "student" ? "Student" : "Teacher");
+				const fields = [
+					["Role", account.role || "teacher", "", true],
+					["Position", position, "position", false],
+					["School Year", account.active_school_year || "Not available", "", true],
+					["Email", account.email || "", "email", false],
+					["First Name", account.firstname || "", "firstname", false],
+					["Middle Name", account.middlename || "", "middlename", false],
+					["Last Name", account.lastname || "", "lastname", false],
+					["District", account.district || "", "district", false],
+					["School", account.school || "", "school", false]
+				];
+				accountGrid.innerHTML = fields.map(function (field) {
+					const content = editing && !field[3]
+						? '<input class="card-input" name="' + field[2] + '" type="' + (field[2] === "email" ? "email" : "text") + '" value="' + escapeHtml(field[1]) + '" ' + (["firstname","lastname","email","district","school"].includes(field[2]) ? "required" : "") + '>'
+						: '<div class="card-value">' + escapeHtml(field[1] || (field[0] === "Middle Name" ? "N/A" : "")) + '</div>';
+					return '<div class="card"><span class="card-label">' + escapeHtml(field[0]) + '</span>' + content + '</div>';
+				}).join("");
+				accountEditActions.classList.toggle("is-visible", editing);
+				editAccountButton.hidden = editing;
+			}
+
 			async function loadAccount() {
 				try {
 					const response = await fetch("/api/auth/me");
@@ -426,28 +467,27 @@
 
 					const payload = await response.json();
 					const account = payload.user;
-					const role = String((account || {}).role || "teacher").toLowerCase();
 					renderAccountProfile(account);
-
-					const fields = [
-						["Role", account.role || "teacher"],
-						["Position", account.position || (role === "principal" ? "School Principal" : role === "supervisor" ? "District Supervisor" : "Teacher")],
-						["School Year", account.active_school_year || "Not available"],
-						["Email", account.email],
-						["First Name", account.firstname],
-						["Middle Name", account.middlename || "N/A"],
-						["Last Name", account.lastname],
-						["District", account.district],
-						["School", account.school]
-					];
-
-					accountGrid.innerHTML = fields.map(function (field) {
-						return '<div class="card"><span class="card-label">' + field[0] + '</span><div class="card-value">' + field[1] + "</div></div>";
-					}).join("");
+					renderAccountGrid(account);
 				} catch (error) {
 					window.location.href = "index.html";
 				}
 			}
+
+			editAccountButton.addEventListener("click", function () { editing = true; profileMessage.textContent = ""; renderAccountGrid(currentAccount); });
+			document.getElementById("cancelAccountEdit").addEventListener("click", function () { editing = false; profileMessage.textContent = ""; renderAccountGrid(currentAccount); });
+			document.getElementById("saveAccountEdit").addEventListener("click", async function () {
+				const inputs = Array.from(accountGrid.querySelectorAll(".card-input"));
+				if (inputs.some(function (input) { return !input.reportValidity(); })) return;
+				const payload = {}; inputs.forEach(function (input) { payload[input.name] = input.value.trim(); });
+				this.disabled = true; profileMessage.className = "profile-message"; profileMessage.textContent = "Saving…";
+				try {
+					const response = await fetch("/api/account/profile", { method:"PUT", credentials:"include", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload) });
+					const data = await response.json().catch(function () { return {}; }); if (!response.ok) throw new Error(data.message || "Unable to update account information.");
+					currentAccount = data.user; editing = false; renderAccountProfile(currentAccount); renderAccountGrid(currentAccount); window.dispatchEvent(new CustomEvent("itrack:user-updated", { detail:currentAccount })); profileMessage.textContent = data.message || "Account information updated.";
+				} catch (error) { profileMessage.className = "profile-message error"; profileMessage.textContent = error.message || "Unable to update account information."; }
+				finally { this.disabled = false; }
+			});
 
 			document.getElementById("uploadProfileButton").addEventListener("click", function () { profileInput.click(); });
 			profileInput.addEventListener("change", async function () {
