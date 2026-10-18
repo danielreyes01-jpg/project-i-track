@@ -76,6 +76,8 @@
 
 		.actions {
 			display: flex;
+			align-items: center;
+			justify-content: flex-end;
 			gap: 10px;
 			flex-wrap: wrap;
 		}
@@ -178,34 +180,34 @@
 		}
 
 		.approval-summary {
-			display:grid;
-			grid-template-columns:repeat(3,minmax(0,1fr));
-			gap:14px;
-			margin:16px 0 18px;
+			display:flex;
+			align-items:center;
+			gap:7px;
+			margin:0;
 		}
 		.approval-summary-card {
-			display:grid;
-			grid-template-columns:52px 1fr;
+			display:flex;
 			align-items:center;
-			gap:13px;
-			min-height:104px;
-			padding:17px 18px;
+			gap:7px;
+			min-height:38px;
+			padding:5px 9px 5px 6px;
 			border:1px solid var(--stroke);
-			border-radius:16px;
+			border-radius:10px;
 			background:#fff;
-			box-shadow:0 8px 22px rgba(11,73,113,.08);
+			box-shadow:0 4px 12px rgba(11,73,113,.08);
 		}
-		.approval-summary-icon { display:grid; place-items:center; width:52px; height:52px; border-radius:14px; font-size:1.55rem; font-weight:900; }
-		.approval-summary-copy { display:grid; gap:3px; }
-		.approval-summary-label { color:var(--muted); font-size:.8rem; font-weight:750; }
-		.approval-summary-value { color:var(--ink); font-size:1.85rem; font-weight:900; line-height:1; }
+		.approval-summary-icon { display:grid; place-items:center; width:27px; height:27px; border-radius:8px; font-size:.82rem; font-weight:900; }
+		.approval-summary-copy { display:flex; align-items:center; gap:5px; white-space:nowrap; }
+		.approval-summary-label { color:var(--muted); font-size:.67rem; font-weight:750; }
+		.approval-summary-value { color:var(--ink); font-size:1rem; font-weight:900; line-height:1; }
 		.approval-summary-card.for-approval { background:#eef8ff; border-color:#9bd2ed; }
 		.approval-summary-card.for-approval .approval-summary-icon { background:#1978a5; color:#fff; }
 		.approval-summary-card.pending { background:#fff8df; border-color:#f0cf62; }
 		.approval-summary-card.pending .approval-summary-icon { background:#f5c52b; color:#123047; }
 		.approval-summary-card.revised { background:#fff0e9; border-color:#f2ad87; }
 		.approval-summary-card.revised .approval-summary-icon { background:#e7793f; color:#fff; }
-		@media (max-width:720px) { .approval-summary { grid-template-columns:1fr; } }
+		@media (max-width:900px) { .actions { width:100%; justify-content:flex-start; } }
+		@media (max-width:640px) { .approval-summary { width:100%; flex-wrap:wrap; } .approval-summary-label { font-size:.64rem; } }
 
 		a.doc-link {
 			color: var(--accent);
@@ -259,11 +261,7 @@
 					<p class="subtitle">Manage all ADM requests from the teacher form and learner approval requests in one dashboard.</p>
 				</div>
 				<div class="actions">
-					<button id="exportExcelBtn" class="btn-extract" type="button"><span class="extract-icon" aria-hidden="true">⇩</span>Extract Report</button>
-				</div>
-			</div>
-			<div id="message" class="message" role="status" aria-live="polite"></div>
-			<div class="approval-summary" aria-label="ADM request status summary">
+					<div class="approval-summary" aria-label="ADM request status summary">
 				<article class="approval-summary-card for-approval" title="Pending and revised requests that still need administrator action">
 					<span class="approval-summary-icon" aria-hidden="true">⌛</span>
 					<span class="approval-summary-copy"><span class="approval-summary-label">For Approval</span><strong class="approval-summary-value" id="forApprovalCount">0</strong></span>
@@ -276,7 +274,11 @@
 					<span class="approval-summary-icon" aria-hidden="true">↻</span>
 					<span class="approval-summary-copy"><span class="approval-summary-label">Revised Requests</span><strong class="approval-summary-value" id="revisedCount">0</strong></span>
 				</article>
+					</div>
+					<button id="exportExcelBtn" class="btn-extract" type="button"><span class="extract-icon" aria-hidden="true">⇩</span>Extract Report</button>
+				</div>
 			</div>
+			<div id="message" class="message" role="status" aria-live="polite"></div>
 			<div class="table-wrap">
 				<table>
 					<thead>
