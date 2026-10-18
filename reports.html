@@ -17,7 +17,7 @@
     .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:15px}table{width:100%;min-width:900px;border-collapse:collapse}th,td{padding:12px 13px;border-right:1px solid #dfe9eb;border-bottom:1px solid #dfe9eb;text-align:center;font-size:.74rem}th{position:sticky;top:0;z-index:1;background:#eaf2f4;color:#315469;font-size:.68rem;text-transform:uppercase;letter-spacing:.035em}th:first-child,td:first-child{position:sticky;left:0;text-align:left;font-weight:800}th:first-child{z-index:2;background:#eaf2f4}td:first-child{background:#fff}tbody tr:nth-child(even) td{background:#f9fbfb}tbody tr:nth-child(even) td:first-child{background:#f9fbfb}.total-col{font-weight:900;color:#08745b}.empty{padding:30px!important;text-align:center!important;color:var(--muted)}.message{display:none;padding:14px;border-radius:12px;background:#fff0ed;color:#a02b20;border:1px solid #f0b7af;font-weight:700;font-size:.8rem}.message.show{display:block}
     @media(max-width:900px){.metrics{grid-template-columns:repeat(2,1fr)}.hero{align-items:flex-start;flex-direction:column}.hero:after{opacity:.35}.nav-item-signout{margin-left:0}}
     @media(max-width:560px){body{padding:10px}.panel{padding:16px;border-radius:16px}.metrics{grid-template-columns:1fr}.district-bars{grid-template-columns:1fr}.print-btn{width:100%}}
-    @media print{body{padding:0;background:#fff}.nav-menu,.print-btn,#deped-fixed-header,#itrack-page-titlebar,#itrack-site-footer{display:none!important}.page{width:100%}.panel{box-shadow:none;break-inside:avoid}.hero:after{display:none}}
+    @media print{@page{size:A4 landscape;margin:12mm}body{padding:0;background:#fff;color:#123047}.nav-menu,.print-btn,#deped-fixed-header,#itrack-page-titlebar,#itrack-site-footer,.itrack-chat-widget,.itrack-install-app{display:none!important}.page{width:100%;max-width:none;display:block}.panel{margin:0 0 12px;padding:14px;border:1px solid #cfdde1;box-shadow:none;break-inside:avoid}.hero{min-height:90px}.hero:after{display:none}.hero h1{font-size:2rem}.metrics{grid-template-columns:repeat(4,1fr);gap:8px}.metric{min-height:82px;padding:11px}.metric strong{font-size:1.5rem;margin-top:5px}.district-bars{grid-template-columns:repeat(4,1fr);gap:8px}.district-row{min-height:125px;padding:11px;box-shadow:none}.district-count{margin-top:10px;font-size:1.55rem}.district-tile-meta{margin-top:9px;font-size:.6rem}.table-wrap{overflow:visible}table{min-width:0;font-size:.68rem}th,td{padding:7px 8px;font-size:.65rem}th{position:static}th:first-child,td:first-child{position:static}.message{display:none!important}}
   </style>
 </head>
 <body>
@@ -33,7 +33,7 @@
   <main class="page">
     <section class="panel hero">
       <div class="hero-copy"><p id="scopeHeading" class="eyebrow">Division of Cebu Province</p><h1>ADM Reports</h1><p id="scopeDescription">Student participation by district and Flexible Learning Option.</p></div>
-      <button class="print-btn" type="button" onclick="window.print()">🖨 Print Report</button>
+      <button id="printReportButton" class="print-btn" type="button" onclick="printReport()" disabled>🖨 Print Report</button>
     </section>
     <div id="reportMessage" class="message" role="alert"></div>
     <section class="metrics" aria-label="ADM report totals">
@@ -55,6 +55,10 @@
     (function(){
       const escapeHtml=(value)=>String(value==null?'':value).replace(/[&<>"']/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const number=(value)=>Number(value||0).toLocaleString();
+      function printReport(){
+        document.body.classList.add('is-printing');
+        window.setTimeout(function(){ window.print(); window.setTimeout(function(){ document.body.classList.remove('is-printing'); }, 500); }, 80);
+      }
       async function loadReport(){
         try{
           const auth=await fetch('/api/auth/me',{credentials:'include'});
@@ -76,13 +80,14 @@
           document.getElementById('totalSchools').textContent=number(data.total_schools);
           document.getElementById('totalPrograms').textContent=number((data.programs||[]).length);
           document.getElementById('generatedAt').textContent='Updated '+new Date(data.generated_at).toLocaleString();
+          document.getElementById('printReportButton').disabled=false;
           const districts=data.districts||[];const reportTotal=Math.max(1,Number(data.total_adm_students||0));const breakdown=data.breakdown||[];
           const optionsByDistrict=new Map();breakdown.forEach((row)=>{if(!optionsByDistrict.has(row.district))optionsByDistrict.set(row.district,new Set());optionsByDistrict.get(row.district).add(row.flexible_learning_option);});
           document.getElementById('districtBars').innerHTML=districts.length?districts.map((row,index)=>{const count=Number(row.student_count||0);const percentage=count/reportTotal*100;const optionCount=(optionsByDistrict.get(row.district)||new Set()).size;return `<article class="district-row"><div class="district-tile-head"><span class="district-name" title="${escapeHtml(row.district)}">${escapeHtml(row.district)}</span><span class="district-rank">#${index+1}</span></div><strong class="district-count">${number(count)}</strong><span class="district-count-label">ADM student${count===1?'':'s'}</span><div class="district-tile-meta"><span>${percentage.toFixed(1)}% of report total</span><span>${optionCount} learning option${optionCount===1?'':'s'}</span></div><div class="bar-track" aria-label="${percentage.toFixed(1)} percent of report total"><div class="bar-fill" style="width:${Math.max(1,percentage)}%"></div></div></article>`;}).join(''):'<div class="empty">No ADM student records are available yet.</div>';
           const programs=data.programs||[];document.getElementById('reportHead').innerHTML='<th>District</th>'+programs.map((program)=>`<th>${escapeHtml(program)}</th>`).join('')+'<th>Total Students</th>';
           const counts=new Map(breakdown.map((row)=>[row.district+'\u0000'+row.flexible_learning_option,Number(row.student_count||0)]));
           document.getElementById('reportBody').innerHTML=districts.length?districts.map((district)=>'<tr><td>'+escapeHtml(district.district)+'</td>'+programs.map((program)=>'<td>'+number(counts.get(district.district+'\u0000'+program)||0)+'</td>').join('')+'<td class="total-col">'+number(district.student_count)+'</td></tr>').join(''):`<tr><td class="empty" colspan="${programs.length+2}">No ADM student records are available yet.</td></tr>`;
-        }catch(error){const message=document.getElementById('reportMessage');message.textContent=error.message;message.classList.add('show');document.getElementById('districtBars').innerHTML='<div class="empty">Report unavailable.</div>';}
+        }catch(error){const message=document.getElementById('reportMessage');message.textContent=error.message;message.classList.add('show');document.getElementById('districtBars').innerHTML='<div class="empty">Report unavailable.</div>';document.getElementById('printReportButton').disabled=true;}
       }
       loadReport();
     })();
