@@ -99,6 +99,8 @@
 		.account-profile-copy p { margin:0 0 5px;color:var(--muted);font-size:.7rem; }
 		.upload-profile-btn { min-height:0 !important;border:0;border-radius:9px;padding:7px 11px;background:#167654;color:#fff;font:700 .72rem Manrope,sans-serif;cursor:pointer; }
 		.edit-account-btn { min-height:0!important;border:1px solid #1978a5!important;border-radius:9px!important;padding:7px 11px!important;background:#1978a5!important;color:#fff!important;font:700 .72rem Manrope,sans-serif!important;cursor:pointer; }
+		.save-account-top { min-height:0!important;border:1px solid #f5c52b!important;border-radius:9px!important;padding:7px 11px!important;background:#f5c52b!important;color:#123047!important;font:800 .72rem Manrope,sans-serif!important;cursor:pointer; }
+		.save-account-top[hidden] { display:none!important; }
 		.profile-buttons { display:flex;gap:7px;flex-wrap:wrap; }
 		.profile-message { display:block;margin-top:7px;color:#176342;font-size:.72rem;font-weight:700; }
 		.profile-message.error { color:#a52c20; }
@@ -385,7 +387,7 @@
 		<p class="subtitle">Your account has been verified successfully.</p>
 		<section class="account-profile" aria-label="Account profile picture">
 			<div id="accountAvatar" class="account-avatar" aria-hidden="true">IT</div>
-			<div class="account-profile-copy"><h2 id="accountProfileName">My Account</h2><p>Your picture is displayed here and in the side panel.</p><div class="profile-buttons"><button id="uploadProfileButton" class="upload-profile-btn" type="button">📷 Upload Profile Picture</button><button id="editAccountButton" class="edit-account-btn" type="button">✎ Edit Information</button></div><input id="profileImageInput" type="file" accept="image/jpeg,image/png,image/webp" hidden><span id="profileMessage" class="profile-message" role="status" aria-live="polite"></span></div>
+			<div class="account-profile-copy"><h2 id="accountProfileName">My Account</h2><p>Your picture is displayed here and in the side panel.</p><div class="profile-buttons"><button id="uploadProfileButton" class="upload-profile-btn" type="button">📷 Upload Profile Picture</button><button id="editAccountButton" class="edit-account-btn" type="button">✎ Edit Information</button><button id="saveAccountEditTop" class="save-account-top" type="button" hidden>✓ Save Information</button></div><input id="profileImageInput" type="file" accept="image/jpeg,image/png,image/webp" hidden><span id="profileMessage" class="profile-message" role="status" aria-live="polite"></span></div>
 		</section>
 
 		<div class="grid" id="accountGrid"></div>
@@ -414,6 +416,7 @@
 			const profileInput = document.getElementById("profileImageInput");
 			const profileMessage = document.getElementById("profileMessage");
 			const editAccountButton = document.getElementById("editAccountButton");
+			const saveAccountEditTop = document.getElementById("saveAccountEditTop");
 			const accountEditActions = document.getElementById("accountEditActions");
 			let currentAccount = null;
 			let editing = false;
@@ -455,6 +458,7 @@
 				}).join("");
 				accountEditActions.classList.toggle("is-visible", editing);
 				editAccountButton.hidden = editing;
+				saveAccountEditTop.hidden = !editing;
 			}
 
 			async function loadAccount() {
@@ -476,18 +480,20 @@
 
 			editAccountButton.addEventListener("click", function () { editing = true; profileMessage.textContent = ""; renderAccountGrid(currentAccount); });
 			document.getElementById("cancelAccountEdit").addEventListener("click", function () { editing = false; profileMessage.textContent = ""; renderAccountGrid(currentAccount); });
-			document.getElementById("saveAccountEdit").addEventListener("click", async function () {
+			async function saveAccountChanges(triggerButton) {
 				const inputs = Array.from(accountGrid.querySelectorAll(".card-input"));
 				if (inputs.some(function (input) { return !input.reportValidity(); })) return;
 				const payload = {}; inputs.forEach(function (input) { payload[input.name] = input.value.trim(); });
-				this.disabled = true; profileMessage.className = "profile-message"; profileMessage.textContent = "Saving…";
+				triggerButton.disabled = true; profileMessage.className = "profile-message"; profileMessage.textContent = "Saving…";
 				try {
 					const response = await fetch("/api/account/profile", { method:"PUT", credentials:"include", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload) });
 					const data = await response.json().catch(function () { return {}; }); if (!response.ok) throw new Error(data.message || "Unable to update account information.");
 					currentAccount = data.user; editing = false; renderAccountProfile(currentAccount); renderAccountGrid(currentAccount); window.dispatchEvent(new CustomEvent("itrack:user-updated", { detail:currentAccount })); profileMessage.textContent = data.message || "Account information updated.";
 				} catch (error) { profileMessage.className = "profile-message error"; profileMessage.textContent = error.message || "Unable to update account information."; }
-				finally { this.disabled = false; }
-			});
+				finally { triggerButton.disabled = false; }
+			}
+			document.getElementById("saveAccountEdit").addEventListener("click", function () { saveAccountChanges(this); });
+			saveAccountEditTop.addEventListener("click", function () { saveAccountChanges(this); });
 
 			document.getElementById("uploadProfileButton").addEventListener("click", function () { profileInput.click(); });
 			profileInput.addEventListener("change", async function () {
