@@ -34,7 +34,7 @@
   <main class="page">
     <section class="panel hero">
       <div class="hero-copy"><p id="scopeHeading" class="eyebrow">Division of Cebu Province</p><h1>ADM Reports</h1><p id="scopeDescription">Student participation by district and Flexible Learning Option.</p></div>
-      <button id="printReportButton" class="print-btn" type="button" onclick="printReport()" disabled>🖨 Print Report</button>
+      <button id="printReportButton" class="print-btn" type="button" onclick="printReport()">🖨 Print Report</button>
     </section>
     <div id="reportMessage" class="message" role="alert"></div>
     <section class="metrics" aria-label="ADM report totals">
@@ -59,17 +59,17 @@
       let reportLoadPromise;
       async function printReport(){
         const button=document.getElementById('printReportButton');
-        if(button.disabled)return;
+        if(button.dataset.preparing==='true')return;
         const originalLabel=button.innerHTML;
-        button.disabled=true;button.innerHTML='⏳ Preparing report…';
+        button.dataset.preparing='true';button.innerHTML='⏳ Preparing report…';
         try{
-          if(reportLoadPromise) await reportLoadPromise;
+          if(reportLoadPromise) await reportLoadPromise.catch(function(){ return null; });
           if(document.fonts&&document.fonts.ready) await document.fonts.ready;
           await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
           document.body.classList.add('is-printing');
           window.print();
         }finally{
-          window.setTimeout(function(){ document.body.classList.remove('is-printing');button.innerHTML=originalLabel;button.disabled=false; }, 500);
+          window.setTimeout(function(){ document.body.classList.remove('is-printing');button.innerHTML=originalLabel;button.dataset.preparing='false'; }, 500);
         }
       }
       async function loadReport(){
@@ -100,7 +100,7 @@
           const programs=data.programs||[];document.getElementById('reportHead').innerHTML='<th>District</th>'+programs.map((program)=>`<th>${escapeHtml(program)}</th>`).join('')+'<th>Total Students</th>';
           const counts=new Map(breakdown.map((row)=>[row.district+'\u0000'+row.flexible_learning_option,Number(row.student_count||0)]));
           document.getElementById('reportBody').innerHTML=districts.length?districts.map((district)=>'<tr><td>'+escapeHtml(district.district)+'</td>'+programs.map((program)=>'<td>'+number(counts.get(district.district+'\u0000'+program)||0)+'</td>').join('')+'<td class="total-col">'+number(district.student_count)+'</td></tr>').join(''):`<tr><td class="empty" colspan="${programs.length+2}">No ADM student records are available yet.</td></tr>`;
-        }catch(error){const message=document.getElementById('reportMessage');message.textContent=error.message;message.classList.add('show');document.getElementById('districtBars').innerHTML='<div class="empty">Report unavailable.</div>';document.getElementById('printReportButton').disabled=true;}
+        }catch(error){const message=document.getElementById('reportMessage');message.textContent=error.message;message.classList.add('show');document.getElementById('districtBars').innerHTML='<div class="empty">Report unavailable.</div>';document.getElementById('printReportButton').disabled=false;}
       }
       reportLoadPromise=loadReport();
     })();
