@@ -67,8 +67,8 @@
         try{
           const preview=document.getElementById('printPreviewBody');
           const reportPage=document.querySelector('main.page');
-          preview.innerHTML=reportPage?reportPage.innerHTML:'<div class="empty">Report data is not available.</div>';
-          preview.querySelectorAll('.print-btn,.nav-menu').forEach((item)=>item.remove());
+          if(reportPage){preview.replaceChildren(reportPage.cloneNode(true));preview.querySelectorAll('.print-btn,.nav-menu').forEach((item)=>item.remove());}
+          else preview.innerHTML='<div class="empty">Report data is not available.</div>';
           document.getElementById('printPreviewModal').classList.add('open');document.body.style.overflow='hidden';
         }finally{
           button.innerHTML=originalLabel;button.dataset.preparing='false';
