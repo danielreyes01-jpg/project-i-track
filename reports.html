@@ -35,7 +35,7 @@
   <main class="page">
     <section class="panel hero">
       <div class="hero-copy"><p id="scopeHeading" class="eyebrow">Division of Cebu Province</p><h1>ADM Reports</h1><p id="scopeDescription">Student participation by district and Flexible Learning Option.</p></div>
-      <button id="printReportButton" class="print-btn" type="button" onclick="printReport()">🖨 Print Report</button>
+      <button id="printReportButton" class="print-btn" type="button" onclick="openPrintPreview()">🖨 Print Report</button>
     </section>
     <div id="reportMessage" class="message" role="alert"></div>
     <section class="metrics" aria-label="ADM report totals">
@@ -73,6 +73,14 @@
         }finally{
           button.innerHTML=originalLabel;button.dataset.preparing='false';
         }
+      }
+      function openPrintPreview(){
+        const modal=document.getElementById('printPreviewModal');
+        const preview=document.getElementById('printPreviewBody');
+        const reportPage=document.querySelector('main.page');
+        if(reportPage){preview.replaceChildren(reportPage.cloneNode(true));preview.querySelectorAll('.print-btn,.nav-menu').forEach((item)=>item.remove());}
+        else preview.innerHTML='<div class="empty">Report data is not available.</div>';
+        modal.classList.add('open');document.body.style.overflow='hidden';
       }
       function closePrintPreview(){document.getElementById('printPreviewModal').classList.remove('open');document.body.style.overflow='';}
       function printPreviewReport(){closePrintPreview();document.body.classList.add('is-printing');window.print();window.setTimeout(function(){document.body.classList.remove('is-printing');},500);}
