@@ -84,6 +84,9 @@
       }
       function closePrintPreview(){document.getElementById('printPreviewModal').classList.remove('open');document.body.style.overflow='';}
       function printPreviewReport(){closePrintPreview();document.body.classList.add('is-printing');window.print();window.setTimeout(function(){document.body.classList.remove('is-printing');},500);}
+      window.openPrintPreview=openPrintPreview;
+      window.closePrintPreview=closePrintPreview;
+      window.printPreviewReport=printPreviewReport;
       async function loadReport(){
         try{
           const auth=await fetch('/api/auth/me',{credentials:'include'});
