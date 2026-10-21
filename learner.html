@@ -877,11 +877,11 @@
 					<input id="firstGradingGrade" name="firstGradingGrade" type="number" min="0" max="100" step="1" placeholder="e.g. 88">
 				</div>
 				<div class="field">
-					<label for="firstGradingVerbal">First Semester Verbal Description</label>
+					<label for="firstGradingVerbal">Term 1 Verbal Description</label>
 					<input id="firstGradingVerbal" name="firstGradingVerbal" type="text" readonly placeholder="Auto-filled based on grade" style="background:rgba(20,83,45,0.06);cursor:default;">
 				</div>
 				<div class="field">
-					<label for="firstGradingInterpretation">First Semester Interpretation</label>
+					<label for="firstGradingInterpretation">Term 1 Interpretation</label>
 					<textarea id="firstGradingInterpretation" name="firstGradingInterpretation" rows="3" readonly placeholder="Auto-filled based on grade and verbal description" style="background:rgba(20,83,45,0.06);cursor:default;resize:vertical;"></textarea>
 				</div>
 			</div>
@@ -892,11 +892,11 @@
 					<input id="secondQuarterGrade" name="secondQuarterGrade" type="number" min="0" max="100" step="1" placeholder="e.g. 90">
 				</div>
 				<div class="field">
-					<label for="secondQuarterVerbal">Second Semester Verbal Description</label>
+					<label for="secondQuarterVerbal">Term 2 Verbal Description</label>
 					<input id="secondQuarterVerbal" name="secondQuarterVerbal" type="text" readonly placeholder="Auto-filled based on grade" style="background:rgba(20,83,45,0.06);cursor:default;">
 				</div>
 				<div class="field">
-					<label for="secondQuarterInterpretation">Second Semester Interpretation</label>
+					<label for="secondQuarterInterpretation">Term 2 Interpretation</label>
 					<textarea id="secondQuarterInterpretation" name="secondQuarterInterpretation" rows="3" readonly placeholder="Auto-filled based on grade and verbal description" style="background:rgba(20,83,45,0.06);cursor:default;resize:vertical;"></textarea>
 				</div>
 			</div>
@@ -907,11 +907,11 @@
 					<input id="thirdQuarterGrade" name="thirdQuarterGrade" type="number" min="0" max="100" step="1" placeholder="e.g. 86">
 				</div>
 				<div class="field">
-					<label for="thirdQuarterVerbal">Third Semester Verbal Description</label>
+					<label for="thirdQuarterVerbal">Term 3 Verbal Description</label>
 					<input id="thirdQuarterVerbal" name="thirdQuarterVerbal" type="text" readonly placeholder="Auto-filled based on grade" style="background:rgba(20,83,45,0.06);cursor:default;">
 				</div>
 				<div class="field">
-					<label for="thirdQuarterInterpretation">Third Semester Interpretation</label>
+					<label for="thirdQuarterInterpretation">Term 3 Interpretation</label>
 					<textarea id="thirdQuarterInterpretation" name="thirdQuarterInterpretation" rows="3" readonly placeholder="Auto-filled based on grade and verbal description" style="background:rgba(20,83,45,0.06);cursor:default;resize:vertical;"></textarea>
 				</div>
 			</div>
@@ -968,6 +968,10 @@
 						<option value="Cellphone">Cellphone</option>
 						<option value="Others">Others</option>
 					</select>
+				</div>
+				<div id="utilizationLearningGadgetsOtherField" class="field" hidden>
+					<label for="utilizationLearningGadgetsOther">Please specify the learning gadget</label>
+					<input id="utilizationLearningGadgetsOther" name="utilizationLearningGadgetsOther" type="text" maxlength="70" placeholder="Enter the gadget used" autocomplete="off">
 				</div>
 			</div>
 
@@ -1103,12 +1107,38 @@
 			const studentPasswordInput = document.getElementById("studentPassword");
 			const studentConfirmPasswordInput = document.getElementById("studentConfirmPassword");
 			const teacherAdviserInput = document.getElementById("teacherAdviser");
+			const utilizationLearningGadgetsSelect = document.getElementById("utilizationLearningGadgets");
+			const utilizationLearningGadgetsOtherField = document.getElementById("utilizationLearningGadgetsOtherField");
+			const utilizationLearningGadgetsOtherInput = document.getElementById("utilizationLearningGadgetsOther");
 			let userRole = "teacher";
 			let messageTimer = null;
 			let editingLearnerId = null;
 			let approvalRequestStatusByLearner = {};
 			const MY_LEARNERS_DISPLAY_LIMIT = 10;
 			let districtSchoolsMap = {};
+
+			function updateGadgetSpecifyField() {
+				const showSpecify = utilizationLearningGadgetsSelect.value === "Others";
+				utilizationLearningGadgetsOtherField.hidden = !showSpecify;
+				utilizationLearningGadgetsOtherInput.required = showSpecify;
+				if (!showSpecify) utilizationLearningGadgetsOtherInput.value = "";
+			}
+
+			function setGadgetSelection(value) {
+				const rawValue = String(value || "").trim();
+				const standardGadgets = ["", "Laptop", "Tablet", "Cellphone"];
+				if (standardGadgets.includes(rawValue)) {
+					utilizationLearningGadgetsSelect.value = rawValue;
+					utilizationLearningGadgetsOtherInput.value = "";
+				} else {
+					utilizationLearningGadgetsSelect.value = "Others";
+					utilizationLearningGadgetsOtherInput.value = rawValue.replace(/^Others\s*[:\-]?\s*/i, "");
+				}
+				updateGadgetSpecifyField();
+			}
+
+			utilizationLearningGadgetsSelect.addEventListener("change", updateGadgetSpecifyField);
+			updateGadgetSpecifyField();
 
 			function setMessage(text, type) {
 				if (messageTimer) {
@@ -1647,7 +1677,7 @@
 				setVal('philIriResult', lr.phil_iri_result);
 				setVal('rmaResult', lr.rma_result);
 				setVal('ellnaResult', lr.ellna_result);
-				setVal('utilizationLearningGadgets', lr.utilization_learning_gadgets);
+				setGadgetSelection(lr.utilization_learning_gadgets);
 				setVal('teacherAdviser', lr.teacher_adviser);
 				setCredentialMode(false);
 			}
@@ -1656,6 +1686,7 @@
 				editingLearnerId = null;
 				editIndicator.style.display = 'none';
 				form.reset();
+				updateGadgetSpecifyField();
 				setCredentialMode(true);
 				if (teacherAdviserInput && currentUser) teacherAdviserInput.value = [currentUser.firstname, currentUser.middlename, currentUser.lastname].filter(Boolean).join(' ').trim();
 				renderSchoolOptions("", "");
@@ -1770,6 +1801,7 @@
 				editingLearnerId = null;
 				editIndicator.style.display = 'none';
 				form.reset();
+				updateGadgetSpecifyField();
 				setCredentialMode(true);
 				renderSchoolOptions("", "");
 				clearMessage();
@@ -1853,7 +1885,16 @@
 				const philIriResult = document.getElementById("philIriResult").value;
 				const rmaResult = document.getElementById("rmaResult").value;
 				const ellnaResult = document.getElementById("ellnaResult").value;
-				const utilizationLearningGadgets = document.getElementById("utilizationLearningGadgets").value;
+				const selectedLearningGadget = utilizationLearningGadgetsSelect.value;
+				const specifiedLearningGadget = utilizationLearningGadgetsOtherInput.value.trim();
+				if (selectedLearningGadget === "Others" && !specifiedLearningGadget) {
+					setMessage("Please specify the learning gadget used.", "error");
+					utilizationLearningGadgetsOtherInput.focus();
+					return;
+				}
+				const utilizationLearningGadgets = selectedLearningGadget === "Others"
+					? ("Others: " + specifiedLearningGadget)
+					: selectedLearningGadget;
 
 				if (!editingLearnerId) {
 					if (!/^\d{12}$/.test(learnerCode) || studentUsername !== learnerCode) {
@@ -1930,6 +1971,7 @@
 					editIndicator.style.display = 'none';
 					setMessage(wasSaved, "success");
 					form.reset();
+					updateGadgetSpecifyField();
 					setCredentialMode(true);
 					if (teacherAdviserInput && currentUser) teacherAdviserInput.value = [currentUser.firstname, currentUser.middlename, currentUser.lastname].filter(Boolean).join(' ').trim();
 					renderSchoolOptions("", "");
