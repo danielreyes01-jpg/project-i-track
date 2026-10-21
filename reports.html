@@ -35,7 +35,7 @@
   <main class="page">
     <section class="panel hero">
       <div class="hero-copy"><p id="scopeHeading" class="eyebrow">Division of Cebu Province</p><h1>ADM Reports</h1><p id="scopeDescription">Student participation by district and Flexible Learning Option.</p></div>
-      <button id="printReportButton" class="print-btn" type="button" onclick="openPrintPreview()">🖨 Print Report</button>
+      <button id="printReportButton" class="print-btn" type="button" onclick="printReport()">🖨 Print Report</button>
     </section>
     <div id="reportMessage" class="message" role="alert"></div>
     <section class="metrics" aria-label="ADM report totals">
@@ -60,19 +60,9 @@
       const number=(value)=>Number(value||0).toLocaleString();
       let reportLoadPromise;
       function printReport(){
-        const button=document.getElementById('printReportButton');
-        if(button.dataset.preparing==='true')return;
-        const originalLabel=button.innerHTML;
-        button.dataset.preparing='true';button.innerHTML='⏳ Preparing report…';
-        try{
-          const preview=document.getElementById('printPreviewBody');
-          const reportPage=document.querySelector('main.page');
-          if(reportPage){preview.replaceChildren(reportPage.cloneNode(true));preview.querySelectorAll('.print-btn,.nav-menu').forEach((item)=>item.remove());}
-          else preview.innerHTML='<div class="empty">Report data is not available.</div>';
-          document.getElementById('printPreviewModal').classList.add('open');document.body.classList.add('report-preview-open');document.body.style.overflow='hidden';
-        }finally{
-          button.innerHTML=originalLabel;button.dataset.preparing='false';
-        }
+        document.body.classList.add('is-printing');
+        window.print();
+        window.setTimeout(function(){document.body.classList.remove('is-printing');},500);
       }
       function openPrintPreview(){
         const modal=document.getElementById('printPreviewModal');
@@ -87,6 +77,7 @@
       window.openPrintPreview=openPrintPreview;
       window.closePrintPreview=closePrintPreview;
       window.printPreviewReport=printPreviewReport;
+      window.printReport=printReport;
       async function loadReport(){
         try{
           const auth=await fetch('/api/auth/me',{credentials:'include'});
