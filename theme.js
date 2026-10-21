@@ -1427,7 +1427,7 @@ function initializeAdviserStudentChat() {
 
 function initializeITrackInstallApp() {
 	if ('serviceWorker' in navigator && /^https?:$/i.test(location.protocol)) {
-		const registerWorker = () => navigator.serviceWorker.register('/sw.js?v=20261021', { updateViaCache: 'none' }).then((worker) => worker.update()).catch(() => {});
+		const registerWorker = () => navigator.serviceWorker.register('/sw.js?v=20261021c', { updateViaCache: 'none' }).then((worker) => worker.update()).catch(() => {});
 		if (document.readyState === 'complete') registerWorker(); else window.addEventListener('load', registerWorker, { once: true });
 	}
 	const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
