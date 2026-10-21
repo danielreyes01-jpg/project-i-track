@@ -216,9 +216,6 @@
 		.approval-summary-card.approved .approval-summary-icon { background:#178669; color:#fff; }
 		.approval-summary-card.disapproved { background:#fff0e9; border-color:#f2ad87; }
 		.approval-summary-card.disapproved .approval-summary-icon { background:#d94b3d; color:#fff; }
-		.date-sort-btn { display:inline-flex; align-items:center; gap:6px; padding:0; border:0; background:transparent; color:inherit; font:inherit; font-weight:800; cursor:pointer; }
-		.date-sort-btn:hover,.date-sort-btn:focus-visible { color:#167b9f; }
-		.date-sort-arrow { font-size:.72rem; }
 		@media (max-width:900px) { .actions { width:100%; justify-content:flex-start; } }
 		@media (max-width:640px) { .approval-summary { width:100%; flex-wrap:wrap; } .approval-summary-label { font-size:.64rem; } }
 
@@ -300,7 +297,7 @@
 				<table>
 					<thead>
 						<tr>
-							<th><button id="dateSortBtn" class="date-sort-btn" type="button" title="Sort requests by date">Date Requested <span id="dateSortArrow" class="date-sort-arrow" aria-hidden="true">▼</span></button></th>
+							<th>Date Requested</th>
 							<th>District</th>
 							<th>School</th>
 							<th>Requestor</th>
@@ -372,14 +369,11 @@
 			const revisionCancel = document.getElementById("revisionCancel");
 			let revisionResolver = null;
 			const exportExcelBtn = document.getElementById("exportExcelBtn");
-			const dateSortBtn = document.getElementById("dateSortBtn");
-			const dateSortArrow = document.getElementById("dateSortArrow");
 			const statusFilterButtons = Array.from(document.querySelectorAll("[data-status-filter]"));
 			let refreshTimer = null;
 			let admRequestEventSource = null;
 			let allApprovalRequests = [];
 			let activeStatusFilter = "all";
-			let dateSortDirection = "desc";
 
 			function getAdminKey() {
 				return String(localStorage.getItem("adminAccessKey") || "").trim();
@@ -600,15 +594,6 @@
 				return String(item && item.status || "pending").trim().toLowerCase() || "pending";
 			}
 
-			function getRequestTimestamp(item) {
-				const requestKind = String(item && item.request_kind || "learner").trim().toLowerCase();
-				const rawDate = requestKind === "teacher"
-					? (item.request_date || item.created_at)
-					: (item.created_at || item.request_date);
-				const timestamp = new Date(rawDate || 0).getTime();
-				return Number.isFinite(timestamp) ? timestamp : 0;
-			}
-
 			function matchesStatusFilter(item, filter) {
 				const status = getRequestStatus(item);
 				if (filter === "approved") return status === "approved";
@@ -629,11 +614,8 @@
 					button.classList.toggle("is-active", isActive);
 					button.setAttribute("aria-pressed", isActive ? "true" : "false");
 				});
-				dateSortArrow.textContent = dateSortDirection === "desc" ? "▼" : "▲";
-				dateSortBtn.setAttribute("aria-label", "Sort requests by date " + (dateSortDirection === "desc" ? "oldest first" : "newest first"));
 				const visibleRequests = normalizedRequests
-					.filter((item) => matchesStatusFilter(item, activeStatusFilter))
-					.sort((a, b) => dateSortDirection === "desc" ? getRequestTimestamp(b) - getRequestTimestamp(a) : getRequestTimestamp(a) - getRequestTimestamp(b));
+					.filter((item) => matchesStatusFilter(item, activeStatusFilter));
 				requestTableBody.innerHTML = "";
 				if (!visibleRequests.length) {
 					const emptyLabel = activeStatusFilter === "all" ? "No approval requests yet." : "No requests found for this status.";
@@ -786,11 +768,6 @@
 					renderRows(allApprovalRequests);
 				});
 			});
-			dateSortBtn.addEventListener("click", function () {
-				dateSortDirection = dateSortDirection === "desc" ? "asc" : "desc";
-				renderRows(allApprovalRequests);
-			});
-
 			function connectAdmRequestStream() {
 				if (typeof window.EventSource !== "function") return;
 				if (admRequestEventSource) {
