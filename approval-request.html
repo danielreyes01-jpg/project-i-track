@@ -204,8 +204,8 @@
 		.approval-summary-card.for-approval .approval-summary-icon { background:#1978a5; color:#fff; }
 		.approval-summary-card.pending { background:#fff8df; border-color:#f0cf62; }
 		.approval-summary-card.pending .approval-summary-icon { background:#f5c52b; color:#123047; }
-		.approval-summary-card.revised { background:#fff0e9; border-color:#f2ad87; }
-		.approval-summary-card.revised .approval-summary-icon { background:#e7793f; color:#fff; }
+		.approval-summary-card.disapproved { background:#fff0e9; border-color:#f2ad87; }
+		.approval-summary-card.disapproved .approval-summary-icon { background:#d94b3d; color:#fff; }
 		@media (max-width:900px) { .actions { width:100%; justify-content:flex-start; } }
 		@media (max-width:640px) { .approval-summary { width:100%; flex-wrap:wrap; } .approval-summary-label { font-size:.64rem; } }
 
@@ -262,7 +262,7 @@
 				</div>
 				<div class="actions">
 					<div class="approval-summary" aria-label="ADM request status summary">
-				<article class="approval-summary-card for-approval" title="Pending and revised requests that still need administrator action">
+				<article class="approval-summary-card for-approval" title="Pending requests that still need administrator action">
 					<span class="approval-summary-icon" aria-hidden="true">⌛</span>
 					<span class="approval-summary-copy"><span class="approval-summary-label">For Approval</span><strong class="approval-summary-value" id="forApprovalCount">0</strong></span>
 				</article>
@@ -270,9 +270,9 @@
 					<span class="approval-summary-icon" aria-hidden="true">●</span>
 					<span class="approval-summary-copy"><span class="approval-summary-label">Pending Requests</span><strong class="approval-summary-value" id="pendingCount">0</strong></span>
 				</article>
-				<article class="approval-summary-card revised">
-					<span class="approval-summary-icon" aria-hidden="true">↻</span>
-					<span class="approval-summary-copy"><span class="approval-summary-label">Revised Requests</span><strong class="approval-summary-value" id="revisedCount">0</strong></span>
+				<article class="approval-summary-card disapproved">
+					<span class="approval-summary-icon" aria-hidden="true">✕</span>
+					<span class="approval-summary-copy"><span class="approval-summary-label">Disapproved Requests</span><strong class="approval-summary-value" id="disapprovedCount">0</strong></span>
 				</article>
 					</div>
 					<button id="exportExcelBtn" class="btn-extract" type="button"><span class="extract-icon" aria-hidden="true">⇩</span>Extract Report</button>
@@ -561,7 +561,7 @@
 			function formatStatusLabel(status) {
 				const normalized = String(status || "pending").trim().toLowerCase() || "pending";
 				if (normalized === "approved") return "APPROVED";
-				if (normalized === "revise") return "REVISED";
+				if (normalized === "revise" || normalized === "revised" || normalized === "disapproved") return "DISAPPROVED";
 				return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 			}
 
@@ -576,9 +576,9 @@
 			function renderRows(requests) {
 				const normalizedRequests = Array.isArray(requests) ? requests : [];
 				const statuses = normalizedRequests.map((item) => String(item && item.status || "pending").trim().toLowerCase() || "pending");
-				document.getElementById("forApprovalCount").textContent = String(statuses.filter((status) => status !== "approved").length);
+				document.getElementById("forApprovalCount").textContent = String(statuses.filter((status) => status === "pending").length);
 				document.getElementById("pendingCount").textContent = String(statuses.filter((status) => status === "pending").length);
-				document.getElementById("revisedCount").textContent = String(statuses.filter((status) => status === "revise" || status === "revised").length);
+				document.getElementById("disapprovedCount").textContent = String(statuses.filter((status) => status === "disapproved" || status === "revise" || status === "revised").length);
 				requestTableBody.innerHTML = "";
 				if (!normalizedRequests.length) {
 					requestTableBody.innerHTML = '<tr><td class="empty" colspan="8">No approval requests yet.</td></tr>';
@@ -613,7 +613,7 @@
 					const resultMarkup = resultParts.length
 						? '<div class="result-meta">' + resultParts.join("") + '</div>'
 						: '';
-					const actionsMarkup = status === "approved"
+					const actionsMarkup = status === "approved" || status === "disapproved" || status === "revise" || status === "revised"
 						? '<div class="row-actions"><span class="doc-no-file">No actions available</span></div>'
 						: '<div class="row-actions"><button class="btn-primary" type="button" data-action="approved" data-request-id="' + escapeHtml(item.id) + '" data-request-kind="' + escapeHtml(requestKind) + '">Approve</button><button class="btn-revise" type="button" data-action="revise" data-request-id="' + escapeHtml(item.id) + '" data-request-kind="' + escapeHtml(requestKind) + '">Revise</button></div>';
 					return '<tr>' +

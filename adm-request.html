@@ -457,7 +457,7 @@
 			function formatStatusLabel(status) {
 				const normalized = String(status || "pending").trim().toLowerCase() || "pending";
 				if (normalized === "approved") return "APPROVED";
-				if (normalized === "revise") return "REVISED";
+				if (normalized === "revise" || normalized === "revised" || normalized === "disapproved") return "DISAPPROVED — SUBMIT A NEW REQUEST";
 				if (normalized === "rejected") return "Rejected";
 				return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 			}

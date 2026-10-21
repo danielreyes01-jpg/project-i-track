@@ -519,6 +519,7 @@ async function sendApprovalRequestStatusEmail({ email, requestorName, learnerNam
         <p>Hello${requestorName ? ` ${requestorName}` : ""},</p>
         <p>Your ADM request for <strong>${learnerName}</strong> has been marked as <strong>${titleStatus}</strong>.</p>
         ${reviewNote ? `<p><strong>Result / Note:</strong> ${String(reviewNote).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>` : ""}
+        ${normalizedStatus === "disapproved" ? "<p>Please complete the required corrections and submit a new ADM request with the updated documents.</p>" : ""}
         <p>Please log in to the ADM system for the latest request details.</p>
       </div>
     `
@@ -546,6 +547,7 @@ async function sendAdmRequestStatusEmail({ email, requestorName, status, reviewN
         <p><strong>School:</strong> ${String(school || "N/A").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
         <p><strong>ADM Focal:</strong> ${String(admFocal || "N/A").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
         ${reviewNote ? `<p><strong>Result / Note:</strong> ${String(reviewNote).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>` : ""}
+        ${String(status || "").trim().toLowerCase() === "disapproved" ? "<p>Please complete the required corrections and submit a new ADM request with the updated documents.</p>" : ""}
         <p>Please log in to the ADM system for the latest request details.</p>
       </div>
     `;
@@ -2101,7 +2103,8 @@ function getStatusLabel(status) {
   const statusLabels = {
     approved: "Approved",
     rejected: "Rejected",
-    revise: "Revised"
+    revise: "Disapproved",
+    disapproved: "Disapproved"
   };
 
   return statusLabels[normalizedStatus] || (normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1));
@@ -2917,6 +2920,7 @@ app.post("/api/admin/adm-requests/:id/status", requireAdmin, async (req, res) =>
     const pinCode = String((req.body || {}).pinCode || "").trim();
     const reviewNote = String((req.body || {}).reviewNote || "").trim();
     const validStatuses = ["approved", "revise"];
+    const finalStatus = status === "revise" ? "disapproved" : status;
 
     if (!requestId || !validStatuses.includes(status)) {
       return res.status(400).json({ message: "Valid request id and status are required." });
@@ -2955,8 +2959,8 @@ app.post("/api/admin/adm-requests/:id/status", requireAdmin, async (req, res) =>
       return res.status(404).json({ message: "ADM request not found." });
     }
 
-    if (String(admRequest.status || "").trim().toLowerCase() === "approved" && status !== "approved") {
-      return res.status(409).json({ message: "Approved ADM request can no longer be changed." });
+    if (["approved", "disapproved"].includes(String(admRequest.status || "").trim().toLowerCase())) {
+      return res.status(409).json({ message: "This ADM request has already received a final decision." });
     }
 
     const reviewerContext = await resolveAdminReviewerContext(req);
@@ -2978,7 +2982,7 @@ app.post("/api/admin/adm-requests/:id/status", requireAdmin, async (req, res) =>
     const updated = await db("adm_requests")
       .where({ id: requestId })
       .update({
-        status,
+        status: finalStatus,
         approval_pdf_path: approvalPdfPath,
         review_note: reviewNote || null,
         reviewed_by: reviewerContext.reviewerName,
@@ -2997,7 +3001,7 @@ app.post("/api/admin/adm-requests/:id/status", requireAdmin, async (req, res) =>
         await sendAdmRequestStatusEmail({
           email: recipientEmail,
           requestorName: admRequest.requestor_name,
-          status,
+          status: finalStatus,
           reviewNote,
           requestDate: admRequest.request_date,
           district: admRequest.district,
@@ -3012,7 +3016,7 @@ app.post("/api/admin/adm-requests/:id/status", requireAdmin, async (req, res) =>
 
     broadcastTeacherAdmRequestStatusUpdate(admRequest.requestor_user_id, {
       id: requestId,
-      status,
+      status: finalStatus,
       approval_pdf_path: approvalPdfPath,
       review_note: reviewNote || null,
       reviewed_by: reviewerContext.reviewerName,
@@ -3020,9 +3024,9 @@ app.post("/api/admin/adm-requests/:id/status", requireAdmin, async (req, res) =>
     });
 
     return res.json({
-      message: status === "approved"
+      message: finalStatus === "approved"
         ? "ADM request approved. The requester was notified and the approval PDF is ready."
-        : "ADM request updated.",
+        : "ADM request disapproved. The requester must submit a new request.",
       approval_pdf_path: approvalPdfPath
     });
   } catch (error) {
@@ -3198,6 +3202,7 @@ app.post("/api/admin/approval-requests/:id/status", requireAdmin, async (req, re
     const pinCode = String((req.body || {}).pinCode || "").trim();
     const reviewNote = String((req.body || {}).reviewNote || "").trim();
     const validStatuses = ["approved", "revise"];
+    const finalStatus = status === "revise" ? "disapproved" : status;
 
     if (!requestId || !validStatuses.includes(status)) {
       return res.status(400).json({ message: "Valid request id and status are required." });
@@ -3230,8 +3235,8 @@ app.post("/api/admin/approval-requests/:id/status", requireAdmin, async (req, re
       return res.status(404).json({ message: "Approval request not found." });
     }
 
-    if (String(approvalRequest.status || "").trim().toLowerCase() === "approved" && status !== "approved") {
-      return res.status(409).json({ message: "Approved request can no longer be changed." });
+    if (["approved", "disapproved"].includes(String(approvalRequest.status || "").trim().toLowerCase())) {
+      return res.status(409).json({ message: "This approval request has already received a final decision." });
     }
 
     const reviewerContext = await resolveAdminReviewerContext(req);
@@ -3240,7 +3245,7 @@ app.post("/api/admin/approval-requests/:id/status", requireAdmin, async (req, re
     const updated = await db("approval_requests")
       .where({ id: requestId })
       .update({
-        status,
+        status: finalStatus,
         review_note: reviewNote || null,
         reviewed_by: reviewerContext.reviewerName,
         reviewed_by_user_id: reviewerContext.reviewerUserId,
@@ -3259,7 +3264,7 @@ app.post("/api/admin/approval-requests/:id/status", requireAdmin, async (req, re
           email: recipientEmail,
           requestorName: approvalRequest.requestor_name,
           learnerName: approvalRequest.learner_name,
-          status,
+          status: finalStatus,
           reviewNote
         });
       } catch (mailError) {
@@ -3267,7 +3272,7 @@ app.post("/api/admin/approval-requests/:id/status", requireAdmin, async (req, re
       }
     }
 
-    return res.json({ message: "Approval request updated." });
+    return res.json({ message: finalStatus === "approved" ? "Approval request approved." : "Approval request disapproved. The requester must submit a new request." });
   } catch (error) {
     return res.status(500).json({ message: "Failed to update approval request.", detail: error.message });
   }
