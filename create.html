@@ -7,7 +7,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="/theme.css?v=20261021d">
+	<link rel="stylesheet" href="/theme.css?v=20261021e">
 	<style>
 		:root { --ink:#123d36; --muted:#71817c; --green:#167654; --blue:#147eb3; --line:#bdd9ce; --soft:#f4fbf7; }
 		* { box-sizing:border-box; }
@@ -145,6 +145,6 @@
 		form.addEventListener('submit',async event=>{event.preventDefault();clearMessage();if(!form.reportValidity())return;const type=typeInput.value;if(type==='student'&&!/^\d{12}$/.test(lrn.value)){setMessage('LRN must contain exactly 12 digits.','error');lrn.focus();return;}const password=document.getElementById('password').value,confirmPassword=document.getElementById('confirmPassword').value;if(!strongPassword(password)){setMessage('Password must contain at least 8 characters with uppercase, lowercase, number and special character.','error');return;}if(password!==confirmPassword){setMessage('Password and confirm password do not match.','error');return;}const parts=document.getElementById('fullName').value.trim().split(/\s+/);const firstname=parts.shift()||'',lastname=parts.pop()||firstname,middlename=parts.join(' ');const payload={accountType:type,position:type==='student'?'student':position.value,lrn:lrn.value,schoolId:schoolId.value.trim(),username:document.getElementById('username').value.trim(),email:document.getElementById('email').value.trim(),password,confirmPassword,firstname,lastname,middlename,district:district.value.trim(),school:school.value.trim(),isSupervisor:position.value==='supervisor'};submitButton.disabled=true;try{const response=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.message||'Unable to create account.');form.reset();showRegistrationSuccess();}catch(error){setMessage(error.message||'Unable to create account.','error');submitButton.disabled=false;}});
 	})();
 	</script>
-	<script src="/theme.js?v=20261021d"></script>
+	<script src="/theme.js?v=20261021e"></script>
 </body>
 </html>

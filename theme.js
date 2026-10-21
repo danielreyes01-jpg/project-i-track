@@ -1300,7 +1300,7 @@ function initializeAdviserStudentChat() {
 			<section class="itrack-chat-panel" hidden aria-label="${title}">
 				<header><div><strong>${title}</strong><small>${subtitle}</small></div><button class="itrack-chat-close" type="button" aria-label="Close chat">×</button></header>
 				<div class="itrack-chat-layout">
-					<aside class="itrack-chat-directory"><div class="itrack-chat-directory-title"><strong>${role === 'admin' ? 'Online Users' : 'Conversations'}</strong><span class="itrack-chat-online-count">0</span></div>${role === 'admin' ? '<div class="itrack-chat-tabs"><button type="button" class="is-active" data-chat-view="online">Online</button><button type="button" data-chat-view="unread">Unread</button><button type="button" data-chat-view="history">History</button></div>' : ''}<div class="itrack-chat-contact-list" aria-label="Chat contacts"></div></aside>
+					<aside class="itrack-chat-directory"><div class="itrack-chat-directory-title"><strong>${role === 'admin' ? 'Online Users' : 'Conversations'}</strong><span class="itrack-chat-online-count">0</span></div>${role === 'admin' ? '<div class="itrack-chat-tabs"><button type="button" class="is-active" data-chat-view="online">Online</button><button type="button" data-chat-view="unread">Unread</button><button type="button" data-chat-view="all">All</button><button type="button" data-chat-view="history">History</button></div>' : ''}<div class="itrack-chat-contact-list" aria-label="Chat contacts"></div></aside>
 					<section class="itrack-chat-thread"><div class="itrack-chat-thread-head"><div><strong>Select a conversation</strong><small></small></div><button class="itrack-chat-mark-read" type="button" hidden>✓ Mark as read</button></div><div class="itrack-chat-messages" aria-live="polite"><p class="itrack-chat-empty">Loading conversations…</p></div>
 					<form class="itrack-chat-form"><textarea maxlength="2000" rows="2" placeholder="Type a message…" aria-label="Chat message" required></textarea><button type="submit">Send</button><small class="itrack-chat-hint">Enter to send · Shift+Enter for a new line</small></form><p class="itrack-chat-status" role="status"></p></section>
 				</div>
@@ -1339,10 +1339,10 @@ function initializeAdviserStudentChat() {
 			const directContacts = contacts.filter((contact) => contact.mode !== 'history');
 			const onlineContacts = directContacts.filter((contact) => contact.online);
 			const visibleContacts = role === 'admin'
-				? contacts.filter((contact) => chatView === 'history' ? contact.mode === 'history' : (chatView === 'unread' ? contact.mode !== 'history' && Number(contact.unread || 0) > 0 : contact.mode !== 'history' && contact.online))
+				? contacts.filter((contact) => chatView === 'history' ? contact.mode === 'history' : (chatView === 'unread' ? contact.mode !== 'history' && Number(contact.unread || 0) > 0 : (chatView === 'all' ? contact.mode !== 'history' : contact.mode !== 'history' && contact.online)))
 				: directContacts.slice().sort((a, b) => Number(b.unread || 0) - Number(a.unread || 0) || Number(b.online) - Number(a.online));
-			onlineCount.textContent = String(onlineContacts.length);
-			directoryTitle.textContent = role === 'admin' && chatView === 'history' ? 'Chat History' : (role === 'admin' && chatView === 'unread' ? 'Unread Messages' : (role === 'admin' ? 'Online Users' : 'Conversations'));
+			onlineCount.textContent = String(role === 'admin' ? visibleContacts.length : onlineContacts.length);
+			directoryTitle.textContent = role === 'admin' && chatView === 'history' ? 'Chat History' : (role === 'admin' && chatView === 'unread' ? 'Unread Messages' : (role === 'admin' && chatView === 'all' ? 'All Conversations' : (role === 'admin' ? 'Online Users' : 'Conversations')));
 			viewButtons.forEach((button) => button.classList.toggle('is-active', button.dataset.chatView === chatView));
 			if (!visibleContacts.length) {
 				selectedContactId = '';
@@ -1395,7 +1395,7 @@ function initializeAdviserStudentChat() {
 					bubble.append(text, meta); messagesBox.appendChild(bubble);
 				});
 				messagesBox.scrollTop = messagesBox.scrollHeight;
-				if (active) active.unread = 0; updateUnread(); renderContacts();
+				updateUnread();
 			} catch (error) { showStatus(error.message, true); }
 		};
 		const loadContacts = async () => {
@@ -1427,7 +1427,7 @@ function initializeAdviserStudentChat() {
 
 function initializeITrackInstallApp() {
 	if ('serviceWorker' in navigator && /^https?:$/i.test(location.protocol)) {
-		const registerWorker = () => navigator.serviceWorker.register('/sw.js?v=20261021d', { updateViaCache: 'none' }).then((worker) => worker.update()).catch(() => {});
+		const registerWorker = () => navigator.serviceWorker.register('/sw.js?v=20261021e', { updateViaCache: 'none' }).then((worker) => worker.update()).catch(() => {});
 		if (document.readyState === 'complete') registerWorker(); else window.addEventListener('load', registerWorker, { once: true });
 	}
 	const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;

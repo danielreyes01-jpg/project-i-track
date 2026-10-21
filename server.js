@@ -4462,7 +4462,6 @@ app.get("/api/chat/messages/:contactUserId", requireLogin, async (req, res) => {
     const senderIds = [...new Set(messages.map((message) => message.sender_user_id))];
     const senders = senderIds.length ? await db("users").whereIn("id", senderIds).select("id", "firstname", "middlename", "lastname", "role") : [];
     const senderById = new Map(senders.map((sender) => [String(sender.id), sender]));
-    if (!historyView) await db("adviser_student_messages").where({ adviser_user_id: relationship.adviserUserId, student_user_id: relationship.studentUserId }).whereNot({ sender_user_id: user.id }).whereNull("read_at").update({ read_at: new Date().toISOString() });
     return res.json({ readOnly: Boolean(historyView), messages: messages.map((message) => { const sender = senderById.get(String(message.sender_user_id)); return { id: message.id, message: message.message, created_at: message.created_at, read_at: message.read_at || null, mine: !historyView && message.sender_user_id === user.id, sender_name: chatDisplayName(sender), sender_role: chatRoleLabel(sender && sender.role) }; }) });
   } catch (error) {
     return res.status(500).json({ message: "Unable to load chat messages.", detail: error.message });
