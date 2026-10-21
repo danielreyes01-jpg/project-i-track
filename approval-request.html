@@ -202,7 +202,14 @@
 			transition:transform .16s ease,box-shadow .16s ease,outline-color .16s ease;
 		}
 		.approval-summary-card:hover { transform:translateY(-1px); box-shadow:0 7px 17px rgba(11,73,113,.14); }
-		.approval-summary-card.is-active { outline:3px solid rgba(22,123,159,.2); outline-offset:2px; }
+		.approval-summary-card.is-active {
+			background:#f5c52b!important;
+			background-image:none!important;
+			border-color:#d9a900!important;
+			outline:3px solid rgba(245,197,43,.3);
+			outline-offset:2px;
+			box-shadow:0 8px 20px rgba(185,139,0,.24)!important;
+		}
 		.approval-summary-card:focus-visible { outline:3px solid #167b9f; outline-offset:2px; }
 		.approval-summary-icon { display:grid; place-items:center; width:27px; height:27px; border-radius:8px; font-size:.82rem; font-weight:900; }
 		.approval-summary-copy { display:flex; align-items:center; gap:5px; white-space:nowrap; }
@@ -210,6 +217,8 @@
 		.approval-summary-value { color:var(--ink); font-size:1rem; font-weight:900; line-height:1; }
 		.approval-summary-card .approval-summary-label,
 		.approval-summary-card .approval-summary-value { color:#fff!important; opacity:1; text-shadow:0 1px 2px rgba(5,37,55,.28); }
+		.approval-summary-card.is-active .approval-summary-label,
+		.approval-summary-card.is-active .approval-summary-value { color:#123047!important; text-shadow:none; }
 		.approval-summary-card.for-approval { background:#eef8ff; border-color:#9bd2ed; }
 		.approval-summary-card.for-approval .approval-summary-icon { background:#1978a5; color:#fff; }
 		.approval-summary-card.pending { background:#fff8df; border-color:#f0cf62; }
