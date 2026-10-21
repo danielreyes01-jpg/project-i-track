@@ -204,6 +204,8 @@
 		.approval-summary-card.for-approval .approval-summary-icon { background:#1978a5; color:#fff; }
 		.approval-summary-card.pending { background:#fff8df; border-color:#f0cf62; }
 		.approval-summary-card.pending .approval-summary-icon { background:#f5c52b; color:#123047; }
+		.approval-summary-card.approved { background:#eaf8f1; border-color:#8fd3b2; }
+		.approval-summary-card.approved .approval-summary-icon { background:#178669; color:#fff; }
 		.approval-summary-card.disapproved { background:#fff0e9; border-color:#f2ad87; }
 		.approval-summary-card.disapproved .approval-summary-icon { background:#d94b3d; color:#fff; }
 		@media (max-width:900px) { .actions { width:100%; justify-content:flex-start; } }
@@ -269,6 +271,10 @@
 				<article class="approval-summary-card pending">
 					<span class="approval-summary-icon" aria-hidden="true">●</span>
 					<span class="approval-summary-copy"><span class="approval-summary-label">Pending Requests</span><strong class="approval-summary-value" id="pendingCount">0</strong></span>
+				</article>
+				<article class="approval-summary-card approved">
+					<span class="approval-summary-icon" aria-hidden="true">✓</span>
+					<span class="approval-summary-copy"><span class="approval-summary-label">Approved Requests</span><strong class="approval-summary-value" id="approvedCount">0</strong></span>
 				</article>
 				<article class="approval-summary-card disapproved">
 					<span class="approval-summary-icon" aria-hidden="true">✕</span>
@@ -578,6 +584,7 @@
 				const statuses = normalizedRequests.map((item) => String(item && item.status || "pending").trim().toLowerCase() || "pending");
 				document.getElementById("forApprovalCount").textContent = String(statuses.filter((status) => status === "pending").length);
 				document.getElementById("pendingCount").textContent = String(statuses.filter((status) => status === "pending").length);
+				document.getElementById("approvedCount").textContent = String(statuses.filter((status) => status === "approved").length);
 				document.getElementById("disapprovedCount").textContent = String(statuses.filter((status) => status === "disapproved" || status === "revise" || status === "revised").length);
 				requestTableBody.innerHTML = "";
 				if (!normalizedRequests.length) {
