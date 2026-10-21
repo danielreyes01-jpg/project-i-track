@@ -1,4 +1,4 @@
-const CACHE_NAME = "itrack-app-shell-v3";
+const CACHE_NAME = "itrack-app-shell-v4";
 const APP_SHELL = [
   "/index.html",
   "/offline.html",

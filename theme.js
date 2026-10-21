@@ -42,7 +42,7 @@ function initializeITrackBrandAssets() {
 	setMeta('theme-color', '#126b91');
 	setMeta('apple-mobile-web-app-capable', 'yes');
 	setMeta('apple-mobile-web-app-status-bar-style', 'default');
-	setMeta('apple-mobile-web-app-title', 'Project I-TRACK');
+	setMeta('apple-mobile-web-app-title', 'I-TRACK');
 	setMeta('application-name', 'Flexible Learning Program of SDO Cebu Province – Project I-TRACK');
 	document.querySelectorAll('img.brand-logo').forEach((image) => {
 		image.src = ITRACK_BRAND_LOGO;
@@ -1300,8 +1300,8 @@ function initializeAdviserStudentChat() {
 			<section class="itrack-chat-panel" hidden aria-label="${title}">
 				<header><div><strong>${title}</strong><small>${subtitle}</small></div><button class="itrack-chat-close" type="button" aria-label="Close chat">×</button></header>
 				<div class="itrack-chat-layout">
-					<aside class="itrack-chat-directory"><div class="itrack-chat-directory-title"><strong>${role === 'admin' ? 'Online Users' : 'Online Now'}</strong><span class="itrack-chat-online-count">0</span></div>${role === 'admin' ? '<div class="itrack-chat-tabs"><button type="button" class="is-active" data-chat-view="online">Online</button><button type="button" data-chat-view="history">History</button></div>' : ''}<div class="itrack-chat-contact-list" aria-label="Chat contacts"></div></aside>
-					<section class="itrack-chat-thread"><div class="itrack-chat-thread-head"><strong>Select a conversation</strong><small></small></div><div class="itrack-chat-messages" aria-live="polite"><p class="itrack-chat-empty">Loading conversations…</p></div>
+					<aside class="itrack-chat-directory"><div class="itrack-chat-directory-title"><strong>${role === 'admin' ? 'Online Users' : 'Conversations'}</strong><span class="itrack-chat-online-count">0</span></div>${role === 'admin' ? '<div class="itrack-chat-tabs"><button type="button" class="is-active" data-chat-view="online">Online</button><button type="button" data-chat-view="unread">Unread</button><button type="button" data-chat-view="history">History</button></div>' : ''}<div class="itrack-chat-contact-list" aria-label="Chat contacts"></div></aside>
+					<section class="itrack-chat-thread"><div class="itrack-chat-thread-head"><div><strong>Select a conversation</strong><small></small></div><button class="itrack-chat-mark-read" type="button" hidden>✓ Mark as read</button></div><div class="itrack-chat-messages" aria-live="polite"><p class="itrack-chat-empty">Loading conversations…</p></div>
 					<form class="itrack-chat-form"><textarea maxlength="2000" rows="2" placeholder="Type a message…" aria-label="Chat message" required></textarea><button type="submit">Send</button><small class="itrack-chat-hint">Enter to send · Shift+Enter for a new line</small></form><p class="itrack-chat-status" role="status"></p></section>
 				</div>
 			</section>`;
@@ -1317,6 +1317,7 @@ function initializeAdviserStudentChat() {
 		const status = widget.querySelector('.itrack-chat-status');
 		const unreadBadge = widget.querySelector('.itrack-chat-unread');
 		const sendButton = form.querySelector('button');
+		const markReadButton = widget.querySelector('.itrack-chat-mark-read');
 		const directoryTitle = widget.querySelector('.itrack-chat-directory-title strong');
 		const onlineCount = widget.querySelector('.itrack-chat-online-count');
 		const viewButtons = [...widget.querySelectorAll('[data-chat-view]')];
@@ -1335,22 +1336,26 @@ function initializeAdviserStudentChat() {
 		};
 		const renderContacts = () => {
 			contactList.replaceChildren();
-			const onlineContacts = contacts.filter((contact) => contact.mode !== 'history' && contact.online);
-			const visibleContacts = role === 'admin' ? contacts.filter((contact) => chatView === 'history' ? contact.mode === 'history' : contact.mode !== 'history' && contact.online) : onlineContacts;
+			const directContacts = contacts.filter((contact) => contact.mode !== 'history');
+			const onlineContacts = directContacts.filter((contact) => contact.online);
+			const visibleContacts = role === 'admin'
+				? contacts.filter((contact) => chatView === 'history' ? contact.mode === 'history' : (chatView === 'unread' ? contact.mode !== 'history' && Number(contact.unread || 0) > 0 : contact.mode !== 'history' && contact.online))
+				: directContacts.slice().sort((a, b) => Number(b.unread || 0) - Number(a.unread || 0) || Number(b.online) - Number(a.online));
 			onlineCount.textContent = String(onlineContacts.length);
-			directoryTitle.textContent = role === 'admin' && chatView === 'history' ? 'Chat History' : (role === 'admin' ? 'Online Users' : 'Online Now');
+			directoryTitle.textContent = role === 'admin' && chatView === 'history' ? 'Chat History' : (role === 'admin' && chatView === 'unread' ? 'Unread Messages' : (role === 'admin' ? 'Online Users' : 'Conversations'));
 			viewButtons.forEach((button) => button.classList.toggle('is-active', button.dataset.chatView === chatView));
 			if (!visibleContacts.length) {
 				selectedContactId = '';
-				threadHead.querySelector('strong').textContent = chatView === 'history' ? 'No chat history' : 'No users online';
-				threadHead.querySelector('small').textContent = chatView === 'history' ? 'History is read-only' : 'Active users will appear automatically';
+				threadHead.querySelector('strong').textContent = chatView === 'history' ? 'No chat history' : (chatView === 'unread' ? 'No unread messages' : 'No users online');
+				threadHead.querySelector('small').textContent = chatView === 'history' ? 'History is read-only' : (chatView === 'unread' ? 'You are all caught up' : 'Active users will appear automatically');
+				markReadButton.hidden = true;
 				form.hidden = false;
 				textarea.disabled = true; sendButton.disabled = true; textarea.placeholder = 'No conversation is available';
 				messagesBox.replaceChildren();
 				const empty = document.createElement('div'); empty.className = 'itrack-chat-empty itrack-chat-empty-state';
 				const icon = document.createElement('span'); icon.textContent = chatView === 'history' ? '🕘' : '🟢';
-				const emptyTitle = document.createElement('strong'); emptyTitle.textContent = chatView === 'history' ? 'No chat history yet' : 'No users online';
-				const note = document.createElement('p'); note.textContent = chatView === 'history' ? 'Completed conversations will appear here.' : 'Only users actively logged in to the system are displayed.';
+				const emptyTitle = document.createElement('strong'); emptyTitle.textContent = chatView === 'history' ? 'No chat history yet' : (chatView === 'unread' ? 'No unread messages' : 'No users online');
+				const note = document.createElement('p'); note.textContent = chatView === 'history' ? 'Completed conversations will appear here.' : (chatView === 'unread' ? 'New messages will appear here automatically.' : 'Only users actively logged in to the system are displayed.');
 				empty.append(icon, emptyTitle, note); messagesBox.appendChild(empty); return;
 			}
 			if (!visibleContacts.some((contact) => String(contact.id) === String(selectedContactId))) selectedContactId = String(visibleContacts[0].id);
@@ -1361,8 +1366,9 @@ function initializeAdviserStudentChat() {
 				const name = document.createElement('strong'); name.textContent = contact.name || 'User';
 				const meta = document.createElement('small');
 				if (contact.mode === 'history') meta.textContent = `${contact.role || 'Chat History'} · ${Number(contact.message_count || 0)} messages`;
-				else { const roleText = document.createTextNode(`${contact.role || 'User'} · `); const presence = document.createElement('span'); presence.className = 'itrack-chat-online'; presence.textContent = '● Online'; meta.append(roleText, presence); }
-				copy.append(name, meta); button.append(avatar, copy);
+				else { const roleText = document.createTextNode(`${contact.role || 'User'} · `); const presence = document.createElement('span'); presence.className = contact.online ? 'itrack-chat-online' : 'itrack-chat-offline'; presence.textContent = contact.online ? '● Online' : '● Offline'; meta.append(roleText, presence); }
+				if (contact.last_message) { const preview = document.createElement('span'); preview.className = 'itrack-chat-preview'; preview.textContent = contact.last_message; copy.append(name, meta, preview); } else copy.append(name, meta);
+				button.append(avatar, copy);
 				if (contact.unread) { const badge = document.createElement('b'); badge.textContent = contact.unread > 99 ? '99+' : String(contact.unread); button.appendChild(badge); }
 				button.addEventListener('click', () => { selectedContactId = String(contact.id); showStatus(''); renderContacts(); loadMessages(); });
 				contactList.appendChild(button);
@@ -1375,6 +1381,7 @@ function initializeAdviserStudentChat() {
 				const active = contacts.find((contact) => String(contact.id) === String(selectedContactId));
 				threadHead.querySelector('strong').textContent = active ? active.name : 'Conversation';
 				threadHead.querySelector('small').textContent = data.readOnly ? 'Administrator history view · Read only' : `${active && active.role ? active.role : 'User'}${active && active.online ? ' · Online' : ''}`;
+				markReadButton.hidden = Boolean(data.readOnly) || !(active && Number(active.unread || 0) > 0);
 				form.hidden = Boolean(data.readOnly); textarea.disabled = Boolean(data.readOnly); sendButton.disabled = Boolean(data.readOnly);
 				messagesBox.replaceChildren();
 				if (!data.messages.length) { const empty = document.createElement('p'); empty.className = 'itrack-chat-empty'; empty.textContent = 'No messages yet. Start the conversation.'; messagesBox.appendChild(empty); }
@@ -1382,8 +1389,10 @@ function initializeAdviserStudentChat() {
 					const bubble = document.createElement('article'); bubble.className = `itrack-chat-bubble ${item.mine ? 'is-mine' : 'is-theirs'}`;
 					if (data.readOnly) { const sender = document.createElement('strong'); sender.className = 'itrack-chat-sender'; sender.textContent = `${item.sender_name || 'User'} · ${item.sender_role || 'User'}`; bubble.appendChild(sender); }
 					const text = document.createElement('p'); text.textContent = item.message;
-					const time = document.createElement('time'); time.dateTime = item.created_at; time.textContent = formatChatTime(item.created_at);
-					bubble.append(text, time); messagesBox.appendChild(bubble);
+					const meta = document.createElement('span'); meta.className = 'itrack-chat-message-meta';
+					const time = document.createElement('time'); time.dateTime = item.created_at; time.textContent = formatChatTime(item.created_at); meta.appendChild(time);
+					if (item.mine && !data.readOnly) { const receipt = document.createElement('span'); receipt.className = item.read_at ? 'is-read' : 'is-unread'; receipt.textContent = item.read_at ? '✓✓ Read' : '✓ Sent'; meta.appendChild(receipt); }
+					bubble.append(text, meta); messagesBox.appendChild(bubble);
 				});
 				messagesBox.scrollTop = messagesBox.scrollHeight;
 				if (active) active.unread = 0; updateUnread(); renderContacts();
@@ -1399,6 +1408,7 @@ function initializeAdviserStudentChat() {
 		};
 		launcher.addEventListener('click', () => setPanelOpen(!panelOpen));
 		close.addEventListener('click', () => setPanelOpen(false));
+		markReadButton.addEventListener('click', async () => { if (!selectedContactId) return; try { await requestJson(`/api/chat/messages/${encodeURIComponent(selectedContactId)}/read`, { method: 'POST' }); const active = contacts.find((contact) => String(contact.id) === String(selectedContactId)); if (active) active.unread = 0; updateUnread(); renderContacts(); await loadMessages(); showStatus('Messages marked as read.'); } catch (error) { showStatus(error.message, true); } });
 		viewButtons.forEach((button) => button.addEventListener('click', () => { chatView = button.dataset.chatView; selectedContactId = ''; showStatus(''); renderContacts(); loadMessages(); }));
 		form.addEventListener('submit', async (event) => {
 			event.preventDefault(); const message = textarea.value.trim(); if (!message || !selectedContactId) return;
@@ -1417,7 +1427,7 @@ function initializeAdviserStudentChat() {
 
 function initializeITrackInstallApp() {
 	if ('serviceWorker' in navigator && /^https?:$/i.test(location.protocol)) {
-		const registerWorker = () => navigator.serviceWorker.register('/sw.js?v=20261018', { updateViaCache: 'none' }).then((worker) => worker.update()).catch(() => {});
+		const registerWorker = () => navigator.serviceWorker.register('/sw.js?v=20261021', { updateViaCache: 'none' }).then((worker) => worker.update()).catch(() => {});
 		if (document.readyState === 'complete') registerWorker(); else window.addEventListener('load', registerWorker, { once: true });
 	}
 	const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -1437,12 +1447,12 @@ function initializeITrackInstallApp() {
 			copy.innerHTML = isMac
 				? '<p>The app is installed. Open it, right-click its Dock icon, then choose <strong>Options → Keep in Dock</strong>.</p>'
 				: '<p>The app is installed. Open it, right-click its taskbar icon, then choose <strong>Pin to taskbar</strong>.</p>';
-			primary.textContent = 'Done'; return;
+			primary.textContent = 'Done'; primary.dataset.action = 'close'; return;
 		}
 		copy.innerHTML = isMac
 			? '<p>In Safari, choose <strong>File → Add to Dock</strong>. In Chrome, open the browser menu and choose <strong>Install Project I-TRACK</strong>.</p><p class="itrack-install-note">After installation, open the app and choose <strong>Options → Keep in Dock</strong> from its Dock icon.</p>'
 			: '<p>In Microsoft Edge or Google Chrome, use the install icon in the address bar or choose <strong>Install Project I-TRACK</strong> from the browser menu.</p><p class="itrack-install-note">After installation, right-click the running app in the taskbar and choose <strong>Pin to taskbar</strong>.</p>';
-		primary.textContent = 'Got It';
+		primary.textContent = 'Got It'; primary.dataset.action = 'close';
 	};
 	const closeModal = () => { modal.hidden = true; install.focus(); };
 	install.addEventListener('click', async () => {
