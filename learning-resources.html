@@ -46,7 +46,7 @@
     </section>
 
     <section id="adminOverview" class="panel admin-overview" aria-label="Administrator learning resources overview">
-      <div class="panel-head"><div><h2>Administrator Learning Resources Overview</h2><p class="panel-subtitle">Complete activity across teachers, students, uploaded resources, and submitted answers.</p></div></div>
+      <div class="panel-head"><div><h2>Administrator Learning Resources Overview</h2><p class="panel-subtitle">Complete activity across teachers, students, uploaded resources, and submitted answers.</p></div><button id="learningReportButton" class="primary" type="button" disabled>▤ View Report</button></div>
       <div id="metricGrid" class="metric-grid"></div>
       <section class="district-panel" aria-labelledby="districtChartsTitle">
         <div class="district-head"><h3 id="districtChartsTitle">District Learning Resource Activity</h3><span id="districtCount" class="district-count">58 districts</span></div>
@@ -133,6 +133,7 @@
       const data=await getJson('/api/admin/learning-resources-overview');byId('adminOverview').style.display='block';const totals=data.totals||{};
       byId('metricGrid').innerHTML=[['Total uploads',totals.uploads||0],['Teachers',totals.teachers||0],['Students',totals.students||0],['Assigned',totals.assigned||0],['Ongoing',totals.ongoing||0],['Completed',totals.completed||0]].map((item)=>'<div class="metric"><span>'+esc(item[0])+'</span><strong>'+Number(item[1]||0)+'</strong></div>').join('');
       renderDistrictDonuts(data.districts||[]);
+      byId('learningReportButton').disabled=false;
       const teachers=data.teachers||[];byId('teacherOverviewBody').innerHTML=teachers.length?teachers.map((item)=>'<tr><td><strong>'+esc(item.name)+'</strong><br>'+esc(item.district||'')+'</td><td>'+esc(item.school||'—')+'</td><td>'+Number(item.uploads||0)+'</td><td>'+Number(item.students||0)+'</td><td>'+Number(item.completed||0)+'</td></tr>').join(''):'<tr><td colspan="5">No teacher records yet.</td></tr>';
       const students=data.students||[];byId('studentOverviewBody').innerHTML=students.length?students.map((item)=>'<tr><td><strong>'+esc(item.name)+'</strong><br>'+esc(item.school||'')+'</td><td>'+esc(item.lrn||'—')+'</td><td>'+Number(item.assigned||0)+'</td><td>'+Number(item.ongoing||0)+'</td><td>'+Number(item.completed||0)+'</td></tr>').join(''):'<tr><td colspan="5">No student records yet.</td></tr>';
       const activity=data.activity||[];byId('activityOverviewBody').innerHTML=activity.length?activity.map((item)=>'<tr><td>'+esc(formatDate(item.created_at))+'</td><td><strong>'+esc(item.teacher_name)+'</strong><br>'+esc(item.teacher_school||'')+'</td><td><strong>'+esc(item.student_name)+'</strong><br>LRN: '+esc(item.student_lrn||'—')+'</td><td>Term '+Number(item.term||1)+'<br>No. '+Number(item.module_number||1)+'</td><td><strong>'+esc(item.resource_type)+'</strong><br>'+esc(item.title)+'</td><td><span class="small-status '+esc(item.status)+'">'+esc(item.status==='done'?'Done Answering':item.status==='ongoing'?'Ongoing Answer':'Assigned')+'</span></td><td class="timeline-cell"><strong>Started:</strong> '+esc(formatDate(item.started_at))+'<br><strong>Completed:</strong> '+esc(formatDate(item.submitted_at))+'<br><span class="elapsed">Elapsed: '+esc(item.elapsed_label||'Not started')+'</span></td><td>'+(item.preview_url?'<a class="text-button" href="'+esc(item.preview_url)+'" target="_blank" rel="noopener">Resource</a>':'<span class="done-note">Resource unavailable</span>')+(item.answer_preview_url?' <a class="text-button" href="'+esc(item.answer_preview_url)+'" target="_blank" rel="noopener">Answer</a><br><span class="tracking-file">'+esc(item.answer_tracking_name||item.answer_original_name)+'</span>':item.status==='done'?'<br><span class="done-note">Answer unavailable</span>':'')+'</td></tr>').join(''):'<tr><td colspan="8">No learning resource activity yet.</td></tr>';
@@ -162,6 +163,7 @@
     loadSession().then(loadResources).catch(()=>location.href='index.html');
   })();
   </script>
+  <script src="/learning-resource-report.js?v=20261026"></script>
   <script src="/theme.js?v=20261021e"></script>
 </body>
 </html>
