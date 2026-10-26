@@ -4271,6 +4271,7 @@ app.get("/api/admin/modular-tracking-summary", requireStudentMonitoringAccess, a
         moduleNumber: Number(resource.module_number || 1),
         title: resource.title || "Module",
         status: resource.status || "assigned",
+        completedAt: resource.submitted_at || null,
         activityAt: resource.submitted_at || resource.started_at || resource.created_at
       };
     });
@@ -4292,7 +4293,7 @@ app.get("/api/admin/modular-tracking-summary", requireStudentMonitoringAccess, a
         presence: getStudentPresence(student),
         all: summarizeResources(studentResources),
         terms: { 1: summarizeResources(studentResources.filter((item) => Number(item.term || 1) === 1)), 2: summarizeResources(studentResources.filter((item) => Number(item.term || 1) === 2)), 3: summarizeResources(studentResources.filter((item) => Number(item.term || 1) === 3)) },
-        activities: studentResources.map((resource) => ({ id: resource.id, term: Number(resource.term || 1), moduleNumber: Number(resource.module_number || 1), title: resource.title || "Module", status: resource.status || "assigned", activityAt: resource.submitted_at || resource.started_at || resource.created_at }))
+        activities: studentResources.map((resource) => ({ id: resource.id, term: Number(resource.term || 1), moduleNumber: Number(resource.module_number || 1), title: resource.title || "Module", status: resource.status || "assigned", completedAt: resource.submitted_at || null, activityAt: resource.submitted_at || resource.started_at || resource.created_at }))
       };
     });
     return res.json({ all: summarize(0), terms: { 1: summarize(1), 2: summarize(2), 3: summarize(3) }, activity, students: studentContainers });
