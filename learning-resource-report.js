@@ -33,6 +33,15 @@
       table.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
       // Keep readable file labels without interactive controls in the printed report.
       table.querySelectorAll('a').forEach(link => link.replaceWith(document.createTextNode(link.textContent)));
+      if (card.querySelector('#teacherOverviewBody')) {
+        const rows = Array.from(table.tBodies[0].rows).filter(row => row.cells.length === 5);
+        const withUploads = rows.filter(row => Number(row.cells[2].textContent.trim()) > 0);
+        const zeroUploads = rows.filter(row => Number(row.cells[2].textContent.trim()) === 0);
+        withUploads.sort((a, b) => Number(b.cells[2].textContent) - Number(a.cells[2].textContent) || a.cells[0].textContent.localeCompare(b.cells[0].textContent));
+        zeroUploads.sort((a, b) => a.cells[0].textContent.localeCompare(b.cells[0].textContent));
+        const teacherGroup = (title, group) => '<section><h2>'+title+' ('+group.length+')</h2><table>'+table.tHead.outerHTML+'<tbody>'+(group.map(row => row.outerHTML).join('') || '<tr><td colspan="5">No teachers in this category.</td></tr>')+'</tbody></table></section>';
+        return teacherGroup('Teachers with Uploads', withUploads)+teacherGroup('Teachers with Zero Uploads', zeroUploads);
+      }
       return '<section><h2>'+escape(card.querySelector('h3').textContent)+'</h2>'+table.outerHTML+'</section>';
     }).join('');
     const generated = new Date().toLocaleString('en-PH');
