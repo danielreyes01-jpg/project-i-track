@@ -201,6 +201,29 @@
 			filter: brightness(1.06);
 		}
 
+		.login-actions {
+			display: grid;
+			grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+			gap: 10px;
+			margin-top: 4px;
+		}
+
+		.login-actions .btn {
+			width: 100%;
+			min-width: 0;
+			min-height: 48px;
+			margin-top: 0;
+		}
+
+		.login-actions .btn-home {
+			background: var(--panel) !important;
+			color: var(--accent) !important;
+			border: 1px solid var(--stroke) !important;
+			white-space: nowrap;
+		}
+
+		.btn-home svg { flex-shrink: 0; }
+
 		.btn-create {
 			background: var(--accent-soft);
 			color: var(--accent);
@@ -299,7 +322,13 @@
 
 			<div id="loginMessage" class="message-box" role="status" aria-live="polite"></div>
 
-			<button class="btn btn-login" type="submit">Log In &nbsp; →</button>
+			<div class="login-actions">
+				<button class="btn btn-login" type="submit">Log In &nbsp; →</button>
+				<a class="btn btn-home" href="https://flpcebu.sdocebuprovince.com/landing/index.html" target="_top" aria-label="Home — return to the program portal">
+					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h5v-6h4v6h5V9"/></svg>
+					Home
+				</a>
+			</div>
 			<section class="login-account-selector" aria-labelledby="loginAccountTitle">
 				<h2 id="loginAccountTitle">Create a School Account</h2>
 				<p>Registration for teachers and authorized school staff.</p>
