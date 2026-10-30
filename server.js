@@ -1392,7 +1392,7 @@ app.post("/api/admin/preview-pending-users-from-excel", requireAdmin, async (req
 
 app.get("/api/admin/users", requireAdmin, async (req, res) => {
   const users = await db("users")
-    .select("id", "email", "firstname", "lastname", "middlename", "district", "school", "lrn", "account_type", "position", "approved", "role", "created_at", "updated_at")
+    .select("id", "email", "username", "firstname", "lastname", "middlename", "district", "school", "lrn", "account_type", "position", "approved", "role", "created_at", "updated_at")
     .orderBy("created_at", "asc");
 
   return res.json({ users });
