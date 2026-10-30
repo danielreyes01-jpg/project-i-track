@@ -1304,6 +1304,7 @@ function initializeAdviserStudentChat() {
 				<header><div><strong>${title}</strong><small>${subtitle}</small></div><button class="itrack-chat-close" type="button" aria-label="Close chat">×</button></header>
 				<div class="itrack-chat-layout">
 					<aside class="itrack-chat-directory"><div class="itrack-chat-directory-title"><strong>${role === 'admin' ? 'Online Users' : 'Conversations'}</strong><span class="itrack-chat-online-count">0</span></div>${role === 'admin' ? '<div class="itrack-chat-tabs"><button type="button" class="is-active" data-chat-view="online">Online</button><button type="button" data-chat-view="unread">Unread</button><button type="button" data-chat-view="all">All</button><button type="button" data-chat-view="history">History</button></div>' : ''}<div class="itrack-chat-contact-list" aria-label="Chat contacts"></div></aside>
+					<div class="itrack-chat-splitter" role="separator" tabindex="0" aria-label="Resize user list" aria-orientation="vertical" aria-valuemin="20" aria-valuemax="70" aria-valuenow="35" title="Drag to resize the user list. Use arrow keys, or double-click to reset."></div>
 					<section class="itrack-chat-thread"><div class="itrack-chat-thread-head"><div><strong>Select a conversation</strong><small></small></div><button class="itrack-chat-mark-read" type="button" hidden>✓ Mark as read</button></div><div class="itrack-chat-messages" aria-live="polite"><p class="itrack-chat-empty">Loading conversations…</p></div>
 					<form class="itrack-chat-form"><textarea maxlength="2000" rows="2" placeholder="Type a message…" aria-label="Chat message" required></textarea><button type="submit">Send</button><small class="itrack-chat-hint">Enter to send · Shift+Enter for a new line</small></form><p class="itrack-chat-status" role="status"></p></section>
 				</div>
@@ -1324,6 +1325,49 @@ function initializeAdviserStudentChat() {
 		const directoryTitle = widget.querySelector('.itrack-chat-directory-title strong');
 		const onlineCount = widget.querySelector('.itrack-chat-online-count');
 		const viewButtons = [...widget.querySelectorAll('[data-chat-view]')];
+		const layout = widget.querySelector('.itrack-chat-layout');
+		const splitter = widget.querySelector('.itrack-chat-splitter');
+		let directoryRatio = 0.35;
+		let resizingPointer = null;
+		try { const saved = Number(localStorage.getItem('itrack-chat-directory-ratio')); if (saved > 0 && saved < 1) directoryRatio = saved; } catch (_) {}
+		const resizeDirectory = (ratio, save = false) => {
+			const width = layout.getBoundingClientRect().width;
+			if (!width) return;
+			const minimum = Math.min(140, width * 0.3) / width;
+			const maximum = 1 - Math.min(240, width * 0.55) / width;
+			directoryRatio = Math.max(minimum, Math.min(maximum, ratio));
+			layout.style.setProperty('--itrack-chat-directory-width', `${directoryRatio * 100}%`);
+			splitter.setAttribute('aria-valuemin', String(Math.round(minimum * 100)));
+			splitter.setAttribute('aria-valuemax', String(Math.round(maximum * 100)));
+			splitter.setAttribute('aria-valuenow', String(Math.round(directoryRatio * 100)));
+			if (save) { try { localStorage.setItem('itrack-chat-directory-ratio', String(directoryRatio)); } catch (_) {} }
+		};
+		const moveSplitter = (event) => {
+			if (event.pointerId !== resizingPointer) return;
+			const bounds = layout.getBoundingClientRect();
+			resizeDirectory((event.clientX - bounds.left) / bounds.width);
+		};
+		splitter.addEventListener('pointerdown', (event) => {
+			if (event.button !== 0 || resizingPointer !== null) return;
+			event.preventDefault(); resizingPointer = event.pointerId;
+			splitter.setPointerCapture(event.pointerId); layout.classList.toggle('is-resizing', true); splitter.focus(); moveSplitter(event);
+		});
+		splitter.addEventListener('pointermove', moveSplitter);
+		const finishResize = (event) => {
+			if (event.pointerId !== resizingPointer) return;
+			resizingPointer = null; layout.classList.toggle('is-resizing', false); resizeDirectory(directoryRatio, true);
+		};
+		splitter.addEventListener('pointerup', finishResize);
+		splitter.addEventListener('pointercancel', finishResize);
+		splitter.addEventListener('lostpointercapture', finishResize);
+		splitter.addEventListener('keydown', (event) => {
+			if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+			event.preventDefault();
+			resizeDirectory(event.key === 'Home' ? 0 : event.key === 'End' ? 1 : directoryRatio + (event.key === 'ArrowRight' ? 0.025 : -0.025), true);
+		});
+		splitter.addEventListener('dblclick', () => resizeDirectory(0.35, true));
+		if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => resizeDirectory(directoryRatio)).observe(layout);
+		else window.addEventListener('resize', () => resizeDirectory(directoryRatio));
 
 		const showStatus = (message, isError = false) => {
 			status.textContent = message || '';
@@ -1414,7 +1458,7 @@ function initializeAdviserStudentChat() {
 		};
 		const setPanelOpen = (open) => {
 			panelOpen = open; panel.hidden = !open; launcher.hidden = open; launcher.setAttribute('aria-expanded', String(open));
-			if (open) loadContacts();
+			if (open) { resizeDirectory(directoryRatio); loadContacts(); }
 		};
 		launcher.addEventListener('click', () => setPanelOpen(!panelOpen));
 		close.addEventListener('click', () => setPanelOpen(false));
