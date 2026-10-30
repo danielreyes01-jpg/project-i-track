@@ -1342,8 +1342,8 @@ function initializeAdviserStudentChat() {
 			const directContacts = contacts.filter((contact) => contact.mode !== 'history');
 			const onlineContacts = directContacts.filter((contact) => contact.online);
 			const visibleContacts = role === 'admin'
-				? contacts.filter((contact) => chatView === 'history' ? contact.mode === 'history' || Boolean(contact.last_message_at) : (chatView === 'unread' ? contact.mode !== 'history' && Number(contact.unread || 0) > 0 : (chatView === 'all' ? contact.mode !== 'history' : contact.mode !== 'history' && (contact.online || (String(contact.id) === String(selectedContactId) && Boolean(contact.last_message_at))))))
-				: directContacts.slice().sort((a, b) => Number(b.unread || 0) - Number(a.unread || 0) || Number(b.online) - Number(a.online));
+				? onlineContacts.filter((contact) => chatView === 'history' ? Boolean(contact.last_message_at) : (chatView === 'unread' ? Number(contact.unread || 0) > 0 : true))
+				: onlineContacts.slice().sort((a, b) => Number(b.unread || 0) - Number(a.unread || 0));
 			onlineCount.textContent = String(role === 'admin' ? visibleContacts.length : onlineContacts.length);
 			directoryTitle.textContent = role === 'admin' && chatView === 'history' ? 'Chat History' : (role === 'admin' && chatView === 'unread' ? 'Unread Messages' : (role === 'admin' && chatView === 'all' ? 'All Conversations' : (role === 'admin' ? 'Online Users' : 'Conversations')));
 			viewButtons.forEach((button) => button.classList.toggle('is-active', button.dataset.chatView === chatView));
@@ -1351,7 +1351,7 @@ function initializeAdviserStudentChat() {
 				selectedContactId = '';
 				conversationReadOnly = true;
 				messageLoadVersion += 1;
-				threadHead.querySelector('strong').textContent = chatView === 'history' ? 'No chat history' : (chatView === 'unread' ? 'No unread messages' : 'No users online');
+				threadHead.querySelector('strong').textContent = chatView === 'history' ? 'No online conversations' : (chatView === 'unread' ? 'No unread messages from online users' : 'No users online');
 				threadHead.querySelector('small').textContent = chatView === 'history' ? 'Your conversations stay available here for replies' : (chatView === 'unread' ? 'You are all caught up' : 'Active users will appear automatically');
 				markReadButton.hidden = true;
 				form.hidden = false;
@@ -1360,7 +1360,7 @@ function initializeAdviserStudentChat() {
 				const empty = document.createElement('div'); empty.className = 'itrack-chat-empty itrack-chat-empty-state';
 				const icon = document.createElement('span'); icon.textContent = chatView === 'history' ? '🕘' : '🟢';
 				const emptyTitle = document.createElement('strong'); emptyTitle.textContent = chatView === 'history' ? 'No chat history yet' : (chatView === 'unread' ? 'No unread messages' : 'No users online');
-				const note = document.createElement('p'); note.textContent = chatView === 'history' ? 'Completed conversations will appear here.' : (chatView === 'unread' ? 'New messages will appear here automatically.' : 'Only users actively logged in to the system are displayed.');
+				const note = document.createElement('p'); note.textContent = chatView === 'history' ? 'Past messages stay saved. Conversations appear when the user is online.' : (chatView === 'unread' ? 'Unread conversations appear when the user is online.' : 'Only users actively logged in to the system are displayed.');
 				empty.append(icon, emptyTitle, note); messagesBox.appendChild(empty); return;
 			}
 			if (!visibleContacts.some((contact) => String(contact.id) === String(selectedContactId))) selectedContactId = String(visibleContacts[0].id);
