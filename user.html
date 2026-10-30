@@ -305,6 +305,16 @@
 			box-shadow: 0 26px 70px rgba(7, 34, 51, 0.28);
 		}
 
+		#passwordResetSuccess { width:min(420px,calc(100vw - 32px));box-sizing:border-box;padding:30px;border:1px solid #6bb2b7;border-radius:22px;background:linear-gradient(145deg,#103c53,#092c40);color:#fff;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.3); }
+		#passwordResetSuccess::backdrop { background:rgba(7,29,43,.65);backdrop-filter:blur(4px); }
+		#passwordResetSuccess h2,#passwordResetSuccess p { color:#fff!important; }
+		#passwordResetSuccess h2 { margin:16px 0 10px;font-size:1.5rem; }
+		#passwordResetSuccess p { margin:0 0 22px;line-height:1.5; }
+		.password-reset-check { display:block;width:88px;height:88px;margin:0 auto;fill:none;stroke:#60e3ab;stroke-width:4;stroke-linecap:round;stroke-linejoin:round; }
+		#passwordResetSuccess[open] .password-reset-check circle { stroke-dasharray:240;stroke-dashoffset:240;animation:password-check-draw .55s ease-out forwards; }
+		#passwordResetSuccess[open] .password-reset-check path { stroke-dasharray:70;stroke-dashoffset:70;animation:password-check-draw .4s .45s ease-out forwards; }
+		@keyframes password-check-draw { to { stroke-dashoffset:0; } }
+		@media(prefers-reduced-motion:reduce) { #passwordResetSuccess[open] .password-reset-check circle,#passwordResetSuccess[open] .password-reset-check path { animation:none;stroke-dashoffset:0; } }
 		.password-reset-dialog h2 { margin-bottom: 6px; color: #fff !important; }
 		.password-reset-dialog p { margin-bottom: 16px; color: #fff !important; line-height: 1.5; }
 		.password-reset-fields { display: grid; gap: 12px; }
@@ -516,6 +526,13 @@
 		</form>
 	</div>
 
+	<dialog id="passwordResetSuccess" aria-labelledby="passwordResetSuccessTitle" aria-describedby="passwordResetSuccessDescription">
+		<svg class="password-reset-check" viewBox="0 0 88 88" aria-hidden="true"><circle cx="44" cy="44" r="37"/><path d="M25 45l13 13 26-28"/></svg>
+		<h2 id="passwordResetSuccessTitle">Password resetted</h2>
+		<p id="passwordResetSuccessDescription">The new password has been saved. The user has been signed out of active sessions.</p>
+		<button id="closePasswordResetSuccess" class="btn-primary" type="button">Done</button>
+	</dialog>
+
 	<script>
 		(function () {
 			const AUTO_REFRESH_MS = 30000;
@@ -539,6 +556,9 @@
 			const confirmUserPassword = document.getElementById("confirmUserPassword");
 			const cancelPasswordReset = document.getElementById("cancelPasswordReset");
 			const submitPasswordReset = document.getElementById("submitPasswordReset");
+			const passwordResetSuccess = document.getElementById("passwordResetSuccess");
+			const closePasswordResetSuccess = document.getElementById("closePasswordResetSuccess");
+			let passwordResetTrigger = null;
 			let passwordResetUserId = "";
 			let autoRefreshTimer = null;
 			let allUsers = [];
@@ -823,6 +843,8 @@
 			}
 
 			function openPasswordReset(button) {
+				if (submitPasswordReset.disabled) return;
+				passwordResetTrigger = button;
 				passwordResetUserId = String(button.getAttribute("data-id") || "");
 				const accountName = String(button.getAttribute("data-user-name") || "this user");
 				passwordResetAccount.textContent = "Enter a new password for " + accountName + ".";
@@ -841,7 +863,7 @@
 
 			passwordResetForm.addEventListener("submit", async function (event) {
 				event.preventDefault();
-				if (!passwordResetUserId) return;
+				if (!passwordResetUserId || submitPasswordReset.disabled) return;
 				if (newUserPassword.value !== confirmUserPassword.value) {
 					setMessage("New password and confirmation do not match.", "error");
 					confirmUserPassword.focus();
@@ -849,6 +871,8 @@
 				}
 
 				submitPasswordReset.disabled = true;
+				cancelPasswordReset.disabled = true;
+				submitPasswordReset.textContent = "Resetting…";
 				try {
 					const response = await fetch("/api/admin/reset-user-password", {
 						method: "POST",
@@ -863,16 +887,22 @@
 					if (!response.ok) throw new Error(payload.message || "Password reset failed.");
 					closePasswordReset();
 					setMessage(payload.message || "Password reset successfully.", "success");
+					passwordResetSuccess.showModal();
+					closePasswordResetSuccess.focus();
 				} catch (error) {
 					setMessage(error.message || "Password reset failed.", "error");
 				} finally {
 					submitPasswordReset.disabled = false;
+					cancelPasswordReset.disabled = false;
+					submitPasswordReset.textContent = "Reset Password";
 				}
 			});
 
 			cancelPasswordReset.addEventListener("click", closePasswordReset);
-			passwordResetOverlay.addEventListener("click", function (event) { if (event.target === passwordResetOverlay) closePasswordReset(); });
-			document.addEventListener("keydown", function (event) { if (event.key === "Escape" && passwordResetOverlay.classList.contains("open")) closePasswordReset(); });
+			passwordResetOverlay.addEventListener("click", function (event) { if (event.target === passwordResetOverlay && !submitPasswordReset.disabled) closePasswordReset(); });
+			document.addEventListener("keydown", function (event) { if (event.key === "Escape" && passwordResetOverlay.classList.contains("open") && !submitPasswordReset.disabled) closePasswordReset(); });
+			closePasswordResetSuccess.addEventListener("click", function () { passwordResetSuccess.close(); });
+			passwordResetSuccess.addEventListener("close", function () { if (passwordResetTrigger && passwordResetTrigger.isConnected) passwordResetTrigger.focus(); });
 
 			initializeUserApprovalPage();
 
