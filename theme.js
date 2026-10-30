@@ -1269,6 +1269,9 @@ function initializeAdviserStudentChat() {
 	let pollTimer = null;
 	let panelOpen = false;
 	let chatView = 'online';
+	let messageLoadVersion = 0;
+	let conversationReadOnly = true;
+	let sendingMessage = false;
 
 	const formatChatTime = (value) => {
 		const date = new Date(value);
@@ -1339,15 +1342,17 @@ function initializeAdviserStudentChat() {
 			const directContacts = contacts.filter((contact) => contact.mode !== 'history');
 			const onlineContacts = directContacts.filter((contact) => contact.online);
 			const visibleContacts = role === 'admin'
-				? contacts.filter((contact) => chatView === 'history' ? contact.mode === 'history' : (chatView === 'unread' ? contact.mode !== 'history' && Number(contact.unread || 0) > 0 : (chatView === 'all' ? contact.mode !== 'history' : contact.mode !== 'history' && contact.online)))
+				? contacts.filter((contact) => chatView === 'history' ? contact.mode === 'history' || Boolean(contact.last_message_at) : (chatView === 'unread' ? contact.mode !== 'history' && Number(contact.unread || 0) > 0 : (chatView === 'all' ? contact.mode !== 'history' : contact.mode !== 'history' && (contact.online || (String(contact.id) === String(selectedContactId) && Boolean(contact.last_message_at))))))
 				: directContacts.slice().sort((a, b) => Number(b.unread || 0) - Number(a.unread || 0) || Number(b.online) - Number(a.online));
 			onlineCount.textContent = String(role === 'admin' ? visibleContacts.length : onlineContacts.length);
 			directoryTitle.textContent = role === 'admin' && chatView === 'history' ? 'Chat History' : (role === 'admin' && chatView === 'unread' ? 'Unread Messages' : (role === 'admin' && chatView === 'all' ? 'All Conversations' : (role === 'admin' ? 'Online Users' : 'Conversations')));
 			viewButtons.forEach((button) => button.classList.toggle('is-active', button.dataset.chatView === chatView));
 			if (!visibleContacts.length) {
 				selectedContactId = '';
+				conversationReadOnly = true;
+				messageLoadVersion += 1;
 				threadHead.querySelector('strong').textContent = chatView === 'history' ? 'No chat history' : (chatView === 'unread' ? 'No unread messages' : 'No users online');
-				threadHead.querySelector('small').textContent = chatView === 'history' ? 'History is read-only' : (chatView === 'unread' ? 'You are all caught up' : 'Active users will appear automatically');
+				threadHead.querySelector('small').textContent = chatView === 'history' ? 'Your conversations stay available here for replies' : (chatView === 'unread' ? 'You are all caught up' : 'Active users will appear automatically');
 				markReadButton.hidden = true;
 				form.hidden = false;
 				textarea.disabled = true; sendButton.disabled = true; textarea.placeholder = 'No conversation is available';
@@ -1376,13 +1381,18 @@ function initializeAdviserStudentChat() {
 		};
 		const loadMessages = async () => {
 			if (!selectedContactId || !panelOpen) return;
+			const contactId = String(selectedContactId);
+			const loadVersion = ++messageLoadVersion;
 			try {
-				const data = await requestJson(`/api/chat/messages/${encodeURIComponent(selectedContactId)}`);
-				const active = contacts.find((contact) => String(contact.id) === String(selectedContactId));
+				const data = await requestJson(`/api/chat/messages/${encodeURIComponent(contactId)}`);
+				if (loadVersion !== messageLoadVersion || contactId !== String(selectedContactId) || !panelOpen) return;
+				const active = contacts.find((contact) => String(contact.id) === contactId);
+				conversationReadOnly = Boolean(data.readOnly);
 				threadHead.querySelector('strong').textContent = active ? active.name : 'Conversation';
 				threadHead.querySelector('small').textContent = data.readOnly ? 'Administrator history view · Read only' : `${active && active.role ? active.role : 'User'}${active && active.online ? ' · Online' : ''}`;
 				markReadButton.hidden = Boolean(data.readOnly) || !(active && Number(active.unread || 0) > 0);
-				form.hidden = Boolean(data.readOnly); textarea.disabled = Boolean(data.readOnly); sendButton.disabled = Boolean(data.readOnly);
+				form.hidden = conversationReadOnly; textarea.disabled = conversationReadOnly; sendButton.disabled = conversationReadOnly || sendingMessage;
+				textarea.placeholder = conversationReadOnly ? 'This conversation is read-only' : 'Type a message…';
 				messagesBox.replaceChildren();
 				if (!data.messages.length) { const empty = document.createElement('p'); empty.className = 'itrack-chat-empty'; empty.textContent = 'No messages yet. Start the conversation.'; messagesBox.appendChild(empty); }
 				data.messages.forEach((item) => {
@@ -1396,7 +1406,7 @@ function initializeAdviserStudentChat() {
 				});
 				messagesBox.scrollTop = messagesBox.scrollHeight;
 				updateUnread();
-			} catch (error) { showStatus(error.message, true); }
+			} catch (error) { if (loadVersion === messageLoadVersion && contactId === String(selectedContactId)) showStatus(error.message, true); }
 		};
 		const loadContacts = async () => {
 			try { const data = await requestJson('/api/chat/contacts'); contacts = Array.isArray(data.contacts) ? data.contacts : []; renderContacts(); updateUnread(); if (panelOpen) await loadMessages(); }
@@ -1408,13 +1418,35 @@ function initializeAdviserStudentChat() {
 		};
 		launcher.addEventListener('click', () => setPanelOpen(!panelOpen));
 		close.addEventListener('click', () => setPanelOpen(false));
-		markReadButton.addEventListener('click', async () => { if (!selectedContactId) return; try { await requestJson(`/api/chat/messages/${encodeURIComponent(selectedContactId)}/read`, { method: 'POST' }); const active = contacts.find((contact) => String(contact.id) === String(selectedContactId)); if (active) active.unread = 0; updateUnread(); renderContacts(); await loadMessages(); showStatus('Messages marked as read.'); } catch (error) { showStatus(error.message, true); } });
+		markReadButton.addEventListener('click', async () => {
+			if (!selectedContactId || conversationReadOnly) return;
+			const contactId = String(selectedContactId);
+			markReadButton.disabled = true;
+			try {
+				await requestJson(`/api/chat/messages/${encodeURIComponent(contactId)}/read`, { method: 'POST' });
+				const active = contacts.find((contact) => String(contact.id) === contactId);
+				if (active) { active.unread = 0; active.last_message_at = active.last_message_at || new Date().toISOString(); }
+				updateUnread();
+				if (contactId !== String(selectedContactId)) return;
+				if (role === 'admin') chatView = 'history';
+				renderContacts(); await loadMessages();
+				showStatus('Messages marked as read. This conversation is saved and you can reply again.');
+				textarea.focus();
+			} catch (error) { showStatus(error.message, true); }
+			finally { markReadButton.disabled = false; }
+		});
 		viewButtons.forEach((button) => button.addEventListener('click', () => { chatView = button.dataset.chatView; selectedContactId = ''; showStatus(''); renderContacts(); loadMessages(); }));
 		form.addEventListener('submit', async (event) => {
-			event.preventDefault(); const message = textarea.value.trim(); if (!message || !selectedContactId) return;
-			const submit = form.querySelector('button'); submit.disabled = true; showStatus('Sending…');
-			try { await requestJson(`/api/chat/messages/${encodeURIComponent(selectedContactId)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }) }); textarea.value = ''; showStatus(''); await loadMessages(); textarea.focus(); }
-			catch (error) { showStatus(error.message, true); } finally { submit.disabled = false; }
+			event.preventDefault(); const message = textarea.value.trim(); if (!message || !selectedContactId || conversationReadOnly || sendingMessage) return;
+			const contactId = String(selectedContactId);
+			sendingMessage = true; sendButton.disabled = true; showStatus('Sending…');
+			try {
+				await requestJson(`/api/chat/messages/${encodeURIComponent(contactId)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }) });
+				const active = contacts.find((contact) => String(contact.id) === contactId);
+				if (active) { active.last_message = message; active.last_message_at = new Date().toISOString(); }
+				if (contactId === String(selectedContactId)) { textarea.value = ''; showStatus(''); await loadMessages(); textarea.focus(); }
+			}
+			catch (error) { showStatus(error.message, true); } finally { sendingMessage = false; sendButton.disabled = conversationReadOnly || !selectedContactId; }
 		});
 		textarea.addEventListener('keydown', (event) => {
 			if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); form.requestSubmit(); }
